@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "project_id": "project_001",
+  "node_id": "node_002",
+  "title": "Learning rate smoke test",
+  "research_goal": "Validate that LocalDockerRunner can execute and record a second CPU mock experiment",
+  "hypothesis": "Increasing the learning rate from 0.002 to 0.004 will improve mock accuracy",
+  "runner_profile": "local",
+  "environment_key": "scientist-experiment-v1",
+  "code_reference": "local:experiment_app",
+  "dataset_reference": "debug-dataset-v1",
+  "entrypoint": "run_experiment.py",
+  "execution_mode": "smoke_test",
+  "parameters": {
+    "learning_rate": 0.004,
+    "epochs": 1,
+    "batch_size": 4
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 2,
+    "timeout_seconds": 120
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "combined.log"
+  ]
+}

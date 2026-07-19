@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "project_id": "project_001",
+  "node_id": "node_001",
+  "title": "Smoke mock experiment",
+  "research_goal": "Validate LocalDockerRunner CPU loop",
+  "hypothesis": "Higher learning_rate increases mock accuracy within bounds",
+  "runner_profile": "local",
+  "environment_key": "scientist-experiment-v1",
+  "code_reference": "local:experiment_app",
+  "dataset_reference": "debug-dataset-v1",
+  "entrypoint": "run_mock_experiment.py",
+  "execution_mode": "smoke_test",
+  "parameters": {
+    "learning_rate": 0.002,
+    "epochs": 1
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 2,
+    "timeout_seconds": 120
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "combined.log"
+  ]
+}

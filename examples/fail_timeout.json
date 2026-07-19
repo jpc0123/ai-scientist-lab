@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "project_id": "project_fault",
+  "node_id": "node_fail_timeout",
+  "title": "Fail path: timeout",
+  "research_goal": "Verify timeout error is recorded",
+  "hypothesis": "Hang should yield timed_out",
+  "runner_profile": "local",
+  "environment_key": "scientist-experiment-v1",
+  "code_reference": "local:experiment_app",
+  "dataset_reference": "debug-dataset-v1",
+  "entrypoint": "run_mock_experiment.py",
+  "execution_mode": "smoke_test",
+  "parameters": {
+    "learning_rate": 0.002,
+    "epochs": 1,
+    "sleep_seconds": 1,
+    "fail_mode": "hang"
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 2,
+    "timeout_seconds": 8
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "combined.log"
+  ]
+}

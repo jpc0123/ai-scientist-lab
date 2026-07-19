@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "project_id": "project_001",
+  "node_id": "node_003",
+  "title": "Digits MLP real training experiment",
+  "research_goal": "Validate that LocalDockerRunner can execute a real machine learning training and evaluation workflow",
+  "hypothesis": "A single-hidden-layer MLP can achieve more than 85 percent accuracy on the Digits test set",
+  "runner_profile": "local",
+  "environment_key": "digits-mlp-v1",
+  "code_reference": "local:experiment_app",
+  "dataset_reference": "sklearn:digits",
+  "entrypoint": "run_experiment.py",
+  "execution_mode": "fast_eval",
+  "parameters": {
+    "learning_rate": 0.001,
+    "epochs": 30,
+    "hidden_units": 64,
+    "batch_size": 64,
+    "test_size": 0.2
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 2,
+    "timeout_seconds": 300
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "model.joblib",
+    "training_curve.csv",
+    "confusion_matrix.csv",
+    "execution.json",
+    "artifact_manifest.json",
+    "combined.log"
+  ]
+}
