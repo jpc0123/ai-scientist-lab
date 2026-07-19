@@ -13,6 +13,8 @@ from scientist_lab.storage.artifact_store import sha256_file
 
 DEFAULT_SEEDS = [42, 43, 44, 45, 46]
 MINIMUM_SUCCESSFUL_SEEDS = 3
+SMOKE_DETECTION_SEEDS = [42]
+SMOKE_DETECTION_MINIMUM_SUCCESSFUL_SEEDS = 1
 
 NEXT_ACTIONS: dict[str, str] = {
     "created": "Iteration created; waiting for feedback generation.",
@@ -61,7 +63,13 @@ class IterationService:
         if baseline.project_id != candidate.project_id:
             raise ValueError("baseline 与 candidate 必须属于同一 project")
 
-        seed_list = list(seeds or DEFAULT_SEEDS)
+        smoke_context = self._is_smoke_detection_pair(baseline, candidate)
+        if seeds is None:
+            seed_list = (
+                list(SMOKE_DETECTION_SEEDS) if smoke_context else list(DEFAULT_SEEDS)
+            )
+        else:
+            seed_list = list(seeds)
         if not seed_list:
             raise ValueError("seeds 不能为空")
 
@@ -185,11 +193,12 @@ class IterationService:
                 f"{len(results) - len(successful)} of {len(results)} seed runs failed."
             )
 
-        if len(successful) < self.minimum_successful_seeds:
+        min_seeds = self._minimum_seeds_for_session(session)
+        if len(successful) < min_seeds:
             session.error_type = "insufficient_successful_seeds"
             session.error_message = (
                 f"Only {len(successful)} of {len(results)} seed runs completed "
-                f"(minimum={self.minimum_successful_seeds})."
+                f"(minimum={min_seeds})."
             )
             transition(session, "failed")
             self.repo.save_session(session)
@@ -299,6 +308,13 @@ class IterationService:
             )
             if node_id and node_id != selected_node_id
         ]
+
+        decision_type, evidence_strength = self._normalize_finalize_decision(
+            session,
+            decision_type=decision_type,
+            evidence_strength=evidence_strength,
+        )
+
         decision = self.experiments.record_decision(
             selected_node_id=selected_node_id,
             alternatives=alternatives,
@@ -347,6 +363,48 @@ class IterationService:
         if session is None:
             raise KeyError(f"未找到 iteration: {iteration_id}")
         return session
+
+    @staticmethod
+    def _is_smoke_detection_pair(baseline, candidate) -> bool:
+        from scientist_lab.tasks.rgbt_detection.decision_rules import (
+            node_is_smoke_detection,
+        )
+
+        return node_is_smoke_detection(
+            baseline.contract_json if baseline else None
+        ) and node_is_smoke_detection(candidate.contract_json if candidate else None)
+
+    def _minimum_seeds_for_session(self, session: IterationSession) -> int:
+        baseline = self.experiments.repo.get_node(session.source_baseline_node_id)
+        candidate = self.experiments.repo.get_node(session.source_candidate_node_id)
+        if baseline and candidate and self._is_smoke_detection_pair(baseline, candidate):
+            return SMOKE_DETECTION_MINIMUM_SUCCESSFUL_SEEDS
+        return self.minimum_successful_seeds
+
+    def _normalize_finalize_decision(
+        self,
+        session: IterationSession,
+        *,
+        decision_type: str,
+        evidence_strength: str,
+    ) -> tuple[str, str]:
+        from scientist_lab.tasks.rgbt_detection.decision_rules import (
+            validate_smoke_decision,
+        )
+
+        baseline = self.experiments.repo.get_node(session.source_baseline_node_id)
+        candidate = self.experiments.repo.get_node(session.source_candidate_node_id)
+        if not (
+            baseline
+            and candidate
+            and self._is_smoke_detection_pair(baseline, candidate)
+        ):
+            return decision_type, evidence_strength
+
+        normalized = validate_smoke_decision(
+            decision_type, evidence_strength=evidence_strength
+        )
+        return normalized["decision_type"], normalized["evidence_strength"]
 
     def _status_payload(self, session: IterationSession) -> dict[str, Any]:
         return {

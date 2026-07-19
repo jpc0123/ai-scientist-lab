@@ -3,9 +3,9 @@
   "project_id": "project_rgbt_001",
   "node_id": "rgbt_node_001",
   "parent_node_id": null,
-  "title": "RGB-T debug baseline RGB-only",
-  "research_goal": "Validate paired RGB-thermal detection execution",
-  "hypothesis": "The RGB-only detection pipeline can complete a smoke training run.",
+  "title": "RGB-T debug RGB-only smoke_train",
+  "research_goal": "Validate RGB-only tiny detector smoke pipeline",
+  "hypothesis": "The RGB-only smoke pipeline can complete forward/backward/checkpoint/eval.",
   "task_type": "rgbt_detection",
   "runner_profile": "local",
   "environment_key": "rgbt-detection-v1",
@@ -19,11 +19,11 @@
     "fusion_method": "none",
     "epochs": 2,
     "batch_size": 2,
+    "learning_rate": 0.01,
     "image_width": 640,
     "image_height": 512,
     "smoke_image_width": 160,
     "smoke_image_height": 128,
-    "learning_rate": 0.01,
     "num_workers": 0,
     "max_train_images": 20,
     "max_val_images": 8
@@ -45,11 +45,11 @@
   "expected_outputs": [
     "dataset_report.json",
     "metrics.json",
+    "training_history.csv",
     "execution.json",
     "artifact_manifest.json",
-    "training_history.csv",
-    "checkpoint/last.npz",
     "model_summary.json",
+    "checkpoint/last.npz",
     "combined.log"
   ]
 }

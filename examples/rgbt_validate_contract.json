@@ -13,7 +13,7 @@
   "entrypoint": "run_detection_experiment.py",
   "execution_mode": "validate_data",
   "parameters": {
-    "model": "dfine_s",
+    "model": "tiny_detector",
     "input_mode": "rgb",
     "fusion_method": "none",
     "epochs": 0
@@ -22,14 +22,15 @@
     "modalities": ["rgb", "thermal"],
     "annotation_format": "coco",
     "primary_metric": "mAP50_95",
-    "metrics": ["mAP50", "mAP50_95"]
+    "metrics": ["mAP50", "mAP50_95"],
+    "claim_level": "pipeline_validation_only"
   },
   "seed": 42,
   "resources": {
     "gpu_count": 0,
     "cpu_count": 1,
     "memory_gb": 2,
-    "timeout_seconds": 120
+    "timeout_seconds": 180
   },
   "expected_outputs": [
     "dataset_report.json",

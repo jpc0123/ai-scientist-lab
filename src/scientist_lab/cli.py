@@ -118,8 +118,11 @@ def build_parser() -> argparse.ArgumentParser:
     iterate_start.add_argument("candidate_node_id")
     iterate_start.add_argument(
         "--seeds",
-        default="42,43,44,45,46",
-        help="Comma-separated seeds for approve-time run-seeds",
+        default=None,
+        help=(
+            "Comma-separated seeds for approve-time run-seeds. "
+            "Default: smoke RGB-T uses 42; other tasks use 42,43,44,45,46."
+        ),
     )
 
     iterate_status = sub.add_parser(
@@ -380,7 +383,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "iterate-start":
         try:
-            seeds = _parse_seeds(args.seeds) or []
+            seeds = _parse_seeds(args.seeds) if args.seeds is not None else None
             data = iteration.start_iteration(
                 args.baseline_node_id,
                 args.candidate_node_id,

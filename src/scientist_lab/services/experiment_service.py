@@ -210,11 +210,15 @@ class ExperimentService:
         attempt.container_id = meta.get("container_id")
         attempt.completed_at = meta.get("completed_at")
         prev_contract = (attempt.result_json or {}).get("contract")
+        compare_payload = self._maybe_compare_validate_data_reports(
+            prev_contract, result.output_directory
+        )
         attempt.result_json = {
             "metrics": result.metrics,
             "return_code": result.return_code,
             "output_directory": result.output_directory,
             "contract": prev_contract,
+            "host_container_report_compare": compare_payload,
         }
         if result.error is not None:
             attempt.error_json = result.error.model_dump()
@@ -241,6 +245,60 @@ class ExperimentService:
 
         return result
 
+    def _maybe_compare_validate_data_reports(
+        self,
+        contract_payload: dict[str, Any] | None,
+        output_directory: str | None,
+    ) -> dict[str, Any] | None:
+        """For validate_data runs, compare host vs container dataset_report.json."""
+        if not contract_payload or not output_directory:
+            return None
+        if contract_payload.get("task_type") != "rgbt_detection":
+            return None
+        if contract_payload.get("execution_mode") != "validate_data":
+            return None
+
+        from scientist_lab.datasets.rgbt_validator import validate_rgbt_dataset
+        from scientist_lab.storage.artifact_store import read_json, write_json
+        from scientist_lab.tasks.rgbt_detection.report_compare import (
+            compare_host_container_reports,
+        )
+
+        output_dir = Path(output_directory)
+        container_report_path = output_dir / "dataset_report.json"
+        if not container_report_path.exists():
+            return {
+                "consistent": False,
+                "mismatches": ["container dataset_report.json missing"],
+            }
+
+        dataset_ref = str(contract_payload.get("dataset_reference") or "")
+        key = parse_dataset_reference(dataset_ref)
+        if key is None:
+            return {
+                "consistent": False,
+                "mismatches": [f"invalid dataset_reference: {dataset_ref}"],
+            }
+        try:
+            registration = self.datasets.require(key)
+        except (KeyError, ValueError) as exc:
+            return {
+                "consistent": False,
+                "mismatches": [f"dataset registry error: {exc}"],
+            }
+
+        host_report = validate_rgbt_dataset(
+            Path(registration.host_path),
+            dataset_key=registration.dataset_key,
+            write_previews=False,
+        )
+        container_report = read_json(container_report_path)
+        comparison = compare_host_container_reports(host_report, container_report)
+        write_json(output_dir / "host_container_report_compare.json", comparison)
+
+        host_copy = output_dir / "host_dataset_report.json"
+        write_json(host_copy, host_report)
+        return comparison
     def refresh_execution(self, execution_id: str) -> ExecutionAttempt:
         """同步一次运行中状态到 SQLite，完成后尝试 finalize。"""
         attempt = self.repo.get_attempt(execution_id)
@@ -743,12 +801,25 @@ class ExperimentService:
     ) -> dict[str, Any]:
         from scientist_lab.domain.models import utc_now_iso
         from scientist_lab.storage.artifact_store import write_json
+        from scientist_lab.tasks.rgbt_detection.decision_rules import (
+            node_is_smoke_detection,
+            validate_smoke_decision,
+        )
 
         selected = self.repo.get_node(selected_node_id)
         if selected is None:
             raise KeyError(f"未找到 node: {selected_node_id}")
 
         from scientist_lab.domain.models import new_id
+
+        claim_level = None
+        if node_is_smoke_detection(selected.contract_json):
+            normalized = validate_smoke_decision(
+                decision_type, evidence_strength=evidence_strength
+            )
+            decision_type = normalized["decision_type"]
+            evidence_strength = normalized["evidence_strength"]
+            claim_level = normalized["claim_level"]
 
         payload = {
             "decision_id": new_id("decision"),
@@ -761,6 +832,8 @@ class ExperimentService:
             "candidate_node_id": candidate_node_id,
             "recorded_at": utc_now_iso(),
         }
+        if claim_level is not None:
+            payload["claim_level"] = claim_level
 
         out_dir = (
             self.settings.outputs_dir

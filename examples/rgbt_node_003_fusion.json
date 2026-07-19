@@ -14,30 +14,33 @@
   "entrypoint": "run_detection_experiment.py",
   "execution_mode": "smoke_train",
   "parameters": {
-    "model": "dfine_s",
+    "model": "tiny_detector",
     "input_mode": "rgbt",
     "fusion_method": "early_concat",
     "epochs": 2,
     "batch_size": 2,
+    "learning_rate": 0.01,
     "image_width": 640,
     "image_height": 512,
-    "learning_rate": 0.0001,
+    "smoke_image_width": 160,
+    "smoke_image_height": 128,
     "num_workers": 0,
-    "max_train_images": 40,
-    "max_val_images": 10
+    "max_train_images": 20,
+    "max_val_images": 8
   },
   "task_config": {
     "modalities": ["rgb", "thermal"],
     "annotation_format": "coco",
     "primary_metric": "mAP50_95",
-    "metrics": ["mAP50", "mAP50_95", "AP_small", "precision", "recall"]
+    "metrics": ["mAP50", "mAP50_95", "AP_small", "precision", "recall"],
+    "claim_level": "pipeline_validation_only"
   },
   "seed": 42,
   "resources": {
     "gpu_count": 0,
     "cpu_count": 2,
     "memory_gb": 4,
-    "timeout_seconds": 300
+    "timeout_seconds": 600
   },
   "expected_outputs": [
     "dataset_report.json",
@@ -45,6 +48,8 @@
     "execution.json",
     "artifact_manifest.json",
     "training_history.csv",
+    "checkpoint/last.npz",
+    "model_summary.json",
     "combined.log"
   ]
 }
