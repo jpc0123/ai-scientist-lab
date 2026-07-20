@@ -16,8 +16,16 @@ ENVIRONMENT_REGISTRY: dict[str, dict[str, Any]] = {
         "allowed_entrypoints": ["run_detection_experiment.py"],
         "network_mode": "none",
         "max_gpu_count": 1,
-        # Image may be CPU torch stand-in; GPU preferred when available.
+        # CPU torch image; prefer GPU when host runtime has it (may still be CPU torch).
         "cuda_required": False,
+        "prefer_gpu": True,
+    },
+    "rgbt-detection-v2-cuda": {
+        "image": "scientist-rgbt-detection:v2-cuda",
+        "allowed_entrypoints": ["run_detection_experiment.py"],
+        "network_mode": "none",
+        "max_gpu_count": 1,
+        "cuda_required": True,
         "prefer_gpu": True,
     },
 }

@@ -38,8 +38,9 @@ class DFineSBaselineAdapter:
         task_config = dict(contract.task_config or {})
         return {
             "baseline_key": self.baseline_key,
-            "baseline_implementation": "torch_mini_standin_v0_8_1",
-            "vendor_status": "standin_until_dfine_vendored",
+            "baseline_implementation": "dfine_s_vendored_v0_8_9",
+            "vendor_status": "vendored_with_standin_fallback",
+            "vendor_commit": "7fe2f8889f0b7b817f20c315b40fc15a4fb64ae6",
             "input_mode": params.get("input_mode", "rgb"),
             "fusion_method": params.get("fusion_method", "none"),
             "epochs": int(params.get("epochs", 2)),
@@ -63,7 +64,8 @@ class DFineSBaselineAdapter:
     def build_command_notes(self, contract: ExperimentContract) -> list[str]:
         return [
             "baseline=dfine_s",
-            "implementation=torch_mini_standin_v0_8_1 (replace with vendored DFINE-S)",
+            "implementation=dfine_s_vendored_v0_8_9 "
+            "(auto falls back to torch_mini_standin if vendor unavailable)",
             f"environment_key={contract.environment_key}",
         ]
 

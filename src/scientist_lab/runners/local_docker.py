@@ -100,6 +100,22 @@ class LocalDockerRunner(ExperimentRunner):
             return self.code_roots[ref]
         return self.experiment_app_dir
 
+    def _stage_dfine_vendor(self, workspace_dir: Path) -> None:
+        """Copy vendored D-FINE into workspace so containers can import it offline."""
+        roots = [
+            Path(self.outputs_root).resolve().parent / "third_party" / "DFINE",
+            Path(self.experiment_app_dir).resolve().parents[1] / "third_party" / "DFINE",
+            Path(self.experiment_app_dir).resolve().parents[2] / "third_party" / "DFINE",
+        ]
+        src = next((path for path in roots if (path / "train.py").is_file()), None)
+        if src is None:
+            return
+        dest = Path(workspace_dir) / "third_party" / "DFINE"
+        if dest.exists():
+            return
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(src, dest)
+
     def _stage_fast_eval_checkpoint(
         self, contract: ExperimentContract, output_dir: Path
     ) -> None:
@@ -192,6 +208,7 @@ class LocalDockerRunner(ExperimentRunner):
 
         workspace_source = self._resolve_workspace_source(contract)
         shutil.copytree(workspace_source, workspace_dir)
+        self._stage_dfine_vendor(workspace_dir)
         write_json(output_dir / "contract.json", contract.model_dump())
         config_payload = dict(contract.parameters)
         if contract.task_config:

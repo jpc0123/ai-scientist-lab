@@ -10,7 +10,7 @@ class WorkerSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SCIENTIST_WORKER_")
 
     worker_id: str = "gpu-worker-01"
-    version: str = "0.8.5"
+    version: str = "0.8.9"
     host: str = "127.0.0.1"
     port: int = 8080
 
@@ -20,6 +20,7 @@ class WorkerSettings(BaseSettings):
 
     supported_environment_keys: list[str] = [
         "rgbt-detection-v2",
+        "rgbt-detection-v2-cuda",
         "mock-detection-v1",
     ]
     max_cpu_count: int = 16
@@ -38,6 +39,7 @@ class WorkerSettings(BaseSettings):
         default_factory=lambda: {
             "mock-detection-v1": "scientist-mock-detection:v1",
             "rgbt-detection-v2": "scientist-rgbt-detection:v2",
+            "rgbt-detection-v2-cuda": "scientist-rgbt-detection:v2-cuda",
         }
     )
 
@@ -62,6 +64,9 @@ class WorkerSettings(BaseSettings):
                 ),
                 "local:rgbt_detector": str(root / "rgbt_detector"),
                 "image:rgbt-detection-v2": str(
+                    root / "experiment_apps" / "rgbt_detection_real"
+                ),
+                "image:rgbt-detection-v2-cuda": str(
                     root / "experiment_apps" / "rgbt_detection_real"
                 ),
             }

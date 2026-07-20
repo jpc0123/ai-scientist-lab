@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         "digits-mlp-v1": "scientist-experiment:v2",
         "rgbt-detection-v1": "scientist-rgbt-detection:v1",
         "rgbt-detection-v2": "scientist-rgbt-detection:v2",
+        "rgbt-detection-v2-cuda": "scientist-rgbt-detection:v2-cuda",
     }
     poll_interval_seconds: float = 0.5
     rgbt_detector_dir: Path | None = None

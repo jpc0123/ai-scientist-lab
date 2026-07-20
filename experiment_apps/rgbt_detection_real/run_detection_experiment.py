@@ -16,9 +16,24 @@ def read_json(path: Path) -> dict[str, Any]:
     return json.loads(text)
 
 
+def _select_backend(contract: dict[str, Any], config: dict[str, Any]) -> str:
+    params = dict(config.get("parameters") or contract.get("parameters") or {})
+    requested = str(
+        params.get("dfine_backend") or params.get("baseline_backend") or "auto"
+    ).strip().lower()
+    if requested in {"standin", "torch_mini", "mini"}:
+        return "standin"
+    if requested in {"dfine", "dfine_s", "vendor"}:
+        return "dfine"
+    from dfine_config_builder import dfine_root_from_app
+
+    vendor = dfine_root_from_app(Path(__file__).resolve().parent) / "train.py"
+    return "dfine" if vendor.is_file() else "standin"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="RGB-T real baseline entry (dfine_s stand-in in v0.8.1)"
+        description="RGB-T real baseline entry (dfine_s vendored or stand-in)"
     )
     parser.add_argument("--config", required=True)
     parser.add_argument("--output-dir", required=True)
@@ -40,9 +55,13 @@ def main() -> None:
     dataset_key = str(
         contract.get("dataset_reference", "dataset:unknown")
     ).removeprefix("dataset:")
+    backend = _select_backend(contract, config)
 
-    print(f"RGB-T real baseline entry mode={mode} baseline=dfine_s", flush=True)
-    print(f"data_root={data_root} device_hint=torch", flush=True)
+    print(
+        f"RGB-T real baseline entry mode={mode} baseline=dfine_s backend={backend}",
+        flush=True,
+    )
+    print(f"data_root={data_root}", flush=True)
 
     report = quick_dataset_report(data_root, dataset_key=dataset_key or "unknown")
     write_json(output_dir / "dataset_report.json", report)
@@ -82,7 +101,7 @@ def main() -> None:
             output_dir / "model_summary.json",
             {
                 "baseline_key": "dfine_s",
-                "baseline_implementation": "torch_mini_standin_v0_8_1",
+                "baseline_implementation": "validate_only",
                 "validate_only": True,
             },
         )
@@ -91,17 +110,28 @@ def main() -> None:
             {"duration_seconds": 0.0, "validate_only": True},
         )
     elif mode in {"smoke_train", "fast_eval"}:
-        # v0.8.1: fast_eval with real baseline currently means short train+eval
-        # until dedicated checkpoint-eval path for .pt is added in v0.8.2.
-        run_minimal_train(
-            data_root=data_root,
-            output_dir=output_dir,
-            config=config,
-            contract={**contract, "execution_mode": mode},
-            seed=seed,
-            input_mode=args.input_mode,
-            fusion_method=args.fusion_method,
-        )
+        if backend == "dfine":
+            from train_dfine import run_dfine_train
+
+            run_dfine_train(
+                data_root=data_root,
+                output_dir=output_dir,
+                config=config,
+                contract={**contract, "execution_mode": mode},
+                seed=seed,
+                input_mode=args.input_mode,
+                fusion_method=args.fusion_method,
+            )
+        else:
+            run_minimal_train(
+                data_root=data_root,
+                output_dir=output_dir,
+                config=config,
+                contract={**contract, "execution_mode": mode},
+                seed=seed,
+                input_mode=args.input_mode,
+                fusion_method=args.fusion_method,
+            )
         if not (output_dir / "checkpoint" / "last.pt").exists():
             raise RuntimeError("checkpoint_missing")
     else:

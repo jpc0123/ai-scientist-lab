@@ -1,0 +1,11 @@
+# Extra deps for vendored D-FINE inside CUDA image (torch already provided by base).
+numpy>=1.26
+Pillow>=10.0
+PyYAML>=6.0
+torchvision>=0.15.2
+faster-coco-eval>=1.6.6
+scipy
+loguru
+tensorboard
+calflops
+transformers

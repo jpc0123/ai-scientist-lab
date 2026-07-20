@@ -120,6 +120,7 @@ def test_docker_executor_runs_rgbt_fast_eval_cpu(tmp_path: Path):
                 "execution_mode": "fast_eval",
                 "parameters": {
                     "baseline": "dfine_s",
+                    "dfine_backend": "standin",
                     "input_mode": "rgb",
                     "fusion_method": "none",
                     "epochs": 1,

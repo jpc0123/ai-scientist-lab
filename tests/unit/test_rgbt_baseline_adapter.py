@@ -41,7 +41,7 @@ def test_dfine_adapter_builds_native_config():
     assert resolve_baseline_key(contract) == "dfine_s"
     native = build_native_config(contract)
     assert native["baseline_key"] == "dfine_s"
-    assert native["baseline_implementation"] == "torch_mini_standin_v0_8_1"
+    assert native["baseline_implementation"] == "dfine_s_vendored_v0_8_9"
     assert native["epochs"] == 2
     notes = get_baseline_adapter("dfine_s").build_command_notes(contract)
     assert any("dfine_s" in n for n in notes)

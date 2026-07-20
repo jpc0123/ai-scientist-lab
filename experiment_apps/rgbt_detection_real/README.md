@@ -1,22 +1,28 @@
-# RGB-T real detection baseline app (v0.8.1)
+# RGB-T real detection baseline app
 
-This package is the **fixed-entry** experiment app for real baselines.
+Fixed entry for `baseline_key=dfine_s`.
 
-## Current stand-in
+## Backends
 
-- `baseline_key=dfine_s`
-- Implementation: `torch_mini_standin_v0_8_1` (small Conv net)
-- Produces the same Scientist Lab artifact schema as planned for DFINE-S
+| Backend | When | Implementation id |
+|---------|------|-------------------|
+| **Vendored DFINE-S** | `third_party/DFINE` present and `dfine_backend=auto\|dfine` | `dfine_s_vendored_v0_8_9` |
+| **Torch mini stand-in** | `dfine_backend=standin` or vendor missing | `torch_mini_standin_v0_8_1` |
 
-## Replace with DFINE-S
+Pinned vendor commit: see `third_party/VENDOR.md` (`7fe2f888…`).
 
-1. Vendor DFINE under `third_party/DFINE/` (pinned commit)
-2. Implement native config/result adapters in `adapters/`
-3. Keep `run_detection_experiment.py` CLI unchanged
-4. Keep `model_summary.baseline_key=dfine_s` and update `baseline_implementation`
+## Environments
+
+- `rgbt-detection-v2` → `scientist-rgbt-detection:v2` (CPU torch)
+- `rgbt-detection-v2-cuda` → `scientist-rgbt-detection:v2-cuda` (CUDA torch + DFINE deps)
+
+```bat
+docker build -t scientist-rgbt-detection:v2-cuda -f docker/rgbt-detection-v2-cuda/Dockerfile .
+scientist-lab run examples\rgbt_remote_cuda_dfine_rgb_contract.json
+```
 
 ## Entry
 
 ```bat
-python run_detection_experiment.py --config ... --output-dir ... --data-root ... --execution-mode smoke_train
+python run_detection_experiment.py --config ... --output-dir ... --data-root ... --execution-mode fast_eval
 ```
