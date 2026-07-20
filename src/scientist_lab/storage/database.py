@@ -147,9 +147,13 @@ def make_engine(db_path: str):
 
 
 def init_db(db_path: str) -> sessionmaker:
+    from scientist_lab.checkpoints.repository import ensure_checkpoint_schema
     from scientist_lab.datasets.repository import ensure_dataset_schema
+    from scientist_lab.runners.profile_repository import ensure_runner_profile_schema
 
     engine = make_engine(db_path)
     Base.metadata.create_all(engine)
     ensure_dataset_schema(engine)
+    ensure_runner_profile_schema(engine)
+    ensure_checkpoint_schema(engine)
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)

@@ -1,0 +1,20 @@
+dataset_key: rgbt_fast_eval_v1
+task_type: rgbt_detection
+annotation_format: coco
+
+modalities:
+  - rgb
+  - thermal
+
+splits:
+  train:
+    rgb_dir: images/train/rgb
+    thermal_dir: images/train/thermal
+    annotation: annotations/instances_train.json
+
+  val:
+    rgb_dir: images/val/rgb
+    thermal_dir: images/val/thermal
+    annotation: annotations/instances_val.json
+
+claim_level: pipeline_validation_only

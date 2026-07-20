@@ -35,9 +35,10 @@ class DetectionVerifier:
         if mode == "smoke_train":
             if not (output_dir / "training_history.csv").exists():
                 issues.append("missing_artifact: training_history.csv")
-            ckpt = output_dir / "checkpoint" / "last.npz"
+            ckpt_npz = output_dir / "checkpoint" / "last.npz"
+            ckpt_pt = output_dir / "checkpoint" / "last.pt"
             ckpt_txt = output_dir / "checkpoint" / "last_smoke.txt"
-            if not ckpt.exists() and not ckpt_txt.exists():
+            if not ckpt_npz.exists() and not ckpt_pt.exists() and not ckpt_txt.exists():
                 issues.append("checkpoint_missing")
             final_loss = training.get("final_train_loss", training.get("final_loss"))
             if final_loss is not None:
@@ -48,6 +49,22 @@ class DetectionVerifier:
                 else:
                     if value != value or value in (float("inf"), float("-inf")):
                         issues.append("nan_loss")
+        if mode == "fast_eval":
+            backend = str(training.get("backend") or "")
+            realish = backend.startswith("torch") or training.get("baseline_key") not in {
+                None,
+                "",
+                "tiny_detector",
+            }
+            ckpt_npz = output_dir / "checkpoint" / "last.npz"
+            ckpt_pt = output_dir / "checkpoint" / "last.pt"
+            if not ckpt_npz.exists() and not ckpt_pt.exists():
+                issues.append("checkpoint_missing")
+            if not realish:
+                if training.get("epochs_completed", 0) not in (0, None):
+                    issues.append("fast_eval must not train (epochs_completed!=0)")
+                if training.get("trained") is True:
+                    issues.append("fast_eval must set training.trained=false")
 
         return {
             "valid": not issues,

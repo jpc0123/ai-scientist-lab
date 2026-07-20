@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from artifact_writer import write_manifest
+from fast_eval import run_fast_eval
 from train_smoke import run_smoke_train
 from validate_dataset import validate_rgbt_in_container, write_json
 
@@ -125,7 +126,25 @@ def main() -> None:
         if not (output_dir / "checkpoint" / "last.npz").exists():
             raise RuntimeError("checkpoint_missing")
     elif mode == "fast_eval":
-        raise SystemExit("fast_eval reserved for v0.8")
+        report = validate_rgbt_in_container(
+            data_root,
+            dataset_key=dataset_key or "unknown",
+            probe_read_only=True,
+        )
+        write_json(output_dir / "dataset_report.json", report)
+        if not report.get("valid"):
+            raise RuntimeError("dataset_pair_mismatch inside container")
+        run_fast_eval(
+            data_root=data_root,
+            output_dir=output_dir,
+            config=config,
+            contract=contract,
+            seed=seed,
+            input_mode=args.input_mode,
+            fusion_method=args.fusion_method,
+        )
+        if (output_dir / "training_history.csv").exists():
+            raise RuntimeError("fast_eval must not create training_history.csv")
     else:
         raise SystemExit(f"Unsupported execution_mode: {mode}")
 

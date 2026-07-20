@@ -15,6 +15,8 @@ DEFAULT_SEEDS = [42, 43, 44, 45, 46]
 MINIMUM_SUCCESSFUL_SEEDS = 3
 SMOKE_DETECTION_SEEDS = [42]
 SMOKE_DETECTION_MINIMUM_SUCCESSFUL_SEEDS = 1
+FAST_EVAL_SEEDS = [42, 43, 44]
+FAST_EVAL_MINIMUM_SUCCESSFUL_SEEDS = 3
 
 NEXT_ACTIONS: dict[str, str] = {
     "created": "Iteration created; waiting for feedback generation.",
@@ -22,7 +24,10 @@ NEXT_ACTIONS: dict[str, str] = {
     "proposal_ready": "Proposal ready; moving to approval.",
     "waiting_approval": "Review the proposal and run iterate-approve or iterate-reject.",
     "approved": "Approved; starting seed runs.",
-    "running": "Seed runs in progress.",
+    "running": (
+        "Seed runs in progress. For remote profiles use iterate-advance "
+        "(or iterate-status --refresh) until waiting_decision."
+    ),
     "comparing": "Comparing new node against source nodes.",
     "waiting_decision": "Run iterate-finalize to record the selected node.",
     "completed": "Iteration completed.",
@@ -63,11 +68,13 @@ class IterationService:
         if baseline.project_id != candidate.project_id:
             raise ValueError("baseline 与 candidate 必须属于同一 project")
 
-        smoke_context = self._is_smoke_detection_pair(baseline, candidate)
         if seeds is None:
-            seed_list = (
-                list(SMOKE_DETECTION_SEEDS) if smoke_context else list(DEFAULT_SEEDS)
-            )
+            if self._is_fast_eval_pair(baseline, candidate):
+                seed_list = list(FAST_EVAL_SEEDS)
+            elif self._is_smoke_train_pair(baseline, candidate):
+                seed_list = list(SMOKE_DETECTION_SEEDS)
+            else:
+                seed_list = list(DEFAULT_SEEDS)
         else:
             seed_list = list(seeds)
         if not seed_list:
@@ -127,6 +134,8 @@ class IterationService:
         self,
         iteration_id: str,
         seeds: list[int] | None = None,
+        *,
+        wait: bool | None = None,
     ) -> dict[str, Any]:
         session = self._get(iteration_id)
         require_status(session, "waiting_approval")
@@ -171,8 +180,16 @@ class IterationService:
 
         try:
             contract = load_contract(proposal_path)
+            effective_wait = (
+                wait
+                if wait is not None
+                else (not self._is_remote_runner_profile(contract.runner_profile))
+            )
             run_result = self.experiments.run_seeds(
-                contract, run_seeds, auto_aggregate=True
+                contract,
+                run_seeds,
+                auto_aggregate=effective_wait,
+                wait=effective_wait,
             )
         except Exception as exc:  # noqa: BLE001
             session.error_type = type(exc).__name__
@@ -187,7 +204,158 @@ class IterationService:
             for item in results
             if item.get("execution_id")
         ]
-        successful = [item for item in results if item.get("status") == "completed"]
+        self.repo.save_session(session)
+
+        payload_common = {
+            "warnings": warnings,
+            "contract_modified_before_approval": contract_modified,
+            "proposal_sha256": session.proposal_sha256,
+            "approved_sha256": session.approved_sha256,
+            "runner_profile": contract.runner_profile,
+            "wait": effective_wait,
+            "run_result": run_result,
+        }
+
+        if not effective_wait:
+            # Remote / async: leave session in running; advance later.
+            payload = self._status_payload(session)
+            payload.update(payload_common)
+            payload["submitted"] = True
+            payload["next_action"] = (
+                "Remote/async seed runs submitted. "
+                "Poll with iterate-advance or iterate-status --refresh."
+            )
+            return payload
+
+        return self._finish_seed_phase(
+            session,
+            contract_node_id=contract.node_id,
+            results=results,
+            warnings=warnings,
+            contract_modified=contract_modified,
+            run_result=run_result,
+        )
+
+    def advance_iteration(self, iteration_id: str) -> dict[str, Any]:
+        """Refresh remote/local seed runs and auto-compare when all finish."""
+        session = self._get(iteration_id)
+        if session.status != "running":
+            payload = self._status_payload(session)
+            payload["advanced"] = False
+            payload["message"] = (
+                f"advance only applies while status=running (got {session.status})"
+            )
+            return payload
+
+        if not session.execution_ids:
+            session.error_type = "missing_execution_ids"
+            session.error_message = "running iteration has no execution_ids to advance"
+            transition(session, "failed")
+            self.repo.save_session(session)
+            return self._status_payload(session)
+
+        execution_statuses: list[dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
+        all_terminal = True
+        for execution_id in session.execution_ids:
+            attempt = self.experiments.refresh_execution(execution_id)
+            status = str(attempt.status)
+            contract = (attempt.result_json or {}).get("contract") or {}
+            seed = contract.get("seed")
+            terminal = status in {
+                "completed",
+                "failed",
+                "cancelled",
+                "timed_out",
+            }
+            if not terminal:
+                all_terminal = False
+            execution_statuses.append(
+                {
+                    "execution_id": execution_id,
+                    "status": status,
+                    "seed": seed,
+                    "runner_profile": attempt.runner_profile,
+                }
+            )
+            results.append(
+                {
+                    "seed": seed,
+                    "execution_id": execution_id,
+                    "status": status,
+                    "metrics": (attempt.result_json or {}).get("metrics") or {},
+                    "error": attempt.error_json,
+                }
+            )
+
+        if not all_terminal:
+            payload = self._status_payload(session)
+            payload["advanced"] = False
+            payload["execution_statuses"] = execution_statuses
+            pending = [
+                item["execution_id"]
+                for item in execution_statuses
+                if item["status"]
+                not in {"completed", "failed", "cancelled", "timed_out"}
+            ]
+            payload["pending_execution_ids"] = pending
+            payload["next_action"] = (
+                f"{len(pending)} seed run(s) still in progress; "
+                "re-run iterate-advance when ready."
+            )
+            return payload
+
+        contract_node_id = session.proposed_node_id
+        if not contract_node_id and session.proposal_path:
+            try:
+                contract_node_id = load_contract(Path(session.proposal_path)).node_id
+            except Exception:  # noqa: BLE001
+                contract_node_id = None
+
+        # Aggregate once all seeds are terminal (including partial failures).
+        run_result: dict[str, Any] = {
+            "node_id": contract_node_id,
+            "project_id": session.project_id,
+            "seeds": session.seeds,
+            "results": results,
+            "wait": False,
+            "recovered": True,
+        }
+        if contract_node_id:
+            try:
+                run_result["aggregate"] = self.experiments.aggregate_node(
+                    contract_node_id
+                )
+            except KeyError as exc:
+                run_result["aggregate_error"] = str(exc)
+
+        return self._finish_seed_phase(
+            session,
+            contract_node_id=contract_node_id or session.proposed_node_id or "",
+            results=results,
+            warnings=[],
+            contract_modified=False,
+            run_result=run_result,
+        )
+
+    def _finish_seed_phase(
+        self,
+        session: IterationSession,
+        *,
+        contract_node_id: str,
+        results: list[dict[str, Any]],
+        warnings: list[str],
+        contract_modified: bool,
+        run_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        session.execution_ids = [
+            str(item.get("execution_id"))
+            for item in results
+            if item.get("execution_id")
+        ]
+        successful = [
+            item for item in results if str(item.get("status")) == "completed"
+        ]
         if len(successful) < len(results):
             warnings.append(
                 f"{len(results) - len(successful)} of {len(results)} seed runs failed."
@@ -206,6 +374,7 @@ class IterationService:
             payload["warnings"] = warnings
             payload["contract_modified_before_approval"] = contract_modified
             payload["run_result"] = run_result
+            payload["advanced"] = True
             return payload
 
         transition(session, "comparing")
@@ -213,7 +382,7 @@ class IterationService:
 
         new_node_id = session.proposed_node_id
         if not new_node_id:
-            new_node_id = contract.node_id
+            new_node_id = contract_node_id
             session.proposed_node_id = new_node_id
 
         try:
@@ -243,6 +412,8 @@ class IterationService:
         payload["contract_modified_before_approval"] = contract_modified
         payload["proposal_sha256"] = session.proposal_sha256
         payload["approved_sha256"] = session.approved_sha256
+        payload["run_result"] = run_result
+        payload["advanced"] = True
         return payload
 
     def reject(
@@ -333,7 +504,13 @@ class IterationService:
         payload["decision"] = decision
         return payload
 
-    def get_status(self, iteration_id: str) -> dict[str, Any]:
+    def get_status(
+        self, iteration_id: str, *, refresh: bool = False
+    ) -> dict[str, Any]:
+        if refresh:
+            session = self._get(iteration_id)
+            if session.status == "running":
+                return self.advance_iteration(iteration_id)
         return self._status_payload(self._get(iteration_id))
 
     def list_iterations(
@@ -364,6 +541,16 @@ class IterationService:
             raise KeyError(f"未找到 iteration: {iteration_id}")
         return session
 
+    def _is_remote_runner_profile(self, profile_key: str | None) -> bool:
+        key = (profile_key or "local").strip() or "local"
+        if key in {"local", "local_docker"}:
+            return False
+        profile = self.experiments.runner_profiles.get(key)
+        if profile is None:
+            # Unregistered non-local key: treat as remote so approve stays async-safe.
+            return True
+        return profile.runner_type == "remote_docker"
+
     @staticmethod
     def _is_smoke_detection_pair(baseline, candidate) -> bool:
         from scientist_lab.tasks.rgbt_detection.decision_rules import (
@@ -374,10 +561,30 @@ class IterationService:
             baseline.contract_json if baseline else None
         ) and node_is_smoke_detection(candidate.contract_json if candidate else None)
 
+    @staticmethod
+    def _is_fast_eval_pair(baseline, candidate) -> bool:
+        from scientist_lab.tasks.rgbt_detection.decision_rules import node_is_fast_eval
+
+        return node_is_fast_eval(
+            baseline.contract_json if baseline else None
+        ) and node_is_fast_eval(candidate.contract_json if candidate else None)
+
+    @staticmethod
+    def _is_smoke_train_pair(baseline, candidate) -> bool:
+        from scientist_lab.tasks.rgbt_detection.decision_rules import (
+            node_is_smoke_train_only,
+        )
+
+        return node_is_smoke_train_only(
+            baseline.contract_json if baseline else None
+        ) and node_is_smoke_train_only(candidate.contract_json if candidate else None)
+
     def _minimum_seeds_for_session(self, session: IterationSession) -> int:
         baseline = self.experiments.repo.get_node(session.source_baseline_node_id)
         candidate = self.experiments.repo.get_node(session.source_candidate_node_id)
-        if baseline and candidate and self._is_smoke_detection_pair(baseline, candidate):
+        if baseline and candidate and self._is_fast_eval_pair(baseline, candidate):
+            return FAST_EVAL_MINIMUM_SUCCESSFUL_SEEDS
+        if baseline and candidate and self._is_smoke_train_pair(baseline, candidate):
             return SMOKE_DETECTION_MINIMUM_SUCCESSFUL_SEEDS
         return self.minimum_successful_seeds
 
@@ -401,8 +608,13 @@ class IterationService:
         ):
             return decision_type, evidence_strength
 
+        candidate_claim = (
+            (candidate.contract_json or {}).get("task_config") or {}
+        ).get("claim_level")
         normalized = validate_smoke_decision(
-            decision_type, evidence_strength=evidence_strength
+            decision_type,
+            evidence_strength=evidence_strength,
+            claim_level=candidate_claim,
         )
         return normalized["decision_type"], normalized["evidence_strength"]
 

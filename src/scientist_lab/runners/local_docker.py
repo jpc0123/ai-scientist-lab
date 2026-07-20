@@ -100,6 +100,45 @@ class LocalDockerRunner(ExperimentRunner):
             return self.code_roots[ref]
         return self.experiment_app_dir
 
+    def _stage_fast_eval_checkpoint(
+        self, contract: ExperimentContract, output_dir: Path
+    ) -> None:
+        if contract.execution_mode != "fast_eval":
+            return
+        # Real baselines manage their own checkpoints (.pt); only stage for tiny path.
+        baseline = str(
+            (contract.parameters or {}).get("baseline")
+            or (contract.parameters or {}).get("model")
+            or "tiny_detector"
+        )
+        if baseline not in {"", "tiny_detector"}:
+            return
+        source = contract.parameters.get("checkpoint_source")
+        if not source:
+            if contract.task_type == "rgbt_detection":
+                raise ValueError("fast_eval requires parameters.checkpoint_source")
+            return
+        src = Path(str(source))
+        candidates = [src]
+        if not src.is_absolute():
+            project_root = Path(self.outputs_root).resolve().parent
+            candidates.extend(
+                [
+                    project_root / src,
+                    Path(self.outputs_root) / src,
+                    project_root / "outputs" / src,
+                ]
+            )
+        resolved = next((path for path in candidates if path.exists()), None)
+        if resolved is None:
+            raise FileNotFoundError(
+                f"checkpoint_missing: checkpoint_source not found: {source}"
+            )
+        dest_dir = output_dir / "checkpoint"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / "last.npz"
+        shutil.copy2(resolved, dest)
+
     def validate(self, contract: ExperimentContract) -> None:
         if contract.runner_profile != "local":
             raise ValueError("LocalDockerRunner 仅支持 runner_profile=local")
@@ -163,6 +202,7 @@ class LocalDockerRunner(ExperimentRunner):
                 "_execution_mode": contract.execution_mode,
             }
         write_json(output_dir / "config.json", config_payload)
+        self._stage_fast_eval_checkpoint(contract, output_dir)
 
         job = _RuntimeJob(
             execution_id=execution_id,

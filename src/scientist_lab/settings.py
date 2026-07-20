@@ -17,9 +17,11 @@ class Settings(BaseSettings):
         "scientist-experiment-v1": "scientist-experiment:v1",
         "digits-mlp-v1": "scientist-experiment:v2",
         "rgbt-detection-v1": "scientist-rgbt-detection:v1",
+        "rgbt-detection-v2": "scientist-rgbt-detection:v2",
     }
     poll_interval_seconds: float = 0.5
     rgbt_detector_dir: Path | None = None
+    rgbt_detection_real_dir: Path | None = None
 
     def resolve(self) -> "Settings":
         root = self.project_root
@@ -33,6 +35,10 @@ class Settings(BaseSettings):
             self.experiment_app_dir = root / "experiment_app"
         if self.rgbt_detector_dir is None:
             self.rgbt_detector_dir = root / "rgbt_detector"
+        if self.rgbt_detection_real_dir is None:
+            self.rgbt_detection_real_dir = (
+                root / "experiment_apps" / "rgbt_detection_real"
+            )
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
         self.outputs_dir.mkdir(parents=True, exist_ok=True)
         return self

@@ -1,0 +1,10 @@
+{
+  "dataset_key": "rgbt_fast_eval_v1",
+  "source": "datasets\\rgbt_debug_v1",
+  "evaluation_scope": "fast_eval_subset",
+  "max_train": 24,
+  "max_val": 12,
+  "train_images": 24,
+  "val_images": 12,
+  "claim_level_default": "exploratory_comparison"
+}

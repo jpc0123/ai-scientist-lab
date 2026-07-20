@@ -13,7 +13,7 @@ class ResourceRequest(BaseModel):
 
 
 class ExperimentContract(BaseModel):
-    schema_version: Literal["1.0", "1.1"] = "1.0"
+    schema_version: Literal["1.0", "1.1", "1.2"] = "1.0"
 
     project_id: str
     node_id: str

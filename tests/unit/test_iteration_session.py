@@ -163,7 +163,7 @@ def _fake_run_seeds(
 ):
     successes = len(seeds) if successes is None else successes
 
-    def _run(contract, seed_list, *, auto_aggregate=True):
+    def _run(contract, seed_list, *, auto_aggregate=True, wait=True):
         now = "2026-01-02T00:00:00+00:00"
         service.repo.upsert_node(
             ExperimentNode(
@@ -171,8 +171,8 @@ def _fake_run_seeds(
                 project_id="project_001",
                 parent_node_id="node_004",
                 node_type=NodeType.SMOKE,
-                stage=NodeStage.DONE,
-                status=NodeStatus.SUCCEEDED,
+                stage=NodeStage.DONE if wait else NodeStage.EXECUTING,
+                status=NodeStatus.SUCCEEDED if wait else NodeStatus.RUNNING,
                 depth=1,
                 contract_json=contract.model_dump(),
                 created_at=now,
@@ -182,7 +182,7 @@ def _fake_run_seeds(
         results = []
         for idx, seed in enumerate(seed_list, start=1):
             ok = idx <= successes
-            if ok:
+            if wait and ok:
                 service.repo.upsert_attempt(
                     _seed_attempt(
                         execution_id=f"exec_{node_id}_{seed}",
@@ -194,13 +194,35 @@ def _fake_run_seeds(
                         duration=0.18,
                     )
                 )
+            elif not wait:
+                service.repo.upsert_attempt(
+                    ExecutionAttempt(
+                        execution_id=f"exec_{node_id}_{seed}",
+                        node_id=node_id,
+                        attempt_index=idx,
+                        runner_profile=contract.runner_profile or "local",
+                        status=JobStatus.QUEUED,
+                        image_reference="scientist-experiment:v2",
+                        code_version="local:experiment_app",
+                        dataset_version="sklearn:digits",
+                        result_json={
+                            "contract": {
+                                **contract.model_dump(),
+                                "seed": int(seed),
+                            }
+                        },
+                        created_at=now,
+                    )
+                )
             results.append(
                 {
                     "seed": int(seed),
                     "execution_id": f"exec_{node_id}_{seed}",
-                    "status": "completed" if ok else "failed",
-                    "metrics": {"primary_metric": "accuracy"} if ok else None,
-                    "error": None if ok else {"message": "boom"},
+                    "status": (
+                        ("completed" if ok else "failed") if wait else "queued"
+                    ),
+                    "metrics": {"primary_metric": "accuracy"} if (wait and ok) else None,
+                    "error": None if (not wait or ok) else {"message": "boom"},
                 }
             )
         payload = {
@@ -208,8 +230,10 @@ def _fake_run_seeds(
             "project_id": "project_001",
             "seeds": list(seed_list),
             "results": results,
+            "wait": wait,
+            "runner_profile": contract.runner_profile,
         }
-        if auto_aggregate and successes >= 1:
+        if wait and auto_aggregate and successes >= 1:
             try:
                 payload["aggregate"] = service.aggregate_node(node_id)
             except KeyError as exc:
@@ -498,3 +522,96 @@ def test_session_persists_across_service_restart(tmp_path: Path):
     status = iteration2.get_status(started["iteration_id"])
     assert status["status"] == "waiting_approval"
     assert status["proposal_sha256"] == started["proposal_sha256"]
+
+
+def test_approve_async_stays_running_then_advance_compares(
+    tmp_path: Path, monkeypatch
+):
+    service = _service(tmp_path)
+    _bootstrap_pair(service)
+    service.register_runner_profile(
+        profile_key="remote_gpu_01",
+        runner_type="remote_docker",
+        endpoint="http://127.0.0.1:18080",
+        allowed_environments=["digits-mlp-v1", "mock-detection-v1"],
+    )
+    iteration = IterationService(service)
+    started = iteration.start_iteration(
+        "node_003", "node_004", seeds=[42, 43, 44, 45, 46]
+    )
+    proposed = started["proposed_node_id"]
+    proposal_path = Path(started["proposal_path"])
+    # Force proposal onto a remote runner profile.
+    import json
+
+    contract = json.loads(proposal_path.read_text(encoding="utf-8"))
+    contract["runner_profile"] = "remote_gpu_01"
+    proposal_path.write_text(
+        json.dumps(contract, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    # Update stored hash so approve does not warn as modified (optional).
+    from scientist_lab.storage.artifact_store import sha256_file as _sha
+
+    session = iteration.repo.get_session(started["iteration_id"])
+    assert session is not None
+    session.proposal_sha256 = _sha(proposal_path)
+    iteration.repo.save_session(session)
+
+    monkeypatch.setattr(
+        service,
+        "run_seeds",
+        _fake_run_seeds(
+            service, node_id=proposed, hidden_units=96, seeds=[42, 43, 44, 45, 46]
+        ),
+    )
+    approved = iteration.approve_and_run(started["iteration_id"])
+    assert approved["status"] == "running"
+    assert approved.get("wait") is False
+    assert approved.get("submitted") is True
+    assert len(approved["execution_ids"]) == 5
+
+    # Still queued → advance does not complete.
+    pending = iteration.advance_iteration(started["iteration_id"])
+    assert pending["status"] == "running"
+    assert pending.get("advanced") is False
+    assert pending.get("pending_execution_ids")
+
+    # Mark all seed attempts completed (simulate remote recovery).
+    for seed in [42, 43, 44, 45, 46]:
+        service.repo.upsert_attempt(
+            _seed_attempt(
+                execution_id=f"exec_{proposed}_{seed}",
+                node_id=proposed,
+                seed=seed,
+                accuracy=0.954,
+                hidden_units=96,
+                attempt_index=seed,
+                duration=0.2,
+            )
+        )
+
+    def _refresh(execution_id: str):
+        attempt = service.repo.get_attempt(execution_id)
+        assert attempt is not None
+        return attempt
+
+    monkeypatch.setattr(service, "refresh_execution", _refresh)
+    done = iteration.advance_iteration(started["iteration_id"])
+    assert done["status"] == "waiting_decision"
+    assert done.get("advanced") is True
+    assert done["comparison_paths"]
+
+
+def test_is_remote_runner_profile_detection(tmp_path: Path):
+    service = _service(tmp_path)
+    service.register_runner_profile(
+        profile_key="remote_gpu_01",
+        runner_type="remote_docker",
+        endpoint="http://127.0.0.1:18080",
+        allowed_environments=["digits-mlp-v1"],
+    )
+    iteration = IterationService(service)
+    assert iteration._is_remote_runner_profile("local") is False
+    assert iteration._is_remote_runner_profile("local_docker") is False
+    assert iteration._is_remote_runner_profile("remote_gpu_01") is True
+    assert iteration._is_remote_runner_profile("unknown_remote") is True

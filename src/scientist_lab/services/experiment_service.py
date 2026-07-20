@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import threading
 from pathlib import Path
 from typing import Any
 
+from scientist_lab.checkpoints.registry import CheckpointRegistry
 from scientist_lab.domain import JobStatus, NodeStage, NodeStatus, NodeType, ProjectStatus
 from scientist_lab.domain.contracts import ExperimentContract
 from scientist_lab.domain.models import (
@@ -14,6 +16,8 @@ from scientist_lab.domain.models import (
 )
 from scientist_lab.domain.results import ExecutionResult
 from scientist_lab.runners.local_docker import LocalDockerRunner
+from scientist_lab.runners.profile_registry import RunnerProfileRegistry
+from scientist_lab.runners.remote_docker_runner import RemoteDockerRunner
 from scientist_lab.settings import Settings, get_settings
 from scientist_lab.storage.database import init_db
 from scientist_lab.storage.repositories import Repository
@@ -29,26 +33,102 @@ class ExperimentService:
             self.session_factory,
             project_root=Path(self.settings.project_root),
         )
-        code_roots = {
+        self.runner_profiles = RunnerProfileRegistry(self.session_factory)
+        self.runner_profiles.ensure_defaults()
+        self.checkpoints = CheckpointRegistry(
+            self.session_factory,
+            outputs_root=self.settings.outputs_dir,
+        )
+        self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),
+            "local:rgbt_detection_real": Path(self.settings.rgbt_detection_real_dir),
+            "image:rgbt-detection-v2": Path(self.settings.rgbt_detection_real_dir),
         }
-        self.runner = LocalDockerRunner(
-            experiment_app_dir=self.settings.experiment_app_dir,
-            runtime_root=self.settings.runtime_dir,
-            outputs_root=self.settings.outputs_dir,
-            image_registry=self.settings.image_registry,
-            poll_interval_seconds=self.settings.poll_interval_seconds,
-            code_roots=code_roots,
-            dataset_resolver=self._resolve_dataset_reference,
-        )
+        self._local_runner: LocalDockerRunner | None = None
+        self._remote_runners: dict[str, RemoteDockerRunner] = {}
+        self._execution_runners: dict[str, Any] = {}
         self._watchers: dict[str, threading.Thread] = {}
+
+    @property
+    def local_runner(self) -> LocalDockerRunner:
+        if self._local_runner is None:
+            self._local_runner = LocalDockerRunner(
+                experiment_app_dir=self.settings.experiment_app_dir,
+                runtime_root=self.settings.runtime_dir,
+                outputs_root=self.settings.outputs_dir,
+                image_registry=self.settings.image_registry,
+                poll_interval_seconds=self.settings.poll_interval_seconds,
+                code_roots=self._code_roots,
+                dataset_resolver=self._resolve_dataset_reference,
+            )
+        return self._local_runner
+
+    @property
+    def runner(self):
+        # Backward-compatible: last used or local.
+        if self._execution_runners:
+            return next(reversed(self._execution_runners.values()))
+        return self.local_runner
+
+    @runner.setter
+    def runner(self, value) -> None:
+        # Allow tests/scripts to assign; prefer storing as local override.
+        if isinstance(value, LocalDockerRunner):
+            self._local_runner = value
 
     def _resolve_dataset_reference(self, dataset_reference: str):
         key = parse_dataset_reference(dataset_reference)
         if key is None:
             return None
         return self.datasets.require(key)
+
+    def _select_runner(self, contract: ExperimentContract):
+        profile_key = (contract.runner_profile or "local").strip() or "local"
+        if profile_key in {"local", "local_docker"}:
+            return self.local_runner
+        profile = self.runner_profiles.require(profile_key)
+        if profile.runner_type != "remote_docker":
+            raise ValueError(
+                f"unsupported runner_type for profile {profile_key}: "
+                f"{profile.runner_type}"
+            )
+        if profile_key not in self._remote_runners:
+            self._remote_runners[profile_key] = RemoteDockerRunner(
+                profile,
+                outputs_root=self.settings.outputs_dir,
+                runtime_root=self.settings.runtime_dir,
+                poll_interval_seconds=self.settings.poll_interval_seconds,
+            )
+        return self._remote_runners[profile_key]
+
+    def _runner_for_execution(self, execution_id: str):
+        runner = self._execution_runners.get(execution_id)
+        if runner is not None:
+            return runner
+        # Fallback: local in-memory only, or remote binding on disk.
+        binding = (
+            Path(self.settings.runtime_dir) / "remote_jobs" / f"{execution_id}.json"
+        )
+        if binding.exists():
+            data = json.loads(binding.read_text(encoding="utf-8"))
+            profile_key = data.get("runner_profile")
+            if profile_key:
+                profile = self.runner_profiles.require(profile_key, require_enabled=False)
+                if profile_key not in self._remote_runners:
+                    self._remote_runners[profile_key] = RemoteDockerRunner(
+                        profile,
+                        outputs_root=self.settings.outputs_dir,
+                        runtime_root=self.settings.runtime_dir,
+                        poll_interval_seconds=self.settings.poll_interval_seconds,
+                    )
+                return self._remote_runners[profile_key]
+        return self.local_runner
+
+    def _image_reference(self, contract: ExperimentContract) -> str:
+        if contract.environment_key in self.settings.image_registry:
+            return self.settings.image_registry[contract.environment_key]
+        return f"remote:{contract.environment_key}"
 
     def submit_contract(self, contract: ExperimentContract) -> ExecutionResult:
         """异步提交：立即返回 execution_id，后台落库最终结果。"""
@@ -103,11 +183,13 @@ class ExperimentService:
             node.updated_at = now
         self.repo.upsert_node(node)
 
-        image_name = self.settings.image_registry[contract.environment_key]
+        image_name = self._image_reference(contract)
         attempt_index = self.repo.next_attempt_index(contract.node_id)
 
-        submission = self.runner.submit(contract)
-        meta = self.runner.get_job_meta(submission.execution_id)
+        runner = self._select_runner(contract)
+        submission = runner.submit(contract)
+        self._execution_runners[submission.execution_id] = runner
+        meta = runner.get_job_meta(submission.execution_id)
 
         attempt = ExecutionAttempt(
             execution_id=submission.execution_id,
@@ -147,7 +229,7 @@ class ExperimentService:
                 ),
             )
 
-        self.runner.wait_until_done(
+        runner.wait_until_done(
             submission.execution_id,
             timeout_seconds=contract.resources.timeout_seconds + 30,
         )
@@ -161,7 +243,8 @@ class ExperimentService:
 
         def _watch() -> None:
             try:
-                self.runner.wait_until_done(
+                runner = self._runner_for_execution(execution_id)
+                runner.wait_until_done(
                     execution_id, timeout_seconds=timeout_seconds
                 )
                 self._finalize_execution(execution_id)
@@ -184,15 +267,16 @@ class ExperimentService:
             raise KeyError(f"未找到 execution: {execution_id}")
 
         # Live runner may already be done; also tolerate rediscovered status.
+        runner = self._runner_for_execution(execution_id)
         try:
-            live = self.runner.get_status(execution_id)
+            live = runner.get_status(execution_id)
             if live.status not in {
                 JobStatus.COMPLETED,
                 JobStatus.FAILED,
                 JobStatus.CANCELLED,
                 JobStatus.TIMED_OUT,
             }:
-                self.runner.wait_until_done(execution_id, timeout_seconds=5)
+                runner.wait_until_done(execution_id, timeout_seconds=5)
         except KeyError:
             # Process restarted; use DB record only.
             return ExecutionResult(
@@ -203,8 +287,8 @@ class ExperimentService:
                 error=None,
             )
 
-        result = self.runner.collect_result(execution_id)
-        meta = self.runner.get_job_meta(execution_id)
+        result = runner.collect_result(execution_id)
+        meta = runner.get_job_meta(execution_id)
 
         attempt.status = result.status
         attempt.container_id = meta.get("container_id")
@@ -229,6 +313,9 @@ class ExperimentService:
             if artifact.relative_path not in existing:
                 self.repo.add_artifact(artifact)
 
+        if result.status == JobStatus.COMPLETED and result.output_directory:
+            self._maybe_register_checkpoints(attempt, prev_contract)
+
         node = self.repo.get_node(attempt.node_id)
         if node is not None:
             node.updated_at = utc_now_iso()
@@ -244,6 +331,35 @@ class ExperimentService:
             self.repo.upsert_node(node)
 
         return result
+
+    def _maybe_register_checkpoints(
+        self,
+        attempt: ExecutionAttempt,
+        contract_payload: dict[str, Any] | None,
+    ) -> None:
+        project_id = None
+        node_id = attempt.node_id
+        baseline_key = None
+        if contract_payload:
+            project_id = contract_payload.get("project_id")
+            baseline_key = (contract_payload.get("parameters") or {}).get("baseline")
+        if not project_id:
+            node = self.repo.get_node(attempt.node_id)
+            if node is not None:
+                project_id = node.project_id
+        if not project_id:
+            return
+        try:
+            self.checkpoints.register_from_execution(
+                project_id=str(project_id),
+                execution_id=attempt.execution_id,
+                node_id=node_id,
+                baseline_key=str(baseline_key) if baseline_key else None,
+                preferred_only=True,
+            )
+        except Exception:  # noqa: BLE001
+            # Checkpoint registration must not fail the execution finalize path.
+            return
 
     def _maybe_compare_validate_data_reports(
         self,
@@ -306,7 +422,7 @@ class ExperimentService:
             raise KeyError(f"未找到 execution: {execution_id}")
 
         try:
-            live = self.runner.get_status(execution_id)
+            live = self._runner_for_execution(execution_id).get_status(execution_id)
         except KeyError:
             return attempt
 
@@ -394,7 +510,7 @@ class ExperimentService:
         node = self.repo.get_node(attempt.node_id)
         can_cancel = False
         try:
-            live = self.runner.get_status(execution_id)
+            live = self._runner_for_execution(execution_id).get_status(execution_id)
             can_cancel = live.status not in {
                 JobStatus.COMPLETED,
                 JobStatus.FAILED,
@@ -450,7 +566,7 @@ class ExperimentService:
         if attempt is None:
             raise KeyError(f"未找到 execution: {execution_id}")
         try:
-            self.runner.cancel(execution_id)
+            self._runner_for_execution(execution_id).cancel(execution_id)
         except KeyError as exc:
             raise RuntimeError(
                 "无法取消：该执行不在当前进程的 Runner 内存中（可能服务已重启）。"
@@ -465,6 +581,7 @@ class ExperimentService:
         seeds: list[int],
         *,
         auto_aggregate: bool = True,
+        wait: bool = True,
     ) -> dict[str, Any]:
         if not seeds:
             raise ValueError("seeds 不能为空")
@@ -472,7 +589,7 @@ class ExperimentService:
         for seed in seeds:
             seeded = contract.model_copy(deep=True)
             seeded.seed = int(seed)
-            result = self.run_contract(seeded, wait=True)
+            result = self.run_contract(seeded, wait=wait)
             results.append(
                 {
                     "seed": int(seed),
@@ -489,8 +606,10 @@ class ExperimentService:
             "project_id": contract.project_id,
             "seeds": [int(s) for s in seeds],
             "results": results,
+            "wait": wait,
+            "runner_profile": contract.runner_profile,
         }
-        if auto_aggregate:
+        if wait and auto_aggregate:
             try:
                 payload["aggregate"] = self.aggregate_node(contract.node_id)
             except KeyError as exc:
@@ -546,6 +665,136 @@ class ExperimentService:
 
         aggregation = NodeAggregationService(self.repo, self.settings.outputs_dir)
         return compare_node_groups(aggregation, node_id_a, node_id_b)
+
+    def compare_fast_eval_triad(
+        self,
+        *,
+        rgb_node_id: str = "rgbt_fast_node_001",
+        thermal_node_id: str = "rgbt_fast_node_002",
+        fusion_node_id: str = "rgbt_fast_node_003",
+        write_report: bool = True,
+    ) -> dict[str, Any]:
+        """Compare RGB / Thermal / Fusion Fast Eval nodes under exploratory gate."""
+        from scientist_lab.storage.artifact_store import read_json, write_json
+        from scientist_lab.tasks.rgbt_detection.fast_eval_triad import (
+            build_triad_comparison,
+        )
+
+        role_nodes = {
+            "rgb": rgb_node_id,
+            "thermal": thermal_node_id,
+            "fusion": fusion_node_id,
+        }
+        contracts: dict[str, dict[str, Any]] = {}
+        metrics_by_role: dict[str, dict[str, Any]] = {}
+        execution_ids: dict[str, str] = {}
+        resource_by_role: dict[str, dict[str, Any]] = {}
+        project_id = None
+
+        for role, node_id in role_nodes.items():
+            attempt = self.get_best_completed_attempt(node_id)
+            execution_ids[role] = attempt.execution_id
+            contract = (attempt.result_json or {}).get("contract") or {}
+            node = self.repo.get_node(node_id)
+            if not contract and node is not None:
+                contract = dict(node.contract_json or {})
+            contracts[role] = contract
+            if project_id is None:
+                project_id = contract.get("project_id") or (
+                    node.project_id if node is not None else None
+                )
+            raw_metrics = dict((attempt.result_json or {}).get("metrics") or {})
+            # Detection results nest numeric scores under metrics.metrics.
+            nested = raw_metrics.get("metrics")
+            if isinstance(nested, dict) and any(
+                key in nested for key in ("mAP50_95", "mAP50", "accuracy")
+            ):
+                metrics_by_role[role] = dict(nested)
+            else:
+                metrics_by_role[role] = raw_metrics
+            output_dir = (attempt.result_json or {}).get("output_directory")
+            if output_dir:
+                resource_path = Path(output_dir) / "resource_usage.json"
+                if resource_path.is_file():
+                    try:
+                        resource_by_role[role] = read_json(resource_path)
+                    except Exception:  # noqa: BLE001
+                        resource_by_role[role] = {}
+
+        primary = (
+            ((contracts.get("rgb") or {}).get("task_config") or {}).get("primary_metric")
+            or "mAP50_95"
+        )
+        report = build_triad_comparison(
+            contracts=contracts,
+            metrics_by_role=metrics_by_role,
+            execution_ids=execution_ids,
+            resource_by_role=resource_by_role,
+            primary_metric=str(primary),
+        )
+        report["node_ids"] = role_nodes
+
+        if write_report and project_id:
+            out_dir = (
+                Path(self.settings.outputs_dir)
+                / str(project_id)
+                / "_comparisons"
+            )
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / (
+                f"fast_eval_triad_{rgb_node_id}_{thermal_node_id}_{fusion_node_id}.json"
+            )
+            write_json(out_path, report)
+            report["report_path"] = str(out_path)
+
+        return report
+
+    def validate_fast_eval_triad_contracts(
+        self, contract_paths: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Validate example or provided triad contracts for fairness (no run)."""
+        import json
+
+        from scientist_lab.tasks.rgbt_detection.fast_eval_triad import (
+            DEFAULT_TRIAD_NODES,
+            validate_triad_contracts,
+        )
+
+        root = Path(self.settings.project_root)
+        if not contract_paths:
+            contract_paths = [
+                str(root / "examples" / "rgbt_fast_rgb_contract.json"),
+                str(root / "examples" / "rgbt_fast_thermal_contract.json"),
+                str(root / "examples" / "rgbt_fast_fusion_contract.json"),
+            ]
+        loaded: dict[str, dict[str, Any]] = {}
+        path_by_role: dict[str, str] = {}
+        for path_str in contract_paths:
+            path = Path(path_str)
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            node_id = str(payload.get("node_id") or "")
+            role = None
+            for key, expected_node in DEFAULT_TRIAD_NODES.items():
+                if node_id == expected_node:
+                    role = key
+                    break
+            if role is None:
+                params = payload.get("parameters") or {}
+                mode = str(params.get("input_mode") or "")
+                fusion = str(params.get("fusion_method") or "")
+                if mode == "rgb":
+                    role = "rgb"
+                elif mode == "thermal":
+                    role = "thermal"
+                elif mode in {"rgbt", "rgb_thermal"} and fusion == "early_concat":
+                    role = "fusion"
+            if role is None:
+                raise ValueError(f"cannot map contract to triad role: {path}")
+            loaded[role] = payload
+            path_by_role[role] = str(path)
+        result = validate_triad_contracts(loaded)
+        result["paths"] = path_by_role
+        return result
 
     def _contracts_for_nodes(
         self, baseline_node_id: str, candidate_node_id: str
@@ -709,8 +958,19 @@ class ExperimentService:
                 or (candidate_node.contract_json or {}).get("execution_mode")
                 or "smoke_train"
             )
+            cand = candidate_contract or candidate_node.contract_json or {}
+            task_config = cand.get("task_config") or {}
+            params = cand.get("parameters") or {}
             payload = annotate_feedback_for_detection(
-                payload, execution_mode=str(mode)
+                payload,
+                execution_mode=str(mode),
+                evaluation_scope=str(
+                    task_config.get("evaluation_scope") or "debug_subset"
+                ),
+                claim_level=task_config.get("claim_level"),
+                baseline_key=str(
+                    params.get("baseline") or params.get("model") or "tiny_detector"
+                ),
             )
             write_json(feedback_path, payload)
         return payload
@@ -814,8 +1074,13 @@ class ExperimentService:
 
         claim_level = None
         if node_is_smoke_detection(selected.contract_json):
+            selected_claim = (
+                (selected.contract_json or {}).get("task_config") or {}
+            ).get("claim_level")
             normalized = validate_smoke_decision(
-                decision_type, evidence_strength=evidence_strength
+                decision_type,
+                evidence_strength=evidence_strength,
+                claim_level=selected_claim,
             )
             decision_type = normalized["decision_type"]
             evidence_strength = normalized["evidence_strength"]
@@ -853,6 +1118,80 @@ class ExperimentService:
         payload["decision_path"] = str(path)
         return payload
 
+    def prepare_fast_eval(
+        self,
+        node_id: str,
+        *,
+        execution_id: str | None = None,
+        node_id_override: str | None = None,
+    ) -> dict[str, Any]:
+        """Build a multi-seed-ready fast_eval contract from a smoke node."""
+        from scientist_lab.storage.artifact_store import write_json
+        from scientist_lab.tasks.rgbt_detection.fast_eval_bridge import (
+            DEFAULT_FAST_EVAL_SEEDS,
+            build_fast_eval_contract,
+            relative_checkpoint_source,
+            resolve_checkpoint_path,
+        )
+
+        node = self.repo.get_node(node_id)
+        if node is None:
+            raise KeyError(f"未找到 node: {node_id}")
+        mode = ((node.contract_json or {}).get("execution_mode") or "").strip()
+        task = ((node.contract_json or {}).get("task_type") or "").strip()
+        if task != "rgbt_detection" or mode != "smoke_train":
+            raise ValueError(
+                "prepare-fast-eval requires an rgbt_detection smoke_train node "
+                f"(got task_type={task!r}, execution_mode={mode!r})"
+            )
+
+        if execution_id:
+            attempt = self.repo.get_attempt(execution_id)
+            if attempt is None:
+                raise KeyError(f"未找到 execution: {execution_id}")
+            if attempt.node_id != node_id:
+                raise ValueError(
+                    f"execution {execution_id} does not belong to node {node_id}"
+                )
+        else:
+            attempt = self.get_best_completed_attempt(node_id)
+
+        checkpoint_source = relative_checkpoint_source(
+            project_id=node.project_id,
+            execution_id=attempt.execution_id,
+        )
+        resolve_checkpoint_path(self.settings.outputs_dir, checkpoint_source)
+
+        contract = build_fast_eval_contract(
+            node.contract_json or {},
+            checkpoint_source=checkpoint_source,
+            node_id=node_id_override,
+            parent_node_id=node_id,
+        )
+        out_dir = (
+            self.settings.outputs_dir
+            / node.project_id
+            / "prepared_fast_eval"
+            / node_id
+        )
+        out_dir.mkdir(parents=True, exist_ok=True)
+        contract_path = out_dir / f"{contract['node_id']}.json"
+        write_json(contract_path, contract)
+        seeds = list(DEFAULT_FAST_EVAL_SEEDS)
+        return {
+            "source_node_id": node_id,
+            "source_execution_id": attempt.execution_id,
+            "checkpoint_source": checkpoint_source,
+            "contract_path": str(contract_path),
+            "contract": contract,
+            "suggested_seeds": seeds,
+            "suggested_decision_type": "ready_for_fast_eval",
+            "next_command": (
+                f'scientist-lab run-seeds "{contract_path}" '
+                f'--seeds {",".join(str(s) for s in seeds)}'
+            ),
+        }
+
     def register_dataset(
         self,
         *,
@@ -870,6 +1209,87 @@ class ExperimentService:
             read_only=read_only,
         )
         return item.model_dump(mode="json")
+
+    def register_runner_profile(
+        self,
+        *,
+        profile_key: str,
+        runner_type: str,
+        endpoint: str | None = None,
+        auth_token_env: str | None = None,
+        allowed_environments: list[str] | None = None,
+        default_timeout_seconds: int = 7200,
+    ) -> dict[str, Any]:
+        profile = self.runner_profiles.register(
+            profile_key=profile_key,
+            runner_type=runner_type,
+            endpoint=endpoint,
+            auth_token_env=auth_token_env,
+            allowed_environment_keys=allowed_environments,
+            default_timeout_seconds=default_timeout_seconds,
+        )
+        return profile.model_dump(mode="json")
+
+    def list_runner_profiles(self) -> list[dict[str, Any]]:
+        return [
+            item.model_dump(mode="json") for item in self.runner_profiles.list_profiles()
+        ]
+
+    def show_runner_profile(self, profile_key: str) -> dict[str, Any]:
+        profile = self.runner_profiles.get(profile_key)
+        if profile is None:
+            raise KeyError(f"runner profile not found: {profile_key}")
+        return profile.model_dump(mode="json")
+
+    def check_runner(self, profile_key: str) -> dict[str, Any]:
+        return self.runner_profiles.check(profile_key)
+
+    def list_checkpoints(
+        self,
+        *,
+        project_id: str | None = None,
+        execution_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return [
+            item.model_dump(mode="json")
+            for item in self.checkpoints.list_checkpoints(
+                project_id=project_id, execution_id=execution_id
+            )
+        ]
+
+    def show_checkpoint(self, checkpoint_id: str) -> dict[str, Any]:
+        record = self.checkpoints.require(checkpoint_id)
+        payload = record.model_dump(mode="json")
+        payload["resolved_path"] = str(self.checkpoints.resolve_path(checkpoint_id))
+        return payload
+
+    def verify_checkpoint(self, checkpoint_id: str) -> dict[str, Any]:
+        record = self.checkpoints.verify(checkpoint_id)
+        payload = record.model_dump(mode="json")
+        payload["resolved_path"] = str(self.checkpoints.resolve_path(checkpoint_id))
+        payload["ok"] = bool(record.verified)
+        return payload
+
+    def register_checkpoint(
+        self,
+        *,
+        project_id: str,
+        execution_id: str,
+        relative_path: str,
+        node_id: str | None = None,
+        role: str | None = None,
+        baseline_key: str | None = None,
+    ) -> dict[str, Any]:
+        record = self.checkpoints.register(
+            project_id=project_id,
+            execution_id=execution_id,
+            relative_path=relative_path,
+            node_id=node_id,
+            role=role,
+            baseline_key=baseline_key,
+            verify=True,
+        )
+        return record.model_dump(mode="json")
 
     def list_datasets(self) -> list[dict[str, Any]]:
         return [item.model_dump(mode="json") for item in self.datasets.list_datasets()]

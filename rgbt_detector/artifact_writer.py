@@ -6,6 +6,8 @@ from validate_dataset import write_json
 
 
 def write_manifest(output_dir, *, mode: str) -> dict[str, Any]:
+    needs_train_curve = mode == "smoke_train"
+    needs_checkpoint = mode in {"smoke_train", "fast_eval"}
     payload = {
         "schema_version": "1.0",
         "files": [
@@ -20,12 +22,12 @@ def write_manifest(output_dir, *, mode: str) -> dict[str, Any]:
             {
                 "path": "training_history.csv",
                 "type": "training_curve",
-                "required": mode != "validate_data",
+                "required": needs_train_curve,
             },
             {
                 "path": "checkpoint/last.npz",
                 "type": "checkpoint",
-                "required": mode != "validate_data",
+                "required": needs_checkpoint,
             },
             {
                 "path": "checkpoint/last_smoke.txt",
@@ -36,18 +38,21 @@ def write_manifest(output_dir, *, mode: str) -> dict[str, Any]:
             {
                 "path": "sample_predictions.json",
                 "type": "predictions",
-                "required": False,
+                "required": mode in {"smoke_train", "fast_eval"},
             },
             {"path": "combined.log", "type": "log", "required": False},
         ],
     }
-    if mode != "validate_data":
-        payload["files"].extend(
-            [
-                {"path": "training_history.csv", "artifact_type": "training_curve"},
-                {"path": "checkpoint/last.npz", "artifact_type": "checkpoint"},
-                {"path": "model_summary.json", "artifact_type": "summary"},
-            ]
+    if needs_checkpoint:
+        payload["files"].append(
+            {"path": "checkpoint/last.npz", "artifact_type": "checkpoint"}
+        )
+        payload["files"].append(
+            {"path": "model_summary.json", "artifact_type": "summary"}
+        )
+    if needs_train_curve:
+        payload["files"].append(
+            {"path": "training_history.csv", "artifact_type": "training_curve"}
         )
     write_json(output_dir / "artifact_manifest.json", payload)
     return payload

@@ -65,6 +65,29 @@ def build_parser() -> argparse.ArgumentParser:
     compare_groups_parser.add_argument("node_id_a")
     compare_groups_parser.add_argument("node_id_b")
 
+    triad_parser = sub.add_parser(
+        "compare-fast-eval-triad",
+        help="Compare RGB / Thermal / Fusion Fast Eval nodes (exploratory)",
+    )
+    triad_parser.add_argument("--rgb-node", default="rgbt_fast_node_001")
+    triad_parser.add_argument("--thermal-node", default="rgbt_fast_node_002")
+    triad_parser.add_argument("--fusion-node", default="rgbt_fast_node_003")
+    triad_parser.add_argument(
+        "--no-write",
+        action="store_true",
+        help="Do not write comparison JSON under outputs/_comparisons",
+    )
+
+    validate_triad = sub.add_parser(
+        "validate-fast-eval-triad",
+        help="Validate triad Fast Eval contracts for matched budget (no run)",
+    )
+    validate_triad.add_argument(
+        "contracts",
+        nargs="*",
+        help="Optional contract JSON paths (default: examples/rgbt_fast_*.json)",
+    )
+
     analyze_parser = sub.add_parser(
         "analyze-feedback",
         help="Rule-based feedback analysis from node-group comparison",
@@ -121,14 +144,40 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Comma-separated seeds for approve-time run-seeds. "
-            "Default: smoke RGB-T uses 42; other tasks use 42,43,44,45,46."
+            "Default: smoke RGB-T uses 42; fast_eval RGB-T uses 42,43,44; "
+            "other tasks use 42,43,44,45,46."
         ),
+    )
+
+    prepare_fast_eval = sub.add_parser(
+        "prepare-fast-eval",
+        help=(
+            "From a completed smoke node, write a fast_eval contract "
+            "ready for multi-seed run (decision bridge: ready_for_fast_eval)"
+        ),
+    )
+    prepare_fast_eval.add_argument("node_id")
+    prepare_fast_eval.add_argument(
+        "--execution-id",
+        default=None,
+        help="Optional smoke execution_id (default: best completed attempt)",
+    )
+    prepare_fast_eval.add_argument(
+        "--node-id",
+        dest="fast_eval_node_id",
+        default=None,
+        help="Override node_id written into the fast_eval contract",
     )
 
     iterate_status = sub.add_parser(
         "iterate-status", help="Show one IterationSession status"
     )
     iterate_status.add_argument("iteration_id")
+    iterate_status.add_argument(
+        "--refresh",
+        action="store_true",
+        help="If status=running, refresh seed executions and auto-advance when done",
+    )
 
     list_iterations = sub.add_parser(
         "list-iterations", help="List IterationSessions"
@@ -138,7 +187,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     iterate_approve = sub.add_parser(
         "iterate-approve",
-        help="Approve proposal, run seeds, aggregate, and compare both source nodes",
+        help=(
+            "Approve proposal and run seeds (remote profiles submit async by default)"
+        ),
     )
     iterate_approve.add_argument("iteration_id")
     iterate_approve.add_argument(
@@ -146,6 +197,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional seed override, e.g. 42,43,44,45,46",
     )
+    wait_group = iterate_approve.add_mutually_exclusive_group()
+    wait_group.add_argument(
+        "--wait",
+        action="store_true",
+        help="Block until all seed runs finish (local default)",
+    )
+    wait_group.add_argument(
+        "--async-submit",
+        action="store_true",
+        help="Submit seeds without waiting (remote default)",
+    )
+
+    iterate_advance = sub.add_parser(
+        "iterate-advance",
+        help="Refresh running seed executions and auto-compare when complete",
+    )
+    iterate_advance.add_argument("iteration_id")
 
     iterate_reject = sub.add_parser(
         "iterate-reject", help="Reject proposal without running experiments"
@@ -170,6 +238,58 @@ def build_parser() -> argparse.ArgumentParser:
     register_dataset.add_argument("--task-type", required=True)
     register_dataset.add_argument("--path", required=True)
     register_dataset.add_argument("--container-path", default=None)
+
+    register_runner = sub.add_parser(
+        "register-runner-profile", help="Register a local/remote runner profile"
+    )
+    register_runner.add_argument("--key", required=True)
+    register_runner.add_argument(
+        "--type",
+        dest="runner_type",
+        required=True,
+        choices=["local_docker", "remote_docker"],
+    )
+    register_runner.add_argument("--endpoint", default=None)
+    register_runner.add_argument("--auth-token-env", default=None)
+    register_runner.add_argument(
+        "--allowed-environments",
+        default="",
+        help="Comma-separated environment keys",
+    )
+    register_runner.add_argument("--timeout-seconds", type=int, default=7200)
+
+    list_runners = sub.add_parser("list-runner-profiles", help="List runner profiles")
+    _ = list_runners
+
+    show_runner = sub.add_parser("show-runner-profile", help="Show one runner profile")
+    show_runner.add_argument("profile_key")
+
+    check_runner = sub.add_parser(
+        "check-runner", help="Ping a runner profile (health/capabilities)"
+    )
+    check_runner.add_argument("profile_key")
+
+    list_ckpts = sub.add_parser("list-checkpoints", help="List registered checkpoints")
+    list_ckpts.add_argument("--project-id", default=None)
+    list_ckpts.add_argument("--execution-id", default=None)
+
+    show_ckpt = sub.add_parser("show-checkpoint", help="Show one checkpoint record")
+    show_ckpt.add_argument("checkpoint_id")
+
+    verify_ckpt = sub.add_parser(
+        "verify-checkpoint", help="Re-verify checkpoint file integrity"
+    )
+    verify_ckpt.add_argument("checkpoint_id")
+
+    register_ckpt = sub.add_parser(
+        "register-checkpoint", help="Register a checkpoint under an execution output"
+    )
+    register_ckpt.add_argument("--project-id", required=True)
+    register_ckpt.add_argument("--execution-id", required=True)
+    register_ckpt.add_argument("--relative-path", required=True)
+    register_ckpt.add_argument("--node-id", default=None)
+    register_ckpt.add_argument("--role", default=None)
+    register_ckpt.add_argument("--baseline-key", default=None)
 
     list_datasets = sub.add_parser("list-datasets", help="List registered datasets")
     _ = list_datasets
@@ -327,6 +447,31 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
 
+    if args.command == "compare-fast-eval-triad":
+        try:
+            data = service.compare_fast_eval_triad(
+                rgb_node_id=args.rgb_node,
+                thermal_node_id=args.thermal_node,
+                fusion_node_id=args.fusion_node,
+                write_report=not args.no_write,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("fairness", {}).get("ok") else 1
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "validate-fast-eval-triad":
+        try:
+            data = service.validate_fast_eval_triad_contracts(
+                list(args.contracts) if args.contracts else None
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok") else 1
+        except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
     if args.command == "analyze-feedback":
         try:
             data = service.analyze_feedback(args.node_id_a, args.node_id_b)
@@ -397,7 +542,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "iterate-status":
         try:
-            data = iteration.get_status(args.iteration_id)
+            data = iteration.get_status(
+                args.iteration_id, refresh=bool(args.refresh)
+            )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except KeyError as exc:
@@ -413,13 +560,28 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "iterate-approve":
         try:
+            wait: bool | None = None
+            if args.wait:
+                wait = True
+            elif args.async_submit:
+                wait = False
             data = iteration.approve_and_run(
                 args.iteration_id,
                 seeds=_parse_seeds(args.seeds),
+                wait=wait,
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") != "failed" else 1
         except (KeyError, ValueError, FileNotFoundError, InvalidIterationTransition) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "iterate-advance":
+        try:
+            data = iteration.advance_iteration(args.iteration_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") != "failed" else 1
+        except (KeyError, InvalidIterationTransition) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 
@@ -447,6 +609,19 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
 
+    if args.command == "prepare-fast-eval":
+        try:
+            data = service.prepare_fast_eval(
+                args.node_id,
+                execution_id=args.execution_id,
+                node_id_override=args.fast_eval_node_id,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
     if args.command == "register-dataset":
         try:
             data = service.register_dataset(
@@ -458,6 +633,102 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except (FileNotFoundError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "register-runner-profile":
+        try:
+            envs = [
+                part.strip()
+                for part in str(args.allowed_environments).split(",")
+                if part.strip()
+            ]
+            data = service.register_runner_profile(
+                profile_key=args.key,
+                runner_type=args.runner_type,
+                endpoint=args.endpoint,
+                auth_token_env=args.auth_token_env,
+                allowed_environments=envs,
+                default_timeout_seconds=args.timeout_seconds,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "list-runner-profiles":
+        print(json.dumps(service.list_runner_profiles(), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "show-runner-profile":
+        try:
+            print(
+                json.dumps(
+                    service.show_runner_profile(args.profile_key),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "check-runner":
+        data = service.check_runner(args.profile_key)
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0 if data.get("ok") else 1
+
+    if args.command == "list-checkpoints":
+        print(
+            json.dumps(
+                service.list_checkpoints(
+                    project_id=args.project_id,
+                    execution_id=args.execution_id,
+                ),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "show-checkpoint":
+        try:
+            print(
+                json.dumps(
+                    service.show_checkpoint(args.checkpoint_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "verify-checkpoint":
+        try:
+            data = service.verify_checkpoint(args.checkpoint_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok") else 1
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "register-checkpoint":
+        try:
+            data = service.register_checkpoint(
+                project_id=args.project_id,
+                execution_id=args.execution_id,
+                relative_path=args.relative_path,
+                node_id=args.node_id,
+                role=args.role,
+                baseline_key=args.baseline_key,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (FileNotFoundError, ValueError, KeyError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

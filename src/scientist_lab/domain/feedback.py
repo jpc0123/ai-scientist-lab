@@ -50,6 +50,13 @@ class FeedbackReport(BaseModel):
     uncertainties: list[str] = Field(default_factory=list)
 
     recommendations: list[ExperimentRecommendation] = Field(default_factory=list)
-    recommended_action: Literal["continue", "verify", "revise", "stop"]
+    recommended_action: Literal[
+        "continue",
+        "verify",
+        "revise",
+        "stop",
+        "compare_fast_eval_nodes",
+        "prepare_fast_eval",
+    ]
 
     comparison_summary: dict[str, Any] = Field(default_factory=dict)
