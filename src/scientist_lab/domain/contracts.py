@@ -26,9 +26,13 @@ class ExperimentContract(BaseModel):
     task_type: str | None = None
     task_config: dict[str, Any] = Field(default_factory=dict)
 
+    # Optional link to a project-level ExperimentProtocol (v0.9+).
+    protocol_id: str | None = None
+
     runner_profile: str = "local"
     environment_key: str = "scientist-experiment-v1"
     code_reference: str = "local:experiment_app"
+    code_version: str | None = None
     dataset_reference: str = "debug-dataset-v1"
 
     # Free-form so Digits + RGB-T entrypoints/modes coexist.

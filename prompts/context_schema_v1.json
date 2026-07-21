@@ -1,0 +1,19 @@
+{
+  "schema": "PlanningContext",
+  "version": "context_schema_v1",
+  "required_fields": [
+    "project_id",
+    "research_goal",
+    "protocol",
+    "allowed_parameter_changes",
+    "remaining_budget",
+    "evidence_records",
+    "claim_support_matrix"
+  ],
+  "forbidden_in_context": [
+    "host_path",
+    "auth_token",
+    "password",
+    "api_key"
+  ]
+}

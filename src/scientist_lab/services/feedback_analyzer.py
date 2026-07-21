@@ -500,6 +500,157 @@ def build_inconclusive_feedback(data: FeedbackInput) -> FeedbackReport:
     )
 
 
+def enrich_v09_feedback_fields(
+    report: FeedbackReport, data: FeedbackInput
+) -> FeedbackReport:
+    """Fill structured v0.9 feedback fields; never invent strong scientific claims."""
+    comparison = data.comparison or {}
+    candidate = data.candidate_contract or {}
+    task_config = dict(candidate.get("task_config") or {})
+    claim_level = str(
+        comparison.get("claim_level")
+        or task_config.get("claim_level")
+        or ""
+    )
+    execution_mode = str(candidate.get("execution_mode") or "")
+    evaluation_scope = str(task_config.get("evaluation_scope") or "")
+    implementation = str(
+        task_config.get("implementation")
+        or comparison.get("implementation")
+        or ""
+    ).lower()
+    shared = list(comparison.get("shared_seeds") or [])
+    primary = str(comparison.get("primary_metric") or "primary_metric")
+    mean_delta = comparison.get("mean_delta")
+
+    is_fast_eval = execution_mode == "fast_eval" or "fast_eval" in evaluation_scope
+    is_stand_in = implementation in {
+        "",
+        "stand_in",
+        "standin",
+        "torch_mini_standin",
+        "numpy",
+    }
+    weak = report.evidence_strength == "weak" or is_fast_eval or is_stand_in
+
+    scientific: list[str] = []
+    if report.hypothesis_status == "invalid_comparison":
+        scientific.append(
+            "Comparison is invalid; no scientific performance interpretation is allowed."
+        )
+    elif weak:
+        scientific.append(
+            "Under weak / exploratory evidence, interpret metric deltas as "
+            "protocol-local signals only — not full-benchmark conclusions."
+        )
+        if isinstance(mean_delta, (int, float)):
+            scientific.append(
+                f"Exploratory signal: mean {primary} delta={mean_delta:+.6f} "
+                f"across {len(shared)} matched seeds."
+            )
+    elif report.hypothesis_status == "supported_with_repeated_evidence":
+        scientific.append(
+            f"Repeated matched-seed evidence supports a candidate gain on {primary}."
+        )
+    elif report.hypothesis_status == "rejected_with_repeated_evidence":
+        scientific.append(
+            f"Repeated matched-seed evidence rejects a candidate gain on {primary}."
+        )
+    else:
+        scientific.append(
+            "Evidence is inconclusive for a stable scientific performance claim."
+        )
+
+    engineering = [
+        "Compared nodes completed under the recorded contracts.",
+    ]
+    changes = comparison.get("parameter_changes") or {}
+    if changes:
+        engineering.append(
+            "Observed controlled parameter changes: "
+            + ", ".join(sorted(str(k) for k in changes.keys()))
+            + "."
+        )
+    if is_stand_in:
+        engineering.append(
+            "Stand-in implementation was used; treat results as engineering "
+            "pipeline evidence, not formal DFINE acceptance."
+        )
+    if is_fast_eval:
+        engineering.append("Fast Eval budget / subset was used.")
+
+    performance = list(report.positive_findings) + list(report.negative_findings)
+    relations = comparison.get("metric_relations") or {}
+    for metric, relation in relations.items():
+        if relation in {"candidate_better", "baseline_better", "tie"}:
+            performance.append(f"Metric relation {metric}={relation}.")
+
+    resource: list[str] = list(report.tradeoffs)
+    resource_relations = comparison.get("resource_relations") or {}
+    for metric, relation in resource_relations.items():
+        if relation == "missing":
+            resource.append(f"Resource metric '{metric}' is missing.")
+        elif relation:
+            resource.append(f"Resource relation {metric}={relation}.")
+
+    gaps = list(report.uncertainties)
+    if len(shared) < 3:
+        gaps.append(f"Fewer than 3 matched seeds ({len(shared)}).")
+    if is_fast_eval:
+        gaps.append(
+            "Fast Eval subset only; no full-training / full RGBT-Tiny evaluation yet."
+        )
+    if is_stand_in:
+        gaps.append("Formal DFINE / vendor acceptance evidence is missing.")
+    if claim_level in {"", "exploratory_comparison", "pipeline_validation_only"}:
+        gaps.append(f"Claim level remains {claim_level or 'unspecified'}.")
+
+    restrictions = [
+        "Do not claim state-of-the-art / SOTA performance from this comparison.",
+        "Do not claim statistically significant improvement without a formal test.",
+    ]
+    if weak or is_fast_eval or is_stand_in:
+        restrictions.append(
+            "Do not claim full RGBT-Tiny benchmark improvement from Fast Eval "
+            "or stand-in evidence."
+        )
+        restrictions.append(
+            "Do not claim formal DFINE superiority from stand-in results."
+        )
+
+    next_experiments = [
+        item.rationale
+        for item in report.recommendations
+        if getattr(item, "status", "active") == "active"
+    ]
+    if weak and is_fast_eval:
+        next_experiments.append(
+            "Keep matched seeds and protocol fixed; escalate only after formal "
+            "implementation / fuller budget acceptance."
+        )
+
+    return report.model_copy(
+        update={
+            "scientific_interpretation": _unique(scientific),
+            "engineering_findings": _unique(engineering),
+            "performance_findings": _unique(performance),
+            "resource_tradeoffs": _unique(resource),
+            "evidence_gaps": _unique(gaps),
+            "claim_restrictions": _unique(restrictions),
+            "recommended_next_experiments": _unique(next_experiments),
+        }
+    )
+
+
+def _unique(items: list[str]) -> list[str]:
+    out: list[str] = []
+    for item in items:
+        text = str(item).strip()
+        if text and text not in out:
+            out.append(text)
+    return out
+
+
 def analyze_feedback(data: FeedbackInput) -> FeedbackReport:
     from scientist_lab.services.recommendation_filter import (
         annotate_recommendations_against_tested,
@@ -539,4 +690,4 @@ def analyze_feedback(data: FeedbackInput) -> FeedbackReport:
         source_dataset_reference=str(source_contract.get("dataset_reference") or ""),
         source_code_reference=str(source_contract.get("code_reference") or ""),
     )
-    return report
+    return enrich_v09_feedback_fields(report, data)

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from scientist_lab.iteration.service import IterationService
 from scientist_lab.iteration.workflow import InvalidIterationTransition
+from scientist_lab.protocols.verifier import ProtocolViolationError
 from scientist_lab.services.experiment_service import ExperimentService, load_contract
 
 
@@ -88,6 +89,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional contract JSON paths (default: examples/rgbt_fast_*.json)",
     )
 
+    validate_formal = sub.add_parser(
+        "validate-formal-triad",
+        help="Validate formal RGB/Thermal/Fusion contracts against ExperimentProtocol",
+    )
+    validate_formal.add_argument(
+        "contracts",
+        nargs="*",
+        help="Optional contract JSON paths (default: examples/rgbt_formal_*.json)",
+    )
+    validate_formal.add_argument(
+        "--protocol-id",
+        default="protocol_rgbt_001",
+        help="Protocol id to validate against",
+    )
+    validate_formal.add_argument(
+        "--protocol",
+        type=Path,
+        default=None,
+        help="Optional protocol JSON to create/upsert before validation",
+    )
+
     analyze_parser = sub.add_parser(
         "analyze-feedback",
         help="Rule-based feedback analysis from node-group comparison",
@@ -126,12 +148,33 @@ def build_parser() -> argparse.ArgumentParser:
     decision_parser.add_argument("--evidence-strength", default="moderate")
     decision_parser.add_argument("--baseline-node-id")
     decision_parser.add_argument("--candidate-node-id")
+    decision_parser.add_argument(
+        "--evidence-ids",
+        default=None,
+        help="Comma-separated EvidenceRecord ids to attach",
+    )
+    decision_parser.add_argument("--protocol-id", default=None)
+    decision_parser.add_argument(
+        "--claim-matrix",
+        default=None,
+        help="Optional path to claim_support_matrix.json",
+    )
+    decision_parser.add_argument(
+        "--no-auto-evidence",
+        action="store_true",
+        help="Do not auto-attach project evidence / auto-build claim matrix path",
+    )
 
     list_decisions_parser = sub.add_parser(
         "list-decisions", help="List recorded node-selection decisions"
     )
     list_decisions_parser.add_argument("--project-id")
     list_decisions_parser.add_argument("--limit", type=int, default=50)
+
+    show_decision_parser = sub.add_parser(
+        "show-decision", help="Show one recorded decision by decision_id"
+    )
+    show_decision_parser.add_argument("decision_id")
 
     iterate_start = sub.add_parser(
         "iterate-start",
@@ -148,6 +191,14 @@ def build_parser() -> argparse.ArgumentParser:
             "other tasks use 42,43,44,45,46."
         ),
     )
+
+    iterate_from_plan = sub.add_parser(
+        "iterate-from-plan",
+        help="Create waiting_approval IterationSession from an approved plan candidate",
+    )
+    iterate_from_plan.add_argument("plan_id")
+    iterate_from_plan.add_argument("candidate_id")
+    iterate_from_plan.add_argument("--seeds", default=None)
 
     prepare_fast_eval = sub.add_parser(
         "prepare-fast-eval",
@@ -230,6 +281,17 @@ def build_parser() -> argparse.ArgumentParser:
     iterate_finalize.add_argument("--decision-type", default="efficiency_tradeoff")
     iterate_finalize.add_argument("--reason", required=True)
     iterate_finalize.add_argument("--evidence-strength", default="moderate")
+    iterate_finalize.add_argument(
+        "--evidence-ids",
+        default=None,
+        help="Comma-separated EvidenceRecord ids to attach",
+    )
+    iterate_finalize.add_argument("--protocol-id", default=None)
+    iterate_finalize.add_argument(
+        "--no-auto-evidence",
+        action="store_true",
+        help="Do not auto-attach project evidence",
+    )
 
     register_dataset = sub.add_parser(
         "register-dataset", help="Register a host dataset for read-only Docker mounts"
@@ -314,6 +376,158 @@ def build_parser() -> argparse.ArgumentParser:
     preview_dataset.add_argument("dataset_key")
     preview_dataset.add_argument("--count", type=int, default=5)
 
+    create_protocol = sub.add_parser(
+        "create-protocol", help="Create or upsert an ExperimentProtocol from JSON"
+    )
+    create_protocol.add_argument("protocol", type=Path)
+
+    list_protocols = sub.add_parser("list-protocols", help="List ExperimentProtocols")
+    list_protocols.add_argument("--project-id", default=None)
+
+    show_protocol = sub.add_parser("show-protocol", help="Show one ExperimentProtocol")
+    show_protocol.add_argument("protocol_id")
+
+    validate_protocol = sub.add_parser(
+        "validate-protocol",
+        help="Validate a protocol (optionally against a contract)",
+    )
+    validate_protocol.add_argument("protocol_id")
+    validate_protocol.add_argument(
+        "--contract",
+        type=Path,
+        default=None,
+        help="Optional contract JSON to check against the protocol",
+    )
+
+    create_ablation = sub.add_parser(
+        "create-ablation", help="Create or upsert an AblationPlan from JSON"
+    )
+    create_ablation.add_argument("ablation", type=Path)
+
+    list_ablations = sub.add_parser("list-ablations", help="List AblationPlans")
+    list_ablations.add_argument("--project-id", default=None)
+    list_ablations.add_argument("--protocol-id", default=None)
+
+    show_ablation = sub.add_parser("show-ablation", help="Show one AblationPlan")
+    show_ablation.add_argument("ablation_id")
+
+    validate_ablation = sub.add_parser(
+        "validate-ablation", help="Validate an AblationPlan against its protocol"
+    )
+    validate_ablation.add_argument("ablation_id")
+
+    materialize_ablation = sub.add_parser(
+        "materialize-ablation",
+        help="Generate variant contracts from an AblationPlan + reference contract",
+    )
+    materialize_ablation.add_argument("ablation_id")
+    materialize_ablation.add_argument(
+        "--reference",
+        type=Path,
+        default=None,
+        help="Reference contract JSON (default: examples/rgbt_formal_fusion_contract.json)",
+    )
+    materialize_ablation.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Directory to write variant contracts",
+    )
+
+    build_evidence = sub.add_parser(
+        "build-evidence",
+        help="Build EvidenceRecords from a paired node-group comparison",
+    )
+    build_evidence.add_argument("node_id_a")
+    build_evidence.add_argument("node_id_b")
+    build_evidence.add_argument(
+        "--no-resource",
+        action="store_true",
+        help="Do not also emit a resource_comparison evidence record",
+    )
+
+    list_evidence = sub.add_parser("list-evidence", help="List EvidenceRecords")
+    list_evidence.add_argument("--project-id", default=None)
+    list_evidence.add_argument("--protocol-id", default=None)
+    list_evidence.add_argument("--evidence-type", default=None)
+
+    show_evidence = sub.add_parser("show-evidence", help="Show one EvidenceRecord")
+    show_evidence.add_argument("evidence_id")
+
+    build_claim_matrix = sub.add_parser(
+        "build-claim-matrix",
+        help="Build Claim Support Matrix from project EvidenceRecords",
+    )
+    build_claim_matrix.add_argument("project_id")
+    build_claim_matrix.add_argument("--protocol-id", default=None)
+
+    show_claim_matrix = sub.add_parser(
+        "show-claim-matrix",
+        help="Show Claim Support Matrix for a project",
+    )
+    show_claim_matrix.add_argument("project_id")
+
+    plan_next = sub.add_parser(
+        "plan-next",
+        help="Generate next-experiment plan (MockPlanner by default)",
+    )
+    plan_next.add_argument("project_id")
+    plan_next.add_argument("--protocol-id", default=None)
+    plan_next.add_argument("--best-node", default=None, help="current_best_node_id")
+    plan_next.add_argument("--max-new-nodes", type=int, default=3)
+    plan_next.add_argument("--max-gpu-hours", type=float, default=12.0)
+    plan_next.add_argument(
+        "--mock",
+        action="store_true",
+        help="Explicitly use MockPlanner (default in v1.0.1)",
+    )
+
+    list_plans = sub.add_parser("list-plans", help="List experiment plans")
+    list_plans.add_argument("--project-id", default=None)
+
+    show_plan = sub.add_parser("show-plan", help="Show one experiment plan")
+    show_plan.add_argument("plan_id")
+
+    review_plan = sub.add_parser(
+        "review-plan", help="Run Critic review on verified candidates"
+    )
+    review_plan.add_argument("plan_id")
+
+    rank_candidates = sub.add_parser(
+        "rank-candidates", help="Rank reviewed/verified candidates"
+    )
+    rank_candidates.add_argument("plan_id")
+
+    approve_candidate = sub.add_parser(
+        "approve-candidate", help="Human-approve a candidate"
+    )
+    approve_candidate.add_argument("plan_id")
+    approve_candidate.add_argument("candidate_id")
+
+    reject_candidate = sub.add_parser(
+        "reject-candidate", help="Human-reject a candidate"
+    )
+    reject_candidate.add_argument("plan_id")
+    reject_candidate.add_argument("candidate_id")
+    reject_candidate.add_argument("--reason", default="")
+
+    generate_contract = sub.add_parser(
+        "generate-contract",
+        help="Generate ExperimentContract draft from an approved candidate",
+    )
+    generate_contract.add_argument("plan_id")
+    generate_contract.add_argument("candidate_id")
+
+    set_budget = sub.add_parser("set-budget", help="Set project experiment budget")
+    set_budget.add_argument("project_id")
+    set_budget.add_argument("--max-new-nodes", type=int, default=3)
+    set_budget.add_argument("--max-executions", type=int, default=15)
+    set_budget.add_argument("--max-gpu-hours", type=float, default=10.0)
+    set_budget.add_argument("--max-storage-gb", type=float, default=20.0)
+
+    show_budget = sub.add_parser("show-budget", help="Show project budget usage")
+    show_budget.add_argument("project_id")
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -367,7 +581,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         contract = load_contract(args.contract)
         print(f"Running project={contract.project_id} node={contract.node_id}")
-        result = service.run_contract(contract, wait=True)
+        try:
+            result = service.run_contract(contract, wait=True)
+        except ProtocolViolationError as exc:
+            print(
+                json.dumps(
+                    exc.report.model_dump(mode="json"), ensure_ascii=False, indent=2
+                )
+            )
+            print(str(exc), file=sys.stderr)
+            return 1
         print(json.dumps(
             {
                 "execution_id": result.execution_id,
@@ -390,9 +613,18 @@ def main(argv: list[str] | None = None) -> int:
             f"Running seeds={seeds} project={contract.project_id} "
             f"node={contract.node_id}"
         )
-        data = service.run_seeds(
-            contract, seeds, auto_aggregate=not args.no_aggregate
-        )
+        try:
+            data = service.run_seeds(
+                contract, seeds, auto_aggregate=not args.no_aggregate
+            )
+        except ProtocolViolationError as exc:
+            print(
+                json.dumps(
+                    exc.report.model_dump(mode="json"), ensure_ascii=False, indent=2
+                )
+            )
+            print(str(exc), file=sys.stderr)
+            return 1
         print(json.dumps(data, ensure_ascii=False, indent=2))
         failed = [r for r in data["results"] if r["status"] != "completed"]
         return 1 if failed else 0
@@ -472,6 +704,19 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
 
+    if args.command == "validate-formal-triad":
+        try:
+            data = service.validate_formal_triad_contracts(
+                list(args.contracts) if args.contracts else None,
+                protocol_id=args.protocol_id,
+                protocol_path=args.protocol,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok") or data.get("valid") else 1
+        except (KeyError, ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
     if args.command == "analyze-feedback":
         try:
             data = service.analyze_feedback(args.node_id_a, args.node_id_b)
@@ -506,6 +751,13 @@ def main(argv: list[str] | None = None) -> int:
                 for part in str(args.alternatives).split(",")
                 if part.strip()
             ]
+            evidence_ids = None
+            if args.evidence_ids:
+                evidence_ids = [
+                    part.strip()
+                    for part in str(args.evidence_ids).split(",")
+                    if part.strip()
+                ]
             data = service.record_decision(
                 selected_node_id=args.selected,
                 alternatives=alternatives,
@@ -514,10 +766,15 @@ def main(argv: list[str] | None = None) -> int:
                 evidence_strength=args.evidence_strength,
                 baseline_node_id=args.baseline_node_id,
                 candidate_node_id=args.candidate_node_id,
+                supporting_evidence_ids=evidence_ids,
+                protocol_id=args.protocol_id,
+                claim_matrix_path=args.claim_matrix,
+                auto_attach_evidence=not args.no_auto_evidence,
+                ensure_claim_matrix=not args.no_auto_evidence,
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
-        except KeyError as exc:
+        except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 
@@ -526,6 +783,20 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(data, ensure_ascii=False, indent=2))
         return 0
 
+    if args.command == "show-decision":
+        try:
+            print(
+                json.dumps(
+                    service.show_decision(args.decision_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
     if args.command == "iterate-start":
         try:
             seeds = _parse_seeds(args.seeds) if args.seeds is not None else None
@@ -533,6 +804,18 @@ def main(argv: list[str] | None = None) -> int:
                 args.baseline_node_id,
                 args.candidate_node_id,
                 seeds=seeds,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") != "failed" else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "iterate-from-plan":
+        try:
+            seeds = _parse_seeds(args.seeds) if args.seeds is not None else None
+            data = iteration.start_from_plan(
+                args.plan_id, args.candidate_id, seeds=seeds
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") != "failed" else 1
@@ -596,12 +879,22 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "iterate-finalize":
         try:
+            evidence_ids = None
+            if args.evidence_ids:
+                evidence_ids = [
+                    part.strip()
+                    for part in str(args.evidence_ids).split(",")
+                    if part.strip()
+                ]
             data = iteration.finalize(
                 args.iteration_id,
                 selected_node_id=args.selected,
                 decision_type=args.decision_type,
                 reason=args.reason,
                 evidence_strength=args.evidence_strength,
+                supporting_evidence_ids=evidence_ids,
+                protocol_id=args.protocol_id,
+                auto_attach_evidence=not args.no_auto_evidence,
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
@@ -795,6 +1088,284 @@ def main(argv: list[str] | None = None) -> int:
         except KeyError as exc:
             print(str(exc), file=sys.stderr)
             return 1
+
+    if args.command == "create-protocol":
+        try:
+            data = service.create_protocol(args.protocol)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (ValueError, OSError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "list-protocols":
+        print(
+            json.dumps(
+                service.list_protocols(project_id=args.project_id),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "show-protocol":
+        try:
+            print(
+                json.dumps(
+                    service.show_protocol(args.protocol_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "validate-protocol":
+        try:
+            data = service.validate_protocol(
+                args.protocol_id, contract_path=args.contract
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("valid") else 1
+        except (KeyError, ValueError, OSError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "create-ablation":
+        try:
+            data = service.create_ablation(args.ablation)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (ValueError, OSError, json.JSONDecodeError, KeyError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "list-ablations":
+        print(
+            json.dumps(
+                service.list_ablations(
+                    project_id=args.project_id,
+                    protocol_id=args.protocol_id,
+                ),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "show-ablation":
+        try:
+            print(
+                json.dumps(
+                    service.show_ablation(args.ablation_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "validate-ablation":
+        try:
+            data = service.validate_ablation(args.ablation_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("valid") else 1
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "materialize-ablation":
+        try:
+            data = service.materialize_ablation(
+                args.ablation_id,
+                reference_contract=args.reference,
+                output_dir=args.output_dir,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "build-evidence":
+        try:
+            data = service.build_evidence(
+                args.node_id_a,
+                args.node_id_b,
+                include_resource_evidence=not args.no_resource,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "list-evidence":
+        print(
+            json.dumps(
+                service.list_evidence(
+                    project_id=args.project_id,
+                    protocol_id=args.protocol_id,
+                    evidence_type=args.evidence_type,
+                ),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "show-evidence":
+        try:
+            print(
+                json.dumps(
+                    service.show_evidence(args.evidence_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "build-claim-matrix":
+        try:
+            data = service.build_claim_matrix(
+                args.project_id,
+                protocol_id=args.protocol_id,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "show-claim-matrix":
+        try:
+            print(
+                json.dumps(
+                    service.show_claim_matrix(args.project_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "plan-next":
+        try:
+            data = service.plan_next(
+                args.project_id,
+                protocol_id=args.protocol_id,
+                current_best_node_id=args.best_node,
+                max_new_nodes=args.max_new_nodes,
+                max_gpu_hours=args.max_gpu_hours,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") != "planner_failed" else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "list-plans":
+        print(
+            json.dumps(
+                service.list_plans(project_id=args.project_id),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "show-plan":
+        try:
+            print(
+                json.dumps(
+                    service.show_plan(args.plan_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "review-plan":
+        try:
+            data = service.review_plan(args.plan_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "rank-candidates":
+        try:
+            data = service.rank_candidates(args.plan_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "approve-candidate":
+        try:
+            data = service.approve_candidate(args.plan_id, args.candidate_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "reject-candidate":
+        try:
+            data = service.reject_candidate(
+                args.plan_id, args.candidate_id, reason=args.reason or None
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "generate-contract":
+        try:
+            data = service.generate_contract_from_plan(
+                args.plan_id, args.candidate_id
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "set-budget":
+        data = service.set_budget(
+            args.project_id,
+            max_new_nodes=args.max_new_nodes,
+            max_executions=args.max_executions,
+            max_gpu_hours=args.max_gpu_hours,
+            max_storage_gb=args.max_storage_gb,
+        )
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "show-budget":
+        print(
+            json.dumps(
+                service.show_budget(args.project_id),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
 
     if args.command == "cancel-execution":
         try:

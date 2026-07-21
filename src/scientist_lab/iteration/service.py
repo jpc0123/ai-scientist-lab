@@ -130,6 +130,132 @@ class IterationService:
             self.repo.save_session(session)
             raise
 
+    def start_from_plan(
+        self,
+        plan_id: str,
+        candidate_id: str,
+        *,
+        seeds: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Create waiting_approval iteration from an approved/generated plan candidate."""
+        from scientist_lab.domain import NodeStage, NodeStatus, NodeType
+        from scientist_lab.domain.models import ExperimentNode
+        from scientist_lab.storage.artifact_store import write_json
+
+        plan = self.experiments.show_plan(plan_id)
+        cand_rows = {
+            item.get("candidate_id"): item for item in plan.get("candidates") or []
+        }
+        cand = cand_rows.get(candidate_id)
+        if cand is None:
+            raise KeyError(f"candidate not found: {candidate_id}")
+
+        if cand.get("status") == "approved":
+            generated = self.experiments.generate_contract_from_plan(
+                plan_id, candidate_id
+            )
+            contract = generated["contract"]
+            contract_path = generated.get("contract_path")
+        elif cand.get("status") == "contract_generated":
+            parent_id = str(cand.get("parent_node_id") or "")
+            parent_node = self.experiments.repo.get_node(parent_id)
+            if parent_node is None:
+                raise KeyError(f"parent node not found: {parent_id}")
+            from scientist_lab.agents.models import CandidateExperiment
+            from scientist_lab.planning.contract_generator import (
+                generate_contract_from_candidate,
+            )
+
+            existing = {
+                node.node_id
+                for node in self.experiments.repo.list_nodes(
+                    project_id=plan["project_id"]
+                )
+            }
+            generated = generate_contract_from_candidate(
+                parent_contract=dict(parent_node.contract_json or {}),
+                candidate=CandidateExperiment.model_validate(cand),
+                plan_id=plan_id,
+                existing_node_ids=existing,
+                output_dir=(
+                    Path(self.experiments.settings.outputs_dir)
+                    / plan["project_id"]
+                    / "plans"
+                    / plan_id
+                ),
+            )
+            contract = generated["contract"]
+            contract_path = generated.get("contract_path")
+        else:
+            raise ValueError(
+                "candidate must be approved or contract_generated "
+                f"(status={cand.get('status')})"
+            )
+
+        parent_id = str(contract.get("parent_node_id") or "")
+        parent = self.experiments.repo.get_node(parent_id)
+        if parent is None:
+            raise KeyError(f"parent node not found: {parent_id}")
+
+        node_id = str(contract["node_id"])
+        now = utc_now_iso()
+        existing_node = self.experiments.repo.get_node(node_id)
+        if existing_node is None:
+            self.experiments.repo.upsert_node(
+                ExperimentNode(
+                    node_id=node_id,
+                    project_id=str(contract.get("project_id") or parent.project_id),
+                    parent_node_id=parent_id,
+                    node_type=NodeType.IMPROVEMENT,
+                    stage=NodeStage.INTAKE,
+                    hypothesis=contract.get("hypothesis"),
+                    status=NodeStatus.PLANNED,
+                    depth=(parent.depth or 0) + 1,
+                    contract_json=contract,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        else:
+            existing_node.contract_json = contract
+            existing_node.updated_at = now
+            self.experiments.repo.upsert_node(existing_node)
+
+        if not contract_path:
+            out = (
+                Path(self.experiments.settings.outputs_dir)
+                / parent.project_id
+                / "plans"
+                / plan_id
+                / f"{candidate_id}_{node_id}_contract.json"
+            )
+            write_json(out, contract)
+            contract_path = str(out)
+
+        seed_list = list(seeds or FAST_EVAL_SEEDS)
+        session = IterationSession(
+            iteration_id=new_id("iter"),
+            project_id=parent.project_id,
+            source_baseline_node_id=parent_id,
+            source_candidate_node_id=parent_id,
+            proposed_node_id=node_id,
+            status="created",
+            seeds=seed_list,
+            proposal_path=contract_path,
+            proposal_sha256=sha256_file(Path(contract_path)),
+            created_at=now,
+            updated_at=now,
+        )
+        self.repo.save_session(session)
+        transition(session, "proposal_ready")
+        transition(session, "waiting_approval")
+        self.repo.save_session(session)
+        payload = self._status_payload(session)
+        payload["plan_id"] = plan_id
+        payload["candidate_id"] = candidate_id
+        payload["contract_path"] = contract_path
+        return payload
+
     def approve_and_run(
         self,
         iteration_id: str,
@@ -454,6 +580,9 @@ class IterationService:
         decision_type: str,
         reason: str,
         evidence_strength: str = "moderate",
+        supporting_evidence_ids: list[str] | None = None,
+        protocol_id: str | None = None,
+        auto_attach_evidence: bool = True,
     ) -> dict[str, Any]:
         session = self._get(iteration_id)
         require_status(session, "waiting_decision")
@@ -494,6 +623,9 @@ class IterationService:
             evidence_strength=evidence_strength,
             baseline_node_id=session.source_baseline_node_id,
             candidate_node_id=session.source_candidate_node_id,
+            supporting_evidence_ids=supporting_evidence_ids,
+            protocol_id=protocol_id,
+            auto_attach_evidence=auto_attach_evidence,
         )
         session.selected_node_id = selected_node_id
         session.decision_id = decision.get("decision_id")

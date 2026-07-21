@@ -147,8 +147,13 @@ def make_engine(db_path: str):
 
 
 def init_db(db_path: str) -> sessionmaker:
+    from scientist_lab.ablations.repository import ensure_ablation_schema
+    from scientist_lab.agents.repository import ensure_agent_plan_schema
+    from scientist_lab.budget.repository import ensure_budget_schema
     from scientist_lab.checkpoints.repository import ensure_checkpoint_schema
     from scientist_lab.datasets.repository import ensure_dataset_schema
+    from scientist_lab.evidence.repository import ensure_evidence_schema
+    from scientist_lab.protocols.repository import ensure_protocol_schema
     from scientist_lab.runners.profile_repository import ensure_runner_profile_schema
 
     engine = make_engine(db_path)
@@ -156,4 +161,9 @@ def init_db(db_path: str) -> sessionmaker:
     ensure_dataset_schema(engine)
     ensure_runner_profile_schema(engine)
     ensure_checkpoint_schema(engine)
+    ensure_protocol_schema(engine)
+    ensure_ablation_schema(engine)
+    ensure_evidence_schema(engine)
+    ensure_agent_plan_schema(engine)
+    ensure_budget_schema(engine)
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)

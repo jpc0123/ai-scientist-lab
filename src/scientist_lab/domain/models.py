@@ -84,3 +84,25 @@ class ExecutionError(BaseModel):
     retryable: bool = False
     suggested_action: str | None = None
     log_artifact: str | None = None
+
+
+class ExperimentDecision(BaseModel):
+    """Node-selection decision with optional evidence / protocol linkage (v0.9.7)."""
+
+    decision_id: str
+    selected_node_id: str
+    decision_type: str
+    alternatives: list[str] = Field(default_factory=list)
+    reason: str
+    evidence_strength: str = "weak"
+    baseline_node_id: str | None = None
+    candidate_node_id: str | None = None
+    claim_level: str | None = None
+
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
+    claim_matrix_path: str | None = None
+    protocol_id: str | None = None
+    project_id: str | None = None
+
+    recorded_at: str
+    decision_path: str | None = None

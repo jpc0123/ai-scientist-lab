@@ -60,3 +60,12 @@ class FeedbackReport(BaseModel):
     ]
 
     comparison_summary: dict[str, Any] = Field(default_factory=dict)
+
+    # v0.9 structured evidence / claim layer (rule-based, no LLM)
+    scientific_interpretation: list[str] = Field(default_factory=list)
+    engineering_findings: list[str] = Field(default_factory=list)
+    performance_findings: list[str] = Field(default_factory=list)
+    resource_tradeoffs: list[str] = Field(default_factory=list)
+    evidence_gaps: list[str] = Field(default_factory=list)
+    claim_restrictions: list[str] = Field(default_factory=list)
+    recommended_next_experiments: list[str] = Field(default_factory=list)

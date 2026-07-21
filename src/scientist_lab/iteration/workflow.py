@@ -11,6 +11,7 @@ class InvalidIterationTransition(ValueError):
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "created": {
         "feedback_ready",
+        "proposal_ready",  # plan-sourced contracts skip feedback generation
         "failed",
     },
     "feedback_ready": {

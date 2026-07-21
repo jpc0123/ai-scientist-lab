@@ -229,4 +229,58 @@ def annotate_feedback_for_detection(
             payload["recommended_action"] = "prepare_fast_eval"
         else:
             payload["recommended_action"] = "verify"
+
+    # Merge claim-gate blocked claims into structured v0.9 fields.
+    restrictions = list(payload.get("claim_restrictions") or [])
+    for item in gate.get("blocked_claims") or []:
+        if isinstance(item, dict):
+            claim = str(item.get("claim") or "").strip()
+            reason = str(item.get("reason") or "").strip()
+            text = f"Blocked: {claim}" + (f" ({reason})" if reason else "")
+        else:
+            text = f"Blocked: {item}"
+        if text and text not in restrictions:
+            restrictions.append(text)
+    if gate.get("forbid_sota"):
+        text = "Blocked: SOTA / state-of-the-art claims under current claim gate."
+        if text not in restrictions:
+            restrictions.append(text)
+    payload["claim_restrictions"] = restrictions
+
+    gaps = list(payload.get("evidence_gaps") or [])
+    if gate.get("max_evidence_strength") == "weak":
+        gap = (
+            f"Claim gate caps evidence_strength at weak "
+            f"(claim_level={gate.get('claim_level')})."
+        )
+        if gap not in gaps:
+            gaps.append(gap)
+    payload["evidence_gaps"] = gaps
+
+    sci = list(payload.get("scientific_interpretation") or [])
+    if gate.get("claim_level") == "exploratory_comparison":
+        note = (
+            "Exploratory Fast Eval only: metric gains are protocol-local and must "
+            "not be stated as full RGBT-Tiny / SOTA conclusions."
+        )
+        if note not in sci:
+            sci.insert(0, note)
+    elif gate.get("claim_level") == "pipeline_validation_only":
+        note = (
+            "Pipeline validation only: confirm the detection loop runs; "
+            "do not draw performance conclusions."
+        )
+        if note not in sci:
+            sci.insert(0, note)
+    payload["scientific_interpretation"] = sci
+
+    eng = list(payload.get("engineering_findings") or [])
+    eng_note = (
+        f"Detection claim gate applied "
+        f"(execution_mode={execution_mode}, claim_level={gate.get('claim_level')})."
+    )
+    if eng_note not in eng:
+        eng.append(eng_note)
+    payload["engineering_findings"] = eng
+
     return payload

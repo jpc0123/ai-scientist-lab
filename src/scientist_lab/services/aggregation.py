@@ -33,6 +33,19 @@ def _metric_values(attempt: ExecutionAttempt) -> dict[str, Any]:
         training["duration_seconds"], (int, float)
     ):
         values.setdefault("duration_seconds", float(training["duration_seconds"]))
+
+    # Optional resource / summary blobs stored on the execution result.
+    for key in ("peak_gpu_memory_mb", "parameter_count", "duration_seconds"):
+        if key in values and isinstance(values[key], (int, float)):
+            continue
+        for container_name in ("resource_usage", "model_summary", "resources"):
+            container = (attempt.result_json or {}).get(container_name) or {}
+            if isinstance(container.get(key), (int, float)):
+                values.setdefault(key, float(container[key]))
+                break
+        # Also accept nested under metrics.json-style top-level fields.
+        if isinstance(blob.get(key), (int, float)):
+            values.setdefault(key, float(blob[key]))
     return values
 
 
@@ -544,7 +557,11 @@ def compare_node_groups(
                     )
                     break
 
-    return {
+    sample_contract = _contract(sample_c) if sample_c else (
+        _contract(sample_b) if sample_b else None
+    )
+
+    payload = {
         "baseline_node_id": baseline_node_id,
         "candidate_node_id": candidate_node_id,
         "shared_seeds": shared_seeds,
@@ -573,3 +590,7 @@ def compare_node_groups(
         "population_std_note": None if len(deltas) < 2 else float(pstdev(deltas)),
         **tradeoff,
     }
+
+    from scientist_lab.services.detection_comparison import enrich_group_comparison
+
+    return enrich_group_comparison(payload, sample_contract=sample_contract)

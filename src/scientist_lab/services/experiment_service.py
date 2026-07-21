@@ -5,6 +5,9 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from scientist_lab.ablations.service import AblationService
+from scientist_lab.agents.service import AgentPlanningService
+from scientist_lab.budget.service import BudgetService
 from scientist_lab.checkpoints.registry import CheckpointRegistry
 from scientist_lab.domain import JobStatus, NodeStage, NodeStatus, NodeType, ProjectStatus
 from scientist_lab.domain.contracts import ExperimentContract
@@ -15,6 +18,9 @@ from scientist_lab.domain.models import (
     utc_now_iso,
 )
 from scientist_lab.domain.results import ExecutionResult
+from scientist_lab.evidence.service import EvidenceService
+from scientist_lab.protocols.service import ProtocolService
+from scientist_lab.protocols.verifier import ProtocolViolationError
 from scientist_lab.runners.local_docker import LocalDockerRunner
 from scientist_lab.runners.profile_registry import RunnerProfileRegistry
 from scientist_lab.runners.remote_docker_runner import RemoteDockerRunner
@@ -36,6 +42,17 @@ class ExperimentService:
         self.runner_profiles = RunnerProfileRegistry(self.session_factory)
         self.runner_profiles.ensure_defaults()
         self.checkpoints = CheckpointRegistry(
+            self.session_factory,
+            outputs_root=self.settings.outputs_dir,
+        )
+        self.protocols = ProtocolService(self.session_factory)
+        self.ablations = AblationService(self.session_factory)
+        self.evidence = EvidenceService(
+            self.session_factory,
+            outputs_root=self.settings.outputs_dir,
+        )
+        self.budget = BudgetService(self.session_factory)
+        self.agents = AgentPlanningService(
             self.session_factory,
             outputs_root=self.settings.outputs_dir,
         )
@@ -139,6 +156,9 @@ class ExperimentService:
         contract: ExperimentContract,
         wait: bool = True,
     ) -> ExecutionResult:
+        # Formal protocol gate (v0.9.1): blocking violations refuse execution.
+        self.protocols.enforce_contract(contract)
+
         now = utc_now_iso()
 
         project = self.repo.get_project(contract.project_id)
@@ -796,6 +816,71 @@ class ExperimentService:
         result["paths"] = path_by_role
         return result
 
+    def validate_formal_triad_contracts(
+        self,
+        contract_paths: list[str] | None = None,
+        *,
+        protocol_id: str | None = None,
+        protocol_path: Path | str | None = None,
+    ) -> dict[str, Any]:
+        """Validate formal RGB/Thermal/Fusion contracts against ExperimentProtocol."""
+        import json
+
+        from scientist_lab.protocols.formal_triad import (
+            DEFAULT_FORMAL_PROTOCOL_ID,
+            DEFAULT_FORMAL_TRIAD_NODES,
+            infer_triad_role,
+        )
+
+        root = Path(self.settings.project_root)
+        if protocol_path:
+            self.protocols.create_from_path(Path(protocol_path))
+        else:
+            default_protocol = root / "examples" / "rgbt_protocol.json"
+            if default_protocol.is_file():
+                # Ensure local example protocol exists for offline validation.
+                existing = self.protocols.get(
+                    protocol_id or DEFAULT_FORMAL_PROTOCOL_ID
+                )
+                if existing is None:
+                    self.protocols.create_from_path(default_protocol)
+
+        if not contract_paths:
+            contract_paths = [
+                str(root / "examples" / "rgbt_formal_rgb_contract.json"),
+                str(root / "examples" / "rgbt_formal_thermal_contract.json"),
+                str(root / "examples" / "rgbt_formal_fusion_contract.json"),
+            ]
+
+        loaded: dict[str, dict[str, Any]] = {}
+        path_by_role: dict[str, str] = {}
+        for path_str in contract_paths:
+            path = Path(path_str)
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            role = None
+            node_id = str(payload.get("node_id") or "")
+            for key, expected_node in DEFAULT_FORMAL_TRIAD_NODES.items():
+                if node_id == expected_node:
+                    role = key
+                    break
+            if role is None:
+                role = infer_triad_role(payload)
+            if role is None:
+                raise ValueError(f"cannot map contract to formal triad role: {path}")
+            loaded[role] = payload
+            path_by_role[role] = str(path)
+
+        report = self.protocols.validate_formal_triad(
+            loaded, protocol_id=protocol_id or DEFAULT_FORMAL_PROTOCOL_ID
+        )
+        payload = report.model_dump(mode="json")
+        payload["ok"] = report.valid
+        payload["paths"] = path_by_role
+        payload["matched_seeds"] = self.protocols.require(
+            protocol_id or DEFAULT_FORMAL_PROTOCOL_ID
+        ).seeds
+        return payload
+
     def _contracts_for_nodes(
         self, baseline_node_id: str, candidate_node_id: str
     ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -1058,8 +1143,18 @@ class ExperimentService:
         evidence_strength: str = "moderate",
         baseline_node_id: str | None = None,
         candidate_node_id: str | None = None,
+        supporting_evidence_ids: list[str] | None = None,
+        protocol_id: str | None = None,
+        claim_matrix_path: str | None = None,
+        auto_attach_evidence: bool = True,
+        ensure_claim_matrix: bool = True,
     ) -> dict[str, Any]:
-        from scientist_lab.domain.models import utc_now_iso
+        from scientist_lab.domain.models import ExperimentDecision, utc_now_iso
+        from scientist_lab.evidence.decision_link import (
+            cap_evidence_strength,
+            resolve_protocol_id,
+            select_supporting_evidence,
+        )
         from scientist_lab.storage.artifact_store import write_json
         from scientist_lab.tasks.rgbt_detection.decision_rules import (
             node_is_smoke_detection,
@@ -1086,27 +1181,75 @@ class ExperimentService:
             evidence_strength = normalized["evidence_strength"]
             claim_level = normalized["claim_level"]
 
-        payload = {
-            "decision_id": new_id("decision"),
-            "selected_node_id": selected_node_id,
-            "decision_type": decision_type,
-            "alternatives": alternatives,
-            "reason": reason,
-            "evidence_strength": evidence_strength,
-            "baseline_node_id": baseline_node_id,
-            "candidate_node_id": candidate_node_id,
-            "recorded_at": utc_now_iso(),
-        }
-        if claim_level is not None:
-            payload["claim_level"] = claim_level
+        project_id = selected.project_id
+        evidence_records: list = []
+        linked_ids: list[str] = []
+        if auto_attach_evidence or supporting_evidence_ids:
+            all_evidence = self.evidence.list_evidence(project_id=project_id)
+            node_ids = {
+                nid
+                for nid in (
+                    selected_node_id,
+                    baseline_node_id,
+                    candidate_node_id,
+                    *list(alternatives or []),
+                )
+                if nid
+            }
+            evidence_records = select_supporting_evidence(
+                all_evidence,
+                node_ids=node_ids,
+                explicit_ids=list(supporting_evidence_ids)
+                if supporting_evidence_ids
+                else None,
+            )
+            linked_ids = [item.evidence_id for item in evidence_records]
+            evidence_strength = cap_evidence_strength(
+                evidence_strength, evidence_records
+            )
 
-        out_dir = (
-            self.settings.outputs_dir
-            / selected.project_id
-            / "decisions"
+        resolved_protocol = resolve_protocol_id(
+            explicit=protocol_id,
+            selected_contract=selected.contract_json,
+            evidence_records=evidence_records,
         )
+
+        matrix_path = claim_matrix_path
+        if ensure_claim_matrix and not matrix_path:
+            existing = self.evidence.claim_matrix_path(project_id)
+            if existing.is_file():
+                matrix_path = str(existing)
+            else:
+                built = self.evidence.build_claim_matrix(
+                    project_id, protocol_id=resolved_protocol
+                )
+                matrix_path = built.get("matrix_path") or str(existing)
+        elif matrix_path:
+            matrix_path = str(matrix_path)
+
+        decision = ExperimentDecision(
+            decision_id=new_id("decision"),
+            selected_node_id=selected_node_id,
+            decision_type=decision_type,
+            alternatives=list(alternatives or []),
+            reason=reason,
+            evidence_strength=evidence_strength,
+            baseline_node_id=baseline_node_id,
+            candidate_node_id=candidate_node_id,
+            claim_level=claim_level,
+            supporting_evidence_ids=linked_ids,
+            claim_matrix_path=matrix_path,
+            protocol_id=resolved_protocol,
+            project_id=project_id,
+            recorded_at=utc_now_iso(),
+        )
+
+        out_dir = self.settings.outputs_dir / project_id / "decisions"
         out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / f"decision_{selected_node_id}_{utc_now_iso().replace(':', '')}.json"
+        path = out_dir / (
+            f"decision_{selected_node_id}_{utc_now_iso().replace(':', '')}.json"
+        )
+        payload = decision.model_dump(mode="json")
         write_json(path, payload)
 
         feedback = dict(selected.feedback_json or {})
@@ -1117,6 +1260,15 @@ class ExperimentService:
 
         payload["decision_path"] = str(path)
         return payload
+
+    def show_decision(self, decision_id: str) -> dict[str, Any]:
+        target = (decision_id or "").strip()
+        if not target:
+            raise ValueError("decision_id required")
+        for item in self.list_decisions(limit=500):
+            if str(item.get("decision_id") or "") == target:
+                return item
+        raise KeyError(f"decision not found: {target}")
 
     def prepare_fast_eval(
         self,
@@ -1351,6 +1503,333 @@ class ExperimentService:
                 if len(decisions) >= limit:
                     return decisions
         return decisions
+
+    def create_protocol(self, path: Path) -> dict[str, Any]:
+        protocol = self.protocols.create_from_path(Path(path))
+        return protocol.model_dump(mode="json")
+
+    def list_protocols(self, *, project_id: str | None = None) -> list[dict[str, Any]]:
+        return [
+            item.model_dump(mode="json")
+            for item in self.protocols.list_protocols(project_id=project_id)
+        ]
+
+    def show_protocol(self, protocol_id: str) -> dict[str, Any]:
+        return self.protocols.require(protocol_id).model_dump(mode="json")
+
+    def validate_protocol(
+        self,
+        protocol_id: str,
+        *,
+        contract_path: Path | None = None,
+    ) -> dict[str, Any]:
+        contract = load_contract(Path(contract_path)) if contract_path else None
+        report = self.protocols.validate(protocol_id, contract=contract)
+        return report.model_dump(mode="json")
+
+    def create_ablation(self, path: Path) -> dict[str, Any]:
+        root = Path(self.settings.project_root)
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        protocol = None
+        protocol_id = str(data.get("protocol_id") or "").strip()
+        if protocol_id:
+            protocol = self.protocols.get(protocol_id)
+            if protocol is None:
+                default_protocol = root / "examples" / "rgbt_protocol.json"
+                if default_protocol.is_file():
+                    self.protocols.create_from_path(default_protocol)
+                    protocol = self.protocols.get(protocol_id)
+        plan = self.ablations.create_from_dict(data, protocol=protocol)
+        return plan.model_dump(mode="json")
+
+    def list_ablations(
+        self,
+        *,
+        project_id: str | None = None,
+        protocol_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return [
+            item.model_dump(mode="json")
+            for item in self.ablations.list_plans(
+                project_id=project_id, protocol_id=protocol_id
+            )
+        ]
+
+    def show_ablation(self, ablation_id: str) -> dict[str, Any]:
+        return self.ablations.require(ablation_id).model_dump(mode="json")
+
+    def validate_ablation(self, ablation_id: str) -> dict[str, Any]:
+        plan = self.ablations.require(ablation_id)
+        protocol = self.protocols.get(plan.protocol_id)
+        report = self.ablations.validate(ablation_id, protocol=protocol)
+        return report.model_dump(mode="json")
+
+    def materialize_ablation(
+        self,
+        ablation_id: str,
+        *,
+        reference_contract: Path | str | None = None,
+        output_dir: Path | str | None = None,
+    ) -> dict[str, Any]:
+        plan = self.ablations.require(ablation_id)
+        root = Path(self.settings.project_root)
+        if reference_contract:
+            reference = load_contract(Path(reference_contract))
+        else:
+            # Prefer fusion formal contract as the full-system reference.
+            candidates = [
+                root / "examples" / "rgbt_formal_fusion_contract.json",
+                root / "examples" / "rgbt_formal_rgb_contract.json",
+            ]
+            path = next((p for p in candidates if p.is_file()), None)
+            if path is None:
+                raise FileNotFoundError(
+                    "reference contract required when formal examples are missing"
+                )
+            reference = load_contract(path)
+
+        out = Path(output_dir) if output_dir else (
+            self.settings.outputs_dir / plan.project_id / "ablations" / plan.ablation_id
+        )
+        return self.ablations.materialize(
+            ablation_id, reference, output_dir=out
+        )
+
+    def build_evidence(
+        self,
+        baseline_node_id: str,
+        candidate_node_id: str,
+        *,
+        include_resource_evidence: bool = True,
+    ) -> dict[str, Any]:
+        from scientist_lab.storage.artifact_store import write_json
+
+        comparison = self.compare_node_groups(baseline_node_id, candidate_node_id)
+        baseline_contract, candidate_contract = self._contracts_for_nodes(
+            baseline_node_id, candidate_node_id
+        )
+        sample_contract = candidate_contract or baseline_contract or {}
+        project_id = str(
+            sample_contract.get("project_id")
+            or (comparison.get("candidate_aggregate") or {}).get("project_id")
+            or (comparison.get("baseline_aggregate") or {}).get("project_id")
+            or ""
+        )
+        if not project_id:
+            raise ValueError("cannot resolve project_id for evidence")
+
+        comparison_dir = self.settings.outputs_dir / project_id / "evidence"
+        comparison_dir.mkdir(parents=True, exist_ok=True)
+        comparison_path = (
+            comparison_dir
+            / f"comparison_{baseline_node_id}_vs_{candidate_node_id}.json"
+        )
+        write_json(comparison_path, comparison)
+
+        impl = str((sample_contract.get("task_config") or {}).get("implementation") or "")
+        formal = impl not in {"", "stand_in", "stand-in"} and "standin" not in impl.lower()
+        has_ablation = bool(
+            self.ablations.list_plans(project_id=project_id)
+        )
+
+        def _artifact_ids(execution_id: str) -> list[str]:
+            return [item.artifact_id for item in self.repo.list_artifacts(execution_id)]
+
+        return self.evidence.build_from_node_group_comparison(
+            comparison,
+            project_id=project_id,
+            sample_contract=sample_contract,
+            artifact_resolver=_artifact_ids,
+            include_resource_evidence=include_resource_evidence,
+            has_ablation=has_ablation,
+            formal_implementation=formal,
+            comparison_path=str(comparison_path),
+        )
+
+    def list_evidence(
+        self,
+        *,
+        project_id: str | None = None,
+        protocol_id: str | None = None,
+        evidence_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return [
+            item.model_dump(mode="json")
+            for item in self.evidence.list_evidence(
+                project_id=project_id,
+                protocol_id=protocol_id,
+                evidence_type=evidence_type,
+            )
+        ]
+
+    def show_evidence(self, evidence_id: str) -> dict[str, Any]:
+        record = self.evidence.require(evidence_id)
+        payload = record.model_dump(mode="json")
+        path = self.evidence.evidence_path(evidence_id)
+        payload["evidence_path"] = str(path) if path.exists() else None
+        return payload
+
+    def build_claim_matrix(
+        self,
+        project_id: str,
+        *,
+        protocol_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self.evidence.build_claim_matrix(
+            project_id, protocol_id=protocol_id
+        )
+
+    def show_claim_matrix(self, project_id: str) -> dict[str, Any]:
+        return self.evidence.show_claim_matrix(project_id)
+
+    def plan_next(
+        self,
+        project_id: str,
+        *,
+        protocol_id: str | None = None,
+        current_best_node_id: str | None = None,
+        max_new_nodes: int = 3,
+        max_gpu_hours: float = 12.0,
+    ) -> dict[str, Any]:
+        project = self.repo.get_project(project_id)
+        research_goal = (
+            project.research_goal
+            if project is not None
+            else "Improve RGB-T detection under a fixed protocol."
+        )
+        nodes = self.repo.list_nodes(project_id=project_id)
+
+        protocol_payload = None
+        resolved_protocol_id = protocol_id
+        if not resolved_protocol_id:
+            for node in nodes:
+                contract = dict(node.contract_json or {})
+                if contract.get("protocol_id"):
+                    resolved_protocol_id = str(contract["protocol_id"])
+                    break
+        if resolved_protocol_id:
+            try:
+                protocol_payload = self.protocols.require(
+                    resolved_protocol_id
+                ).model_dump(mode="json")
+            except KeyError:
+                root = Path(self.settings.project_root)
+                default_protocol = root / "examples" / "rgbt_protocol.json"
+                if default_protocol.is_file():
+                    self.protocols.create_from_path(default_protocol)
+                    protocol_payload = self.protocols.require(
+                        resolved_protocol_id
+                    ).model_dump(mode="json")
+
+        if protocol_payload is None:
+            # Fall back to first node's contract fields for allow-list.
+            sample = dict((nodes[0].contract_json if nodes else {}) or {})
+            protocol_payload = {
+                "protocol_id": sample.get("protocol_id"),
+                "project_id": project_id,
+                "allowed_variables": ["input_mode", "fusion_method"],
+                "fixed_parameters": {},
+            }
+
+        evidence_records = self.list_evidence(project_id=project_id)
+        try:
+            claim_matrix = self.show_claim_matrix(project_id)
+        except Exception:  # noqa: BLE001
+            claim_matrix = {}
+
+        remaining = self.budget.remaining(project_id)
+        remaining["max_new_nodes"] = min(
+            int(remaining.get("max_new_nodes", max_new_nodes)),
+            int(max_new_nodes),
+        )
+        remaining["max_total_gpu_hours"] = min(
+            float(remaining.get("max_total_gpu_hours", max_gpu_hours)),
+            float(max_gpu_hours),
+        )
+
+        return self.agents.plan_next(
+            project_id=project_id,
+            research_goal=research_goal,
+            protocol=protocol_payload,
+            nodes=nodes,
+            evidence_records=evidence_records,
+            claim_support_matrix=claim_matrix,
+            current_best_node_id=current_best_node_id,
+            remaining_budget=remaining,
+        )
+
+    def list_plans(self, *, project_id: str | None = None) -> list[dict[str, Any]]:
+        return self.agents.list_plans(project_id=project_id)
+
+    def show_plan(self, plan_id: str) -> dict[str, Any]:
+        return self.agents.get_plan(plan_id)
+
+    def review_plan(self, plan_id: str) -> dict[str, Any]:
+        return self.agents.review_plan(plan_id)
+
+    def rank_candidates(self, plan_id: str) -> dict[str, Any]:
+        return self.agents.rank_plan_candidates(plan_id)
+
+    def approve_candidate(self, plan_id: str, candidate_id: str) -> dict[str, Any]:
+        return self.agents.approve_candidate(plan_id, candidate_id)
+
+    def reject_candidate(
+        self, plan_id: str, candidate_id: str, *, reason: str | None = None
+    ) -> dict[str, Any]:
+        return self.agents.reject_candidate(plan_id, candidate_id, reason=reason)
+
+    def generate_contract_from_plan(
+        self, plan_id: str, candidate_id: str
+    ) -> dict[str, Any]:
+        plan = self.agents.get_plan(plan_id)
+        candidates = {
+            item.get("candidate_id"): item for item in plan.get("candidates") or []
+        }
+        cand = candidates.get(candidate_id)
+        if cand is None:
+            raise KeyError(f"candidate not found: {candidate_id}")
+        parent_id = str(cand.get("parent_node_id") or "")
+        parent_node = self.repo.get_node(parent_id)
+        if parent_node is None:
+            raise KeyError(f"parent node not found: {parent_id}")
+        parent_contract = dict(parent_node.contract_json or {})
+        existing = {node.node_id for node in self.repo.list_nodes(project_id=plan["project_id"])}
+        result = self.agents.generate_contract(
+            plan_id,
+            candidate_id,
+            parent_contract=parent_contract,
+            existing_node_ids=existing,
+        )
+        # Reserve budget for the generated node.
+        gpu_hours = float((cand.get("estimated_cost") or {}).get("gpu_hours") or 1.0)
+        self.budget.consume(plan["project_id"], nodes=1, gpu_hours=gpu_hours)
+        return result
+
+    def set_budget(
+        self,
+        project_id: str,
+        *,
+        max_new_nodes: int = 3,
+        max_executions: int = 15,
+        max_gpu_hours: float = 10.0,
+        max_storage_gb: float = 20.0,
+    ) -> dict[str, Any]:
+        budget = self.budget.set_budget(
+            project_id,
+            max_new_nodes=max_new_nodes,
+            max_total_executions=max_executions,
+            max_gpu_hours=max_gpu_hours,
+            max_storage_gb=max_storage_gb,
+        )
+        return budget.model_dump(mode="json")
+
+    def show_budget(self, project_id: str) -> dict[str, Any]:
+        budget = self.budget.get(project_id)
+        if budget is None:
+            budget = self.budget.set_budget(project_id)
+        payload = budget.model_dump(mode="json")
+        payload["remaining"] = budget.remaining()
+        return payload
 
 
 def load_contract(path: Path) -> ExperimentContract:
