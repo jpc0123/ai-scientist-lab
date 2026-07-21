@@ -528,6 +528,121 @@ def build_parser() -> argparse.ArgumentParser:
     show_budget = sub.add_parser("show-budget", help="Show project budget usage")
     show_budget.add_argument("project_id")
 
+    tree_create = sub.add_parser(
+        "tree-create", help="Create a finite experiment search tree (v1.1.1)"
+    )
+    tree_create.add_argument("project_id")
+    tree_create.add_argument("--root-node", required=True)
+    tree_create.add_argument("--protocol", required=True)
+    tree_create.add_argument("--max-depth", type=int, default=3)
+    tree_create.add_argument("--max-nodes", type=int, default=8)
+    tree_create.add_argument("--max-children", type=int, default=3)
+
+    tree_status = sub.add_parser("tree-status", help="Show experiment tree status")
+    tree_status.add_argument("tree_id")
+
+    tree_show = sub.add_parser(
+        "tree-show", help="Show experiment tree with ASCII layout"
+    )
+    tree_show.add_argument("tree_id")
+
+    tree_nodes = sub.add_parser("tree-nodes", help="List tree nodes")
+    tree_nodes.add_argument("tree_id")
+
+    tree_score = sub.add_parser(
+        "tree-score",
+        help="Compute node_score and expansion_priority for a tree (v1.1.2)",
+    )
+    tree_score.add_argument("tree_id")
+    tree_score.add_argument(
+        "--node",
+        dest="tree_node_id",
+        default=None,
+        help="Optional tree_node_id; score only that node",
+    )
+
+    tree_select = sub.add_parser(
+        "tree-select-parent",
+        help="Best-First select next expandable parent (v1.1.3)",
+    )
+    tree_select.add_argument("tree_id")
+    tree_select.add_argument(
+        "--no-rescore",
+        action="store_true",
+        help="Do not recompute scores before selection",
+    )
+
+    tree_plan = sub.add_parser(
+        "tree-plan-next",
+        help="Select parent and run MockPlanner plan-next/review/rank (v1.1.4)",
+    )
+    tree_plan.add_argument("tree_id")
+    tree_plan.add_argument(
+        "--mock",
+        action="store_true",
+        help="Explicitly use MockPlanner (default in v1.1.4)",
+    )
+    tree_plan.add_argument(
+        "--no-rescore",
+        action="store_true",
+        help="Do not recompute scores before parent selection",
+    )
+    tree_plan.add_argument("--max-gpu-hours", type=float, default=12.0)
+
+    tree_approve = sub.add_parser(
+        "tree-approve",
+        help="Approve a ranked candidate into IterationSession (v1.1.5)",
+    )
+    tree_approve.add_argument("tree_id")
+    tree_approve.add_argument("candidate_id")
+    tree_approve.add_argument(
+        "--seeds",
+        default=None,
+        help="Optional comma-separated seeds for the iteration",
+    )
+
+    tree_advance = sub.add_parser(
+        "tree-advance",
+        help="Backfill Iteration results into the experiment tree (v1.1.6)",
+    )
+    tree_advance.add_argument("tree_id")
+    tree_advance.add_argument(
+        "--node",
+        dest="tree_node_id",
+        default=None,
+        help="Optional tree_node_id to advance only one node",
+    )
+
+    tree_stop = sub.add_parser(
+        "tree-stop",
+        help="Manually stop an experiment tree (v1.1.7)",
+    )
+    tree_stop.add_argument("tree_id")
+    tree_stop.add_argument("--reason", required=True)
+
+    tree_evidence = sub.add_parser(
+        "tree-evidence",
+        help="Show Evidence / Claim Matrix linkage for a tree (v1.1.8)",
+    )
+    tree_evidence.add_argument("tree_id")
+
+    tree_export = sub.add_parser(
+        "tree-export",
+        help="Export experiment tree as JSON or Mermaid (v1.1.9)",
+    )
+    tree_export.add_argument("tree_id")
+    tree_export.add_argument(
+        "--format",
+        choices=["json", "mermaid"],
+        default="json",
+        help="Export format (default: json)",
+    )
+    tree_export.add_argument(
+        "--output",
+        default=None,
+        help="Optional file path to write the export payload",
+    )
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -1366,6 +1481,174 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         return 0
+
+    if args.command == "tree-create":
+        try:
+            data = service.tree_create(
+                args.project_id,
+                root_node_id=args.root_node,
+                protocol_id=args.protocol,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+                max_children=args.max_children,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-status":
+        try:
+            print(
+                json.dumps(
+                    service.tree_status(args.tree_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-show":
+        try:
+            data = service.tree_show(args.tree_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-nodes":
+        try:
+            print(
+                json.dumps(
+                    service.tree_nodes(args.tree_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-score":
+        try:
+            data = service.tree_score(
+                args.tree_id, tree_node_id=args.tree_node_id
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-select-parent":
+        try:
+            data = service.tree_select_parent(
+                args.tree_id, rescore=not args.no_rescore
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0 if data.get("selected") else 2
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-plan-next":
+        try:
+            data = service.tree_plan_next(
+                args.tree_id,
+                rescore=not args.no_rescore,
+                max_gpu_hours=args.max_gpu_hours,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0 if data.get("status") == "planned" else 2
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-approve":
+        try:
+            seeds = _parse_seeds(args.seeds) if args.seeds is not None else None
+            data = service.tree_approve(
+                args.tree_id, args.candidate_id, seeds=seeds
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0 if data.get("iteration_id") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-advance":
+        try:
+            data = service.tree_advance(
+                args.tree_id, tree_node_id=args.tree_node_id
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0 if data.get("status") in {"advanced", "pending", "noop", "stopped"} else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-stop":
+        try:
+            data = service.tree_stop(args.tree_id, reason=args.reason)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-evidence":
+        try:
+            data = service.tree_evidence(args.tree_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("ascii_tree"):
+                print("\n" + data["ascii_tree"])
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "tree-export":
+        try:
+            data = service.tree_export(args.tree_id, format=args.format)
+            text = json.dumps(data, ensure_ascii=False, indent=2)
+            if args.output:
+                out = Path(args.output)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                if args.format == "mermaid":
+                    out.write_text(str(data.get("mermaid") or "") + "\n", encoding="utf-8")
+                else:
+                    out.write_text(text + "\n", encoding="utf-8")
+                print(json.dumps({"written": str(out), "format": args.format}, indent=2))
+            else:
+                print(text)
+                if args.format == "mermaid" and data.get("mermaid"):
+                    print("\n" + data["mermaid"])
+                elif data.get("ascii_tree"):
+                    print("\n" + data["ascii_tree"])
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
 
     if args.command == "cancel-execution":
         try:

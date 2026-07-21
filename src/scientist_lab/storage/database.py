@@ -155,6 +155,7 @@ def init_db(db_path: str) -> sessionmaker:
     from scientist_lab.evidence.repository import ensure_evidence_schema
     from scientist_lab.protocols.repository import ensure_protocol_schema
     from scientist_lab.runners.profile_repository import ensure_runner_profile_schema
+    from scientist_lab.search.repository import ensure_search_tree_schema
 
     engine = make_engine(db_path)
     Base.metadata.create_all(engine)
@@ -166,4 +167,5 @@ def init_db(db_path: str) -> sessionmaker:
     ensure_evidence_schema(engine)
     ensure_agent_plan_schema(engine)
     ensure_budget_schema(engine)
+    ensure_search_tree_schema(engine)
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)

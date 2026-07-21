@@ -9,6 +9,7 @@ from scientist_lab.ablations.service import AblationService
 from scientist_lab.agents.service import AgentPlanningService
 from scientist_lab.budget.service import BudgetService
 from scientist_lab.checkpoints.registry import CheckpointRegistry
+from scientist_lab.search.service import TreeSearchService
 from scientist_lab.domain import JobStatus, NodeStage, NodeStatus, NodeType, ProjectStatus
 from scientist_lab.domain.contracts import ExperimentContract
 from scientist_lab.domain.models import (
@@ -55,6 +56,16 @@ class ExperimentService:
         self.agents = AgentPlanningService(
             self.session_factory,
             outputs_root=self.settings.outputs_dir,
+        )
+        self.trees = TreeSearchService(
+            self.session_factory,
+            get_project=self.repo.get_project,
+            get_node=self.repo.get_node,
+            get_protocol=self.protocols.get,
+            get_node_aggregate=self._tree_node_aggregate,
+            list_evidence=self._tree_list_evidence,
+            get_claim_matrix=self._tree_claim_matrix,
+            get_remaining_budget=self._tree_remaining_budget,
         )
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
@@ -1830,6 +1841,982 @@ class ExperimentService:
         payload = budget.model_dump(mode="json")
         payload["remaining"] = budget.remaining()
         return payload
+
+    def tree_create(
+        self,
+        project_id: str,
+        *,
+        root_node_id: str,
+        protocol_id: str,
+        max_depth: int = 3,
+        max_nodes: int = 8,
+        max_children: int = 3,
+        tree_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self.trees.create_tree(
+            project_id,
+            root_node_id=root_node_id,
+            protocol_id=protocol_id,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+            max_children=max_children,
+            tree_id=tree_id,
+        )
+
+    def tree_status(self, tree_id: str) -> dict[str, Any]:
+        return self.trees.tree_status(tree_id)
+
+    def tree_show(self, tree_id: str) -> dict[str, Any]:
+        return self.trees.show_tree(tree_id)
+
+    def tree_nodes(self, tree_id: str) -> list[dict[str, Any]]:
+        return self.trees.list_nodes(tree_id)
+
+    def tree_export(self, tree_id: str, *, format: str = "json") -> dict[str, Any]:
+        return self.trees.export_tree(tree_id, format=format)
+
+    def tree_score(
+        self, tree_id: str, *, tree_node_id: str | None = None
+    ) -> dict[str, Any]:
+        if tree_node_id:
+            return self.trees.score_node(tree_id, tree_node_id)
+        return self.trees.score_tree(tree_id)
+
+    def tree_select_parent(
+        self, tree_id: str, *, rescore: bool = True
+    ) -> dict[str, Any]:
+        return self.trees.select_parent(tree_id, rescore=rescore)
+
+    def tree_plan_next(
+        self,
+        tree_id: str,
+        *,
+        rescore: bool = True,
+        max_gpu_hours: float = 12.0,
+    ) -> dict[str, Any]:
+        """Best-First parent → MockPlanner plan-next → review → rank (v1.1.4)."""
+        from scientist_lab.search.expansion_service import (
+            annotate_candidates_against_tree,
+            remaining_candidate_slots,
+            tree_parameter_fingerprints,
+        )
+        from scientist_lab.search.state_machine import (
+            assert_tree_transition,
+            is_tree_terminal,
+        )
+
+        tree = self.trees.require_tree(tree_id)
+        if is_tree_terminal(tree.status):
+            raise ValueError(f"tree is terminal ({tree.status}); cannot plan-next")
+
+        selection = self.trees.select_parent(tree_id, rescore=rescore)
+        tree = self.trees.require_tree(tree_id)
+
+        if not selection.get("selected"):
+            stop = self._tree_evaluate_and_maybe_stop(tree_id)
+            return {
+                "tree_id": tree_id,
+                "status": "stopped",
+                "tree_status": (stop or {}).get("tree_status") or tree.status,
+                "selection": selection,
+                "plan": None,
+                "ranking": None,
+                "reason": (stop or {}).get("reason")
+                or selection.get("reason")
+                or "no expandable parent",
+                "stop": stop,
+                "stop_suggested": True,
+                "stop_status": (stop or {}).get("status")
+                or selection.get("stop_status")
+                or "no_valid_candidates",
+            }
+
+        parent_info = selection["selected"]
+        parent_node = self.trees._repo.get_node(parent_info["tree_node_id"])
+        if parent_node is None:
+            raise KeyError(f"tree node not found: {parent_info['tree_node_id']}")
+
+        slots = remaining_candidate_slots(
+            tree,
+            parent_node,
+            child_count=int(parent_info.get("child_count") or 0),
+            node_count=self.trees._repo.count_nodes(tree_id),
+        )
+        if slots <= 0:
+            return {
+                "tree_id": tree_id,
+                "status": "stopped",
+                "tree_status": tree.status,
+                "selection": selection,
+                "plan": None,
+                "ranking": None,
+                "reason": "no remaining candidate slots under max_children/max_nodes",
+                "stop_suggested": True,
+                "stop_status": "no_valid_candidates",
+            }
+
+        planned = self.plan_next(
+            tree.project_id,
+            protocol_id=tree.protocol_id,
+            current_best_node_id=parent_info["experiment_node_id"],
+            max_new_nodes=slots,
+            max_gpu_hours=max_gpu_hours,
+        )
+        plan_id = str(planned.get("plan_id") or "")
+        if planned.get("status") == "planner_failed" or not plan_id:
+            return {
+                "tree_id": tree_id,
+                "status": "planner_failed",
+                "tree_status": tree.status,
+                "selection": selection,
+                "plan": planned,
+                "ranking": None,
+                "reason": planned.get("reasoning_summary")
+                or "planner failed to produce candidates",
+                "stop_suggested": bool(planned.get("stop_recommended")),
+                "stop_status": "no_valid_candidates"
+                if planned.get("stop_recommended")
+                else None,
+            }
+
+        if planned.get("stop_recommended") and not (planned.get("candidates") or []):
+            return {
+                "tree_id": tree_id,
+                "status": "stopped",
+                "tree_status": tree.status,
+                "selection": selection,
+                "plan": planned,
+                "ranking": None,
+                "reason": planned.get("stop_reason") or "planner recommended stop",
+                "stop_suggested": True,
+                "stop_status": "no_valid_candidates",
+            }
+
+        reviewed = self.review_plan(plan_id)
+        ranked = self.rank_candidates(plan_id)
+
+        # Fingerprints of experiment nodes already on this tree.
+        tree_nodes = self.trees._repo.list_nodes(tree_id)
+        exp_nodes = []
+        for tn in tree_nodes:
+            node = self.repo.get_node(tn.experiment_node_id)
+            if node is not None:
+                exp_nodes.append(node)
+        fingerprints = tree_parameter_fingerprints(
+            exp_nodes,
+            allowed_keys=list(
+                (self.protocols.require(tree.protocol_id).allowed_variables or [])
+            ),
+        )
+
+        plan_view = self.show_plan(plan_id)
+        filtered = annotate_candidates_against_tree(
+            list(plan_view.get("candidates") or []),
+            parent_experiment_node_id=parent_info["experiment_node_id"],
+            existing_fingerprints=fingerprints,
+            max_candidates=slots,
+        )
+
+        # Restrict ranking to accepted candidate ids.
+        accepted_ids = {
+            str(item.get("candidate_id")) for item in filtered["accepted"]
+        }
+        ranking = [
+            item
+            for item in (ranked.get("ranking") or [])
+            if str(item.get("candidate_id")) in accepted_ids
+        ]
+        # Re-rank positions
+        for idx, item in enumerate(ranking):
+            item = dict(item)
+            item["rank"] = idx + 1
+            ranking[idx] = item
+
+        # Persist plan_id on parent tree node.
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        parent_node = parent_node.model_copy(
+            update={"plan_id": plan_id, "updated_at": now}
+        )
+        self.trees._repo.upsert_node(parent_node)
+
+        # Tree → waiting_approval (human must approve a candidate next).
+        tree = self.trees.require_tree(tree_id)
+        if tree.status == "created":
+            assert_tree_transition(tree.status, "active")
+            tree = tree.model_copy(update={"status": "active", "updated_at": now})
+        if tree.status == "active":
+            assert_tree_transition(tree.status, "waiting_approval")
+            tree = tree.model_copy(
+                update={
+                    "status": "waiting_approval",
+                    "selected_node_id": parent_info["experiment_node_id"],
+                    "updated_at": now,
+                }
+            )
+            self.trees._repo.upsert_tree(tree)
+        elif tree.status == "waiting_approval":
+            tree = tree.model_copy(
+                update={
+                    "selected_node_id": parent_info["experiment_node_id"],
+                    "updated_at": now,
+                }
+            )
+            self.trees._repo.upsert_tree(tree)
+
+        status = "planned"
+        if not ranking:
+            status = "no_valid_candidates"
+
+        stop = self._tree_evaluate_and_maybe_stop(
+            tree_id,
+            last_plan_filter=filtered if status != "planned" else None,
+            planner_stop_recommended=bool(planned.get("stop_recommended")),
+            planner_stop_reason=planned.get("stop_reason"),
+        )
+        if stop and stop.get("should_stop"):
+            return {
+                "tree_id": tree_id,
+                "status": "stopped",
+                "tree_status": stop.get("tree_status"),
+                "selection": selection,
+                "parent": parent_info,
+                "plan_id": plan_id,
+                "plan": {
+                    "plan_id": plan_id,
+                    "status": plan_view.get("status"),
+                    "stop_recommended": planned.get("stop_recommended"),
+                    "reasoning_summary": planned.get("reasoning_summary"),
+                },
+                "ranking": ranking,
+                "candidate_filter": filtered,
+                "stop": stop,
+                "stop_suggested": True,
+                "stop_status": stop.get("status"),
+                "reason": stop.get("reason"),
+                "next_action": "Tree stopped by StopPolicy.",
+                "ascii_tree": self.trees.render_ascii(tree_id),
+            }
+
+        return {
+            "tree_id": tree_id,
+            "status": status,
+            "tree_status": self.trees.require_tree(tree_id).status,
+            "selection": selection,
+            "parent": parent_info,
+            "plan_id": plan_id,
+            "plan": {
+                "plan_id": plan_id,
+                "status": plan_view.get("status"),
+                "model_provider": plan_view.get("model_provider"),
+                "valid_candidate_count": plan_view.get("valid_candidate_count"),
+                "stop_recommended": planned.get("stop_recommended"),
+                "reasoning_summary": planned.get("reasoning_summary"),
+            },
+            "review": {
+                "status": reviewed.get("status"),
+                "review_count": len(reviewed.get("reviews") or []),
+            },
+            "ranking": ranking,
+            "candidate_filter": filtered,
+            "max_candidates": slots,
+            "top_candidate_id": ranking[0]["candidate_id"] if ranking else None,
+            "next_action": (
+                "Run tree-approve <tree_id> <candidate_id> after human review."
+                if ranking
+                else "No accepted candidates; prune, stop, or adjust budget/limits."
+            ),
+            "ascii_tree": self.trees.render_ascii(tree_id),
+            "stop_suggested": status == "no_valid_candidates",
+            "stop_status": "no_valid_candidates"
+            if status == "no_valid_candidates"
+            else None,
+        }
+
+    def tree_approve(
+        self,
+        tree_id: str,
+        candidate_id: str,
+        *,
+        seeds: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Human-approve one ranked candidate → Contract → IterationSession (v1.1.5)."""
+        from datetime import datetime, timezone
+
+        from scientist_lab.iteration.service import IterationService
+        from scientist_lab.search.state_machine import (
+            assert_node_transition,
+            is_tree_terminal,
+        )
+
+        tree = self.trees.require_tree(tree_id)
+        if is_tree_terminal(tree.status):
+            raise ValueError(f"tree is terminal ({tree.status}); cannot approve")
+        if tree.status not in {"waiting_approval", "active"}:
+            raise ValueError(
+                f"tree status {tree.status} cannot approve candidates "
+                "(run tree-plan-next first)"
+            )
+
+        parent_tn = self._tree_parent_with_plan(tree_id)
+        plan_id = parent_tn.plan_id
+        if not plan_id:
+            raise ValueError("selected parent has no plan_id; run tree-plan-next first")
+
+        plan = self.show_plan(plan_id)
+        candidates = {
+            str(item.get("candidate_id")): item
+            for item in (plan.get("candidates") or [])
+        }
+        cand = candidates.get(candidate_id)
+        if cand is None:
+            raise KeyError(f"candidate not found in plan {plan_id}: {candidate_id}")
+        if cand.get("status") == "rejected":
+            raise ValueError(f"candidate is rejected: {candidate_id}")
+
+        parent_exp = str(parent_tn.experiment_node_id)
+        if str(cand.get("parent_node_id") or "") not in {"", parent_exp}:
+            raise ValueError(
+                f"candidate parent_node_id mismatch: "
+                f"{cand.get('parent_node_id')} != {parent_exp}"
+            )
+
+        # Approve (idempotent if already approved/contract_generated).
+        status = str(cand.get("status") or "")
+        if status not in {"approved", "contract_generated"}:
+            self.approve_candidate(plan_id, candidate_id)
+
+        iteration = IterationService(self)
+        iter_payload = iteration.start_from_plan(
+            plan_id, candidate_id, seeds=seeds
+        )
+        proposed_node_id = str(iter_payload.get("proposed_node_id") or "")
+        iteration_id = str(iter_payload.get("iteration_id") or "")
+        if not proposed_node_id or not iteration_id:
+            raise ValueError("iterate-from-plan did not return proposed_node_id/iteration_id")
+
+        node_type = self._map_experiment_type_to_tree_node(
+            str(cand.get("experiment_type") or "improve")
+        )
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+
+        existing = self.trees._repo.get_node_by_experiment(tree_id, proposed_node_id)
+        if existing is None:
+            child = self.trees.register_experiment_node(
+                tree_id,
+                experiment_node_id=proposed_node_id,
+                parent_tree_node_id=parent_tn.tree_node_id,
+                node_type=node_type,
+            )
+        else:
+            child = existing
+
+        # created → waiting_approval
+        if child.status == "created":
+            assert_node_transition(child.status, "waiting_approval")
+            child = child.model_copy(
+                update={
+                    "status": "waiting_approval",
+                    "plan_id": plan_id,
+                    "candidate_id": candidate_id,
+                    "iteration_id": iteration_id,
+                    "node_type": node_type,  # type: ignore[arg-type]
+                    "updated_at": now,
+                }
+            )
+        else:
+            child = child.model_copy(
+                update={
+                    "plan_id": plan_id,
+                    "candidate_id": candidate_id,
+                    "iteration_id": iteration_id,
+                    "updated_at": now,
+                }
+            )
+        self.trees._repo.upsert_node(child)
+
+        # Keep tree waiting for iterate-approve (execution still gated).
+        tree = self.trees.require_tree(tree_id)
+        tree = tree.model_copy(
+            update={
+                "status": "waiting_approval",
+                "selected_node_id": proposed_node_id,
+                "updated_at": now,
+            }
+        )
+        self.trees._repo.upsert_tree(tree)
+
+        return {
+            "tree_id": tree_id,
+            "status": "waiting_approval",
+            "tree_status": tree.status,
+            "plan_id": plan_id,
+            "candidate_id": candidate_id,
+            "parent_tree_node_id": parent_tn.tree_node_id,
+            "parent_experiment_node_id": parent_tn.experiment_node_id,
+            "tree_node": child.model_dump(mode="json"),
+            "iteration": iter_payload,
+            "iteration_id": iteration_id,
+            "proposed_node_id": proposed_node_id,
+            "next_action": (
+                "Review the IterationSession proposal, then run "
+                f"iterate-approve {iteration_id} (execution remains human-gated)."
+            ),
+            "ascii_tree": self.trees.render_ascii(tree_id),
+        }
+
+    def tree_advance(
+        self,
+        tree_id: str,
+        *,
+        tree_node_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Sync IterationSession outcomes into TreeNodes and rescore (v1.1.6)."""
+        from datetime import datetime, timezone
+
+        from scientist_lab.iteration.service import IterationService
+        from scientist_lab.search.state_machine import (
+            assert_node_transition,
+            assert_tree_transition,
+            is_tree_terminal,
+        )
+
+        tree = self.trees.require_tree(tree_id)
+        if is_tree_terminal(tree.status):
+            raise ValueError(f"tree is terminal ({tree.status}); cannot advance")
+
+        iteration = IterationService(self)
+        nodes = self.trees._repo.list_nodes(tree_id)
+        if tree_node_id:
+            nodes = [n for n in nodes if n.tree_node_id == tree_node_id]
+            if not nodes:
+                raise KeyError(f"tree node not found: {tree_node_id}")
+
+        pending_nodes = [
+            n
+            for n in nodes
+            if n.iteration_id
+            and n.status
+            not in {"evaluated", "selected", "pruned", "stopped"}
+        ]
+        if not pending_nodes:
+            return {
+                "tree_id": tree_id,
+                "status": "noop",
+                "tree_status": tree.status,
+                "advanced": [],
+                "pending": [],
+                "failed": [],
+                "reason": "no tree nodes with pending iterations",
+                "next_action": "Run tree-plan-next to expand another parent.",
+                "ascii_tree": self.trees.render_ascii(tree_id),
+            }
+
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        advanced: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []
+        failed: list[dict[str, Any]] = []
+        any_running = False
+
+        for node in pending_nodes:
+            assert node.iteration_id is not None
+            try:
+                iter_status = iteration.get_status(
+                    node.iteration_id, refresh=True
+                )
+            except KeyError as exc:
+                failed.append(
+                    {
+                        "tree_node_id": node.tree_node_id,
+                        "iteration_id": node.iteration_id,
+                        "error": str(exc),
+                    }
+                )
+                continue
+
+            status = str(iter_status.get("status") or "")
+            decision_id = iter_status.get("decision_id")
+            selected_node_id = iter_status.get("selected_node_id")
+
+            if status == "completed":
+                updated = self._tree_mark_node_evaluated(
+                    node,
+                    decision_id=str(decision_id) if decision_id else None,
+                    now=now,
+                )
+                evidence_link = self._tree_link_evidence(tree_id, updated.tree_node_id)
+                updated = self.trees._repo.get_node(updated.tree_node_id) or updated
+                breakdown = self.trees.score_node(tree_id, updated.tree_node_id)
+                advanced.append(
+                    {
+                        "tree_node_id": updated.tree_node_id,
+                        "experiment_node_id": updated.experiment_node_id,
+                        "iteration_id": node.iteration_id,
+                        "iteration_status": status,
+                        "decision_id": decision_id,
+                        "selected_node_id": selected_node_id,
+                        "node_status": updated.status,
+                        "node_score": breakdown.get("node_score"),
+                        "expansion_priority": breakdown.get("expansion_priority"),
+                        "evidence_ids": evidence_link.get("evidence_ids") or [],
+                        "resolved_evidence_gaps": evidence_link.get(
+                            "resolved_evidence_gaps"
+                        )
+                        or [],
+                        "new_evidence_gaps": evidence_link.get("new_evidence_gaps")
+                        or [],
+                        "claim_matrix_path": evidence_link.get("claim_matrix_path"),
+                        "action": "evaluated",
+                    }
+                )
+                continue
+
+            if status in {"failed", "cancelled", "rejected", "stopped_no_recommendation"}:
+                updated = self._tree_mark_node_failed(
+                    node,
+                    iteration_status=status,
+                    error_message=iter_status.get("error_message"),
+                    now=now,
+                )
+                failed.append(
+                    {
+                        "tree_node_id": updated.tree_node_id,
+                        "experiment_node_id": updated.experiment_node_id,
+                        "iteration_id": node.iteration_id,
+                        "iteration_status": status,
+                        "node_status": updated.status,
+                        "error_message": iter_status.get("error_message"),
+                        "action": "failed",
+                    }
+                )
+                continue
+
+            # Still in flight / waiting human steps.
+            if status in {
+                "approved",
+                "running",
+                "comparing",
+                "waiting_decision",
+            }:
+                any_running = True
+                if node.status == "waiting_approval":
+                    assert_node_transition(node.status, "running")
+                    node = node.model_copy(
+                        update={"status": "running", "updated_at": now}
+                    )
+                    self.trees._repo.upsert_node(node)
+                pending.append(
+                    {
+                        "tree_node_id": node.tree_node_id,
+                        "experiment_node_id": node.experiment_node_id,
+                        "iteration_id": node.iteration_id,
+                        "iteration_status": status,
+                        "node_status": node.status,
+                        "next_action": (
+                            "Run iterate-finalize after comparisons."
+                            if status == "waiting_decision"
+                            else "Wait for seed runs / iterate-advance."
+                        ),
+                        "action": "pending",
+                    }
+                )
+                continue
+
+            # waiting_approval on iteration: human must iterate-approve
+            pending.append(
+                {
+                    "tree_node_id": node.tree_node_id,
+                    "experiment_node_id": node.experiment_node_id,
+                    "iteration_id": node.iteration_id,
+                    "iteration_status": status,
+                    "node_status": node.status,
+                    "next_action": (
+                        f"Run iterate-approve {node.iteration_id} "
+                        "before tree-advance can finalize results."
+                    ),
+                    "action": "pending",
+                }
+            )
+
+        # Update tree status.
+        tree = self.trees.require_tree(tree_id)
+        if advanced or failed:
+            if tree.status == "waiting_approval":
+                assert_tree_transition(tree.status, "evaluating")
+                tree = tree.model_copy(
+                    update={"status": "evaluating", "updated_at": now}
+                )
+            elif tree.status == "running":
+                assert_tree_transition(tree.status, "evaluating")
+                tree = tree.model_copy(
+                    update={"status": "evaluating", "updated_at": now}
+                )
+            if tree.status == "evaluating" and not pending and not any_running:
+                assert_tree_transition(tree.status, "active")
+                tree = tree.model_copy(
+                    update={"status": "active", "updated_at": now}
+                )
+            self.trees._repo.upsert_tree(tree)
+        elif any_running and tree.status == "waiting_approval":
+            assert_tree_transition(tree.status, "running")
+            tree = tree.model_copy(update={"status": "running", "updated_at": now})
+            self.trees._repo.upsert_tree(tree)
+
+        tree = self.trees.require_tree(tree_id)
+        summary_status = "advanced" if advanced or failed else "pending"
+        next_action = "Run tree-plan-next to continue search."
+        if pending:
+            next_action = pending[0].get("next_action") or next_action
+        elif advanced:
+            next_action = (
+                "Results backfilled. Optionally run tree-plan-next for the next parent."
+            )
+
+        # Update improvement counters from newly evaluated scores.
+        from scientist_lab.search.stop_policy import update_improvement_counters
+
+        new_scores = [
+            float(item["node_score"])
+            for item in advanced
+            if item.get("node_score") is not None
+        ]
+        if new_scores:
+            tree = self.trees.require_tree(tree_id)
+            tree = update_improvement_counters(tree, new_scores=new_scores)
+            tree = tree.model_copy(update={"updated_at": now})
+            self.trees._repo.upsert_tree(tree)
+
+        stop = self._tree_evaluate_and_maybe_stop(tree_id)
+        if stop and stop.get("should_stop"):
+            return {
+                "tree_id": tree_id,
+                "status": "stopped",
+                "tree_status": stop.get("tree_status"),
+                "advanced": advanced,
+                "pending": pending,
+                "failed": failed,
+                "advanced_count": len(advanced),
+                "pending_count": len(pending),
+                "failed_count": len(failed),
+                "stop": stop,
+                "stop_suggested": True,
+                "stop_status": stop.get("status"),
+                "next_action": "Tree stopped by StopPolicy.",
+                "ascii_tree": self.trees.render_ascii(tree_id),
+            }
+
+        tree = self.trees.require_tree(tree_id)
+        return {
+            "tree_id": tree_id,
+            "status": summary_status,
+            "tree_status": tree.status,
+            "advanced": advanced,
+            "pending": pending,
+            "failed": failed,
+            "advanced_count": len(advanced),
+            "pending_count": len(pending),
+            "failed_count": len(failed),
+            "next_action": next_action,
+            "ascii_tree": self.trees.render_ascii(tree_id),
+        }
+
+    def _tree_mark_node_evaluated(
+        self,
+        node,
+        *,
+        decision_id: str | None,
+        now,
+    ):
+        from scientist_lab.search.state_machine import assert_node_transition
+
+        updated = node
+        if updated.status == "waiting_approval":
+            assert_node_transition(updated.status, "running")
+            updated = updated.model_copy(
+                update={"status": "running", "updated_at": now}
+            )
+        if updated.status == "running":
+            assert_node_transition(updated.status, "evaluated")
+            updated = updated.model_copy(
+                update={
+                    "status": "evaluated",
+                    "decision_id": decision_id,
+                    "updated_at": now,
+                }
+            )
+        elif updated.status == "evaluated":
+            updated = updated.model_copy(
+                update={"decision_id": decision_id, "updated_at": now}
+            )
+        else:
+            # Force path for unexpected statuses that still have completed iteration.
+            if updated.status not in {"evaluated", "selected"}:
+                raise ValueError(
+                    f"cannot mark tree node {updated.tree_node_id} evaluated "
+                    f"from status={updated.status}"
+                )
+        return self.trees._repo.upsert_node(updated)
+
+    def _tree_mark_node_failed(
+        self,
+        node,
+        *,
+        iteration_status: str,
+        error_message: str | None,
+        now,
+    ):
+        from scientist_lab.search.state_machine import assert_node_transition
+
+        _ = iteration_status, error_message
+        updated = node
+        if updated.status == "waiting_approval":
+            assert_node_transition(updated.status, "failed")
+            updated = updated.model_copy(
+                update={"status": "failed", "updated_at": now}
+            )
+        elif updated.status == "running":
+            assert_node_transition(updated.status, "failed")
+            updated = updated.model_copy(
+                update={"status": "failed", "updated_at": now}
+            )
+        return self.trees._repo.upsert_node(updated)
+
+    def tree_stop(self, tree_id: str, *, reason: str) -> dict[str, Any]:
+        return self.trees.stop_tree(tree_id, reason=reason)
+
+    def tree_evidence(self, tree_id: str) -> dict[str, Any]:
+        """Summarize Evidence / Claim Matrix linkage for a tree (v1.1.8)."""
+        from scientist_lab.search.evidence_link import extract_open_gaps
+
+        tree = self.trees.require_tree(tree_id)
+        nodes = self.trees._repo.list_nodes(tree_id)
+        linked = [
+            {
+                "tree_node_id": n.tree_node_id,
+                "experiment_node_id": n.experiment_node_id,
+                "status": n.status,
+                "depth": n.depth,
+                "node_type": n.node_type,
+                "evidence_ids": list(n.evidence_ids),
+                "resolved_evidence_gaps": list(n.resolved_evidence_gaps),
+                "new_evidence_gaps": list(n.new_evidence_gaps),
+                "claim_matrix_path": n.claim_matrix_path,
+            }
+            for n in nodes
+            if n.evidence_ids or n.resolved_evidence_gaps or n.new_evidence_gaps
+        ]
+        claim_matrix = self._tree_claim_matrix(tree.project_id) or {}
+        evidence_records = self._tree_list_evidence(tree.project_id)
+        return {
+            "tree_id": tree_id,
+            "project_id": tree.project_id,
+            "protocol_id": tree.protocol_id,
+            "linked_nodes": linked,
+            "linked_count": len(linked),
+            "open_evidence_gaps": extract_open_gaps(claim_matrix, evidence_records),
+            "claim_matrix_path": claim_matrix.get("matrix_path"),
+            "evidence_count": len(evidence_records),
+            "ascii_tree": self.trees.render_ascii(tree_id),
+        }
+
+    def _tree_link_evidence(self, tree_id: str, tree_node_id: str) -> dict[str, Any]:
+        """Build/link Evidence + Claim Matrix for an evaluated tree node."""
+        from datetime import datetime, timezone
+
+        from scientist_lab.search.evidence_link import (
+            collect_related_evidence_ids,
+            diff_gaps,
+            evidence_link_payload,
+            extract_open_gaps,
+        )
+
+        tree = self.trees.require_tree(tree_id)
+        node = self.trees._repo.get_node(tree_node_id)
+        if node is None or node.tree_id != tree_id:
+            raise KeyError(f"tree node not found: {tree_node_id}")
+
+        notes: list[str] = []
+        before_records = self._tree_list_evidence(tree.project_id)
+        before_matrix = self._tree_claim_matrix(tree.project_id) or {}
+        before_gaps = extract_open_gaps(before_matrix, before_records)
+
+        parent_experiment_id: str | None = None
+        if node.parent_tree_node_id:
+            parent = self.trees._repo.get_node(node.parent_tree_node_id)
+            if parent is not None:
+                parent_experiment_id = parent.experiment_node_id
+
+        built_ids: list[str] = []
+        if parent_experiment_id:
+            try:
+                built = self.build_evidence(
+                    parent_experiment_id,
+                    node.experiment_node_id,
+                    include_resource_evidence=True,
+                )
+                built_ids = list(built.get("evidence_ids") or [])
+            except Exception as exc:  # noqa: BLE001
+                notes.append(f"evidence build skipped: {exc}")
+
+        claim_matrix_path: str | None = None
+        try:
+            matrix = self.build_claim_matrix(
+                tree.project_id, protocol_id=tree.protocol_id
+            )
+            claim_matrix_path = (
+                str(matrix.get("matrix_path") or "") or None
+            )
+        except Exception as exc:  # noqa: BLE001
+            notes.append(f"claim matrix rebuild skipped: {exc}")
+            matrix = self._tree_claim_matrix(tree.project_id) or {}
+            claim_matrix_path = (
+                str(matrix.get("matrix_path") or "") or None
+            )
+
+        after_records = self._tree_list_evidence(tree.project_id)
+        after_gaps = extract_open_gaps(matrix if isinstance(matrix, dict) else {}, after_records)
+        resolved, new_gaps = diff_gaps(before_gaps, after_gaps)
+
+        related = collect_related_evidence_ids(
+            after_records,
+            experiment_node_ids=[
+                x
+                for x in [parent_experiment_id, node.experiment_node_id]
+                if x
+            ],
+        )
+        evidence_ids: list[str] = []
+        for eid in built_ids + related:
+            if eid and eid not in evidence_ids:
+                evidence_ids.append(eid)
+
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        updated = node.model_copy(
+            update={
+                "evidence_ids": evidence_ids,
+                "resolved_evidence_gaps": resolved,
+                "new_evidence_gaps": new_gaps,
+                "claim_matrix_path": claim_matrix_path,
+                "updated_at": now,
+            }
+        )
+        self.trees._repo.upsert_node(updated)
+        return evidence_link_payload(
+            tree_node_id=updated.tree_node_id,
+            experiment_node_id=updated.experiment_node_id,
+            evidence_ids=evidence_ids,
+            resolved_evidence_gaps=resolved,
+            new_evidence_gaps=new_gaps,
+            claim_matrix_path=claim_matrix_path,
+            notes=notes,
+        )
+
+    def _tree_evaluate_and_maybe_stop(
+        self,
+        tree_id: str,
+        *,
+        last_plan_filter: dict[str, Any] | None = None,
+        planner_stop_recommended: bool = False,
+        planner_stop_reason: str | None = None,
+    ) -> dict[str, Any] | None:
+        from scientist_lab.search.stop_policy import evaluate_stop
+
+        tree = self.trees.require_tree(tree_id)
+        nodes = self.trees._repo.list_nodes(tree_id)
+        budget_key = tree.budget_id or tree.project_id
+        remaining = self._tree_remaining_budget(budget_key)
+        decision = evaluate_stop(
+            tree,
+            nodes,
+            remaining_budget=remaining,
+            last_plan_filter=last_plan_filter,
+            planner_stop_recommended=planner_stop_recommended,
+            planner_stop_reason=planner_stop_reason,
+        )
+        if not decision.should_stop or not decision.status:
+            return None
+        updated = self.trees.apply_stop(
+            tree_id,
+            status=decision.status,
+            reason=decision.reason or decision.status,
+        )
+        return {
+            "should_stop": True,
+            "status": updated.status,
+            "reason": updated.stop_reason,
+            "details": decision.details,
+            "tree_status": updated.status,
+        }
+
+    def _tree_parent_with_plan(self, tree_id: str):
+        tree = self.trees.require_tree(tree_id)
+        nodes = self.trees._repo.list_nodes(tree_id)
+        if tree.selected_node_id:
+            for node in nodes:
+                if (
+                    node.experiment_node_id == tree.selected_node_id
+                    and node.plan_id
+                ):
+                    return node
+        # Prefer deepest expandable parent that already has a plan.
+        with_plan = [n for n in nodes if n.plan_id]
+        if not with_plan:
+            raise ValueError(
+                "no tree node with plan_id; run tree-plan-next before tree-approve"
+            )
+        with_plan.sort(key=lambda n: (n.depth, n.updated_at), reverse=True)
+        return with_plan[0]
+
+    @staticmethod
+    def _map_experiment_type_to_tree_node(experiment_type: str) -> str:
+        mapping = {
+            "improve": "improve",
+            "ablation": "ablation",
+            "replication": "replication",
+            "debug": "debug",
+            "efficiency": "efficiency",
+            "robustness": "improve",
+        }
+        return mapping.get(experiment_type, "improve")
+
+    def _tree_node_aggregate(self, experiment_node_id: str) -> dict[str, Any] | None:
+        node = self.repo.get_node(experiment_node_id)
+        if node is None:
+            return None
+        feedback = dict(node.feedback_json or {})
+        cached = feedback.get("aggregate_metrics")
+        if isinstance(cached, dict) and cached:
+            return cached
+        try:
+            return self.aggregate_node(experiment_node_id)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _tree_list_evidence(self, project_id: str) -> list[dict[str, Any]]:
+        try:
+            records = self.evidence.list_evidence(project_id=project_id)
+        except Exception:  # noqa: BLE001
+            return []
+        out: list[dict[str, Any]] = []
+        for record in records:
+            if hasattr(record, "model_dump"):
+                out.append(record.model_dump(mode="json"))
+            elif isinstance(record, dict):
+                out.append(record)
+        return out
+
+    def _tree_claim_matrix(self, project_id: str) -> dict[str, Any] | None:
+        try:
+            return self.evidence.show_claim_matrix(project_id)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _tree_remaining_budget(self, budget_id: str) -> dict[str, Any] | None:
+        budget = self.budget.get(budget_id)
+        if budget is None:
+            budget = self.budget.set_budget(budget_id)
+        return budget.remaining()
 
 
 def load_contract(path: Path) -> ExperimentContract:

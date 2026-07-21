@@ -1,0 +1,78 @@
+{
+  "version": "v1.1",
+  "ok": true,
+  "tree_id": "tree_bbd801e9e62d",
+  "project_id": "project_rgbt_003",
+  "protocol_id": "protocol_rgbt_001",
+  "mermaid_path": "D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v11\\outputs\\project_rgbt_003\\acceptance\\v11_tree.mmd",
+  "json_path": "D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v11\\outputs\\project_rgbt_003\\acceptance\\v11_tree.json",
+  "steps": [
+    {
+      "name": "tree-create",
+      "ok": true,
+      "detail": "tree_id=tree_bbd801e9e62d status=created"
+    },
+    {
+      "name": "ExperimentNode-TreeNode-separation",
+      "ok": true,
+      "detail": "tree_node_id=tnode_99fa4923eb19"
+    },
+    {
+      "name": "best-first-parent",
+      "ok": true,
+      "detail": "{\"tree_node_id\": \"tnode_99fa4923eb19\", \"experiment_node_id\": \"rgbt_formal_node_003\", \"node_type\": \"root\", \"status\": \"created\", \"depth\": 0, \"score\": 0.5966, \"expansion_priority\": 0.4702, \"child_count\": 0, \"reasons_ok\": [\"status=created is expandable\", \"depth 0 < max_depth 3\", \"children 0 < max_childr"
+    },
+    {
+      "name": "tree-plan-next-mock",
+      "ok": true,
+      "detail": "status=planned top=candidate_d5dfc8138809"
+    },
+    {
+      "name": "tree-approve-iteration",
+      "ok": true,
+      "detail": "iteration=iter_cecdf2b81e67 proposed=rgbt_formal_node_004"
+    },
+    {
+      "name": "tree-advance-backfill",
+      "ok": true,
+      "detail": "status=advanced score=0.6385"
+    },
+    {
+      "name": "evidence-claim-backfill",
+      "ok": true,
+      "detail": "evidence_ids=['evidence_d491a86803a8', 'evidence_8b970993bb7c'] matrix=D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v11\\outputs\\project_rgbt_003\\evidence\\claim_support_matrix.json"
+    },
+    {
+      "name": "tree-evidence",
+      "ok": true,
+      "detail": "linked=1 evidence_count=2"
+    },
+    {
+      "name": "tree-export-json",
+      "ok": true,
+      "detail": "nodes=2"
+    },
+    {
+      "name": "tree-export-mermaid",
+      "ok": true,
+      "detail": "flowchart TD\n  classDef terminal fill:#eee,stroke:#999,color:#333;\n  tnode_99fa4923eb19[\"rgbt_formal_node_003<br/>root | created<br/>score=0.60, expand=0.47\"]\n  tnode_e287ea599c7a[\"rgbt_formal_node_00"
+    },
+    {
+      "name": "user-stop-blocks-expand",
+      "ok": true,
+      "detail": "stop=user_stopped blocked=True"
+    },
+    {
+      "name": "restart-recovery",
+      "ok": true,
+      "detail": "status=user_stopped nodes=2"
+    },
+    {
+      "name": "v1.0-plan-next-independent",
+      "ok": true,
+      "detail": "plan_id=plan_0c2706616731 status=verified"
+    }
+  ],
+  "passed": 13,
+  "total": 13
+}
