@@ -1710,6 +1710,10 @@ class ExperimentService:
         allow_network: bool = False,
         transport: Any = None,
         openai_config: Any = None,
+        model_profile: str | None = None,
+        require_quality_gate: bool = False,
+        allow_unqualified_profile: bool = False,
+        suite_version: str | None = "eval_suite_v1",
     ) -> dict[str, Any]:
         from scientist_lab.agents.provider_bridge import normalize_provider_mode
         from scientist_lab.llm.config import redact_secrets
@@ -1717,6 +1721,10 @@ class ExperimentService:
             LLMError,
             MissingAPIKeyError,
             RealProviderNotEnabledError,
+        )
+        from scientist_lab.llm_eval.profile_gate import (
+            LLMProfileNotQualifiedError,
+            assert_profile_qualified_for_planning,
         )
 
         project = self.repo.get_project(project_id)
@@ -1776,6 +1784,43 @@ class ExperimentService:
         )
 
         mode = normalize_provider_mode(provider)
+        quality_audit: dict[str, Any] | None = None
+        if require_quality_gate:
+            profile_id = model_profile or self.llm_evals.get_default_profile_id()
+            if not profile_id:
+                raise ValueError(
+                    "model profile required with --require-quality-gate "
+                    "(pass --model-profile or llm-profile-select)"
+                )
+            profile = self.llm_evals.get_profile(profile_id)
+            if profile is None:
+                raise KeyError(f"llm profile not found: {profile_id}")
+            evaluation = self.llm_evals.latest_evaluation_for_profile(
+                profile_id, suite_version=suite_version
+            )
+            try:
+                quality_audit = assert_profile_qualified_for_planning(
+                    profile=profile,
+                    evaluation=evaluation,
+                    suite_version=suite_version,
+                    require_quality_gate=True,
+                    allow_unqualified=allow_unqualified_profile,
+                )
+            except LLMProfileNotQualifiedError as exc:
+                return {
+                    "status": "profile_not_qualified",
+                    "project_id": project_id,
+                    "requested_provider": mode,
+                    "actual_provider": None,
+                    "fallback_used": False,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                    "quality_gate": {
+                        "profile_id": profile_id,
+                        "quality_gate_bypassed": False,
+                    },
+                }
+
         try:
             self.agents.configure_provider(
                 mode,
@@ -1798,6 +1843,12 @@ class ExperimentService:
             result["requested_provider"] = mode
             result["actual_provider"] = result.get("model_provider")
             result["fallback_used"] = False
+            if quality_audit is not None:
+                result["quality_gate"] = quality_audit
+                if quality_audit.get("quality_gate_bypassed"):
+                    result["formal_approval_eligible"] = False
+                else:
+                    result["formal_approval_eligible"] = True
             return result
         except (RealProviderNotEnabledError, MissingAPIKeyError, LLMError, ValueError) as exc:
             if mode not in {"real", "openai-compatible"}:
@@ -2072,6 +2123,75 @@ class ExperimentService:
         payload["suite_version"] = row.get("suite_version")
         return payload
 
+    def compare_llm_evaluations(
+        self, baseline_evaluation_id: str, candidate_evaluation_id: str
+    ) -> dict[str, Any]:
+        from scientist_lab.llm_eval.compare import compare_evaluations
+
+        baseline = self.get_llm_evaluation(baseline_evaluation_id)
+        candidate = self.get_llm_evaluation(candidate_evaluation_id)
+        result = compare_evaluations(
+            dict(baseline.get("result") or {}),
+            dict(candidate.get("result") or {}),
+            baseline_id=baseline_evaluation_id,
+            candidate_id=candidate_evaluation_id,
+        )
+        return result.model_dump(mode="json")
+
+    def rank_llm_profiles(
+        self,
+        *,
+        suite_version: str = "eval_suite_v1",
+        profile_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        from scientist_lab.llm_eval.ranking import rank_profiles
+
+        profiles = self.llm_evals.list_profiles(enabled_only=True)
+        if profile_ids:
+            wanted = set(profile_ids)
+            profiles = [p for p in profiles if p.profile_id in wanted]
+        entries = []
+        for profile in profiles:
+            latest = self.llm_evals.latest_evaluation_for_profile(
+                profile.profile_id, suite_version=suite_version
+            )
+            if latest is None:
+                entries.append(
+                    {
+                        "profile_id": profile.profile_id,
+                        "evaluation_id": None,
+                        "scorecard": {
+                            "status": "skipped",
+                            "skip_reason": "no evaluation",
+                            "planner": {"case_count": 0},
+                            "safety": {"pass": False, "pass_rate": 0.0, "case_count": 0},
+                        },
+                    }
+                )
+                continue
+            entries.append(
+                {
+                    "profile_id": profile.profile_id,
+                    "evaluation_id": latest["evaluation_id"],
+                    "scorecard": dict(latest.get("result") or {}),
+                }
+            )
+        ranked = rank_profiles(entries)
+        return {
+            "suite_version": suite_version,
+            "default_profile_id": self.llm_evals.get_default_profile_id(),
+            "ranking": [r.model_dump(mode="json") for r in ranked],
+            "qualified_count": sum(1 for r in ranked if r.qualified),
+        }
+
+    def select_llm_profile(self, profile_id: str) -> dict[str, Any]:
+        """Human-select default profile (never auto-select by cost)."""
+        selected = self.llm_evals.set_default_profile(profile_id)
+        return {
+            "default_profile_id": selected,
+            "profile": self.show_llm_profile(selected),
+        }
+
     def review_plan(
         self,
         plan_id: str,
@@ -2293,6 +2413,10 @@ class ExperimentService:
         allow_network: bool = False,
         transport: Any = None,
         openai_config: Any = None,
+        model_profile: str | None = None,
+        require_quality_gate: bool = False,
+        allow_unqualified_profile: bool = False,
+        suite_version: str | None = "eval_suite_v1",
     ) -> dict[str, Any]:
         """Best-First parent → plan-next → review → rank.
 
@@ -2370,7 +2494,26 @@ class ExperimentService:
             allow_network=allow_network,
             transport=transport,
             openai_config=openai_config,
+            model_profile=model_profile,
+            require_quality_gate=require_quality_gate,
+            allow_unqualified_profile=allow_unqualified_profile,
+            suite_version=suite_version,
         )
+        if planned.get("status") == "profile_not_qualified":
+            return {
+                "tree_id": tree_id,
+                "status": "profile_not_qualified",
+                "tree_status": tree.status,
+                "selection": selection,
+                "plan": planned,
+                "ranking": None,
+                "provider": mode,
+                "requested_provider": mode,
+                "actual_provider": None,
+                "fallback_used": False,
+                "reason": planned.get("error") or "profile not qualified",
+                "quality_gate": planned.get("quality_gate"),
+            }
         if planned.get("status") == "real_provider_failed":
             return {
                 "tree_id": tree_id,

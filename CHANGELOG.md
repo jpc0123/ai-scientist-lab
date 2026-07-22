@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.5.0] - 2026-07-22
+
+LLM quality governance and multi-model evaluation.
+
+### Added
+- Versioned eval suite (`eval_suite_v1`, 25 planner/critic/safety cases)
+- Rule-based Planner / Critic / Safety graders (safety = hard fail)
+- `llm-eval-run` for mock / fake / replay / real (real gated; CI offline)
+- `LLMModelProfile` registry (`llm-profile-register/list/show/select`)
+- Evaluation scorecards under `outputs/.../llm_evals/`
+- Quality Gate (`llm-eval-verify`) and regression compare (`llm-eval-compare`)
+- Static profile ranking (`llm-profile-rank`; no auto-default by cost)
+- Planning gate: `--require-quality-gate` → `profile_not_qualified` unless bypassed
+- Acceptance: `scripts/accept_v15.py`, `docs/acceptance/v1.5/`
+
+### Notes
+- Default provider remains **mock**
+- Unqualified / bypassed profiles are not formally approval-eligible
+- After `v1.5.0`, only bugfixes on this line; source-patch work goes to v1.6+
+
 ## [1.4.0] - 2026-07-22
 
 First OpenAI-compatible cloud LLM provider (explicitly gated; default remains mock).

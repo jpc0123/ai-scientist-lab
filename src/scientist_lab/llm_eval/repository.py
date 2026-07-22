@@ -55,6 +55,14 @@ class LLMEvaluationCaseRow(Base):
     created_at: Mapped[str] = mapped_column(String, nullable=False)
 
 
+class LLMRuntimeSettingRow(Base):
+    __tablename__ = "llm_runtime_settings"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value_json: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[str] = mapped_column(String, nullable=False)
+
+
 def ensure_llm_eval_schema(engine) -> None:
     Base.metadata.create_all(
         engine,
@@ -62,6 +70,7 @@ def ensure_llm_eval_schema(engine) -> None:
             LLMModelProfileRow.__table__,
             LLMEvaluationRow.__table__,
             LLMEvaluationCaseRow.__table__,
+            LLMRuntimeSettingRow.__table__,
         ],
     )
 
@@ -179,3 +188,80 @@ class LLMEvalRepository:
                 "created_at": row.created_at,
                 "completed_at": row.completed_at,
             }
+
+    def list_evaluations(
+        self,
+        *,
+        profile_id: str | None = None,
+        suite_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            stmt = select(LLMEvaluationRow)
+            if profile_id:
+                stmt = stmt.where(LLMEvaluationRow.profile_id == profile_id)
+            if suite_version:
+                stmt = stmt.where(LLMEvaluationRow.suite_version == suite_version)
+            rows = list(session.scalars(stmt).all())
+            rows.sort(
+                key=lambda r: (
+                    r.completed_at or r.created_at or "",
+                    r.evaluation_id,
+                ),
+                reverse=True,
+            )
+            out = []
+            for row in rows[: max(1, int(limit))]:
+                out.append(
+                    {
+                        "evaluation_id": row.evaluation_id,
+                        "profile_id": row.profile_id,
+                        "suite_version": row.suite_version,
+                        "status": row.status,
+                        "result": json.loads(row.result_json),
+                        "report_path": row.report_path,
+                        "created_at": row.created_at,
+                        "completed_at": row.completed_at,
+                    }
+                )
+            return out
+
+    def latest_evaluation_for_profile(
+        self, profile_id: str, *, suite_version: str | None = None
+    ) -> dict[str, Any] | None:
+        rows = self.list_evaluations(
+            profile_id=profile_id, suite_version=suite_version, limit=1
+        )
+        return rows[0] if rows else None
+
+    def set_default_profile(self, profile_id: str) -> str:
+        profile = self.get_profile(profile_id)
+        if profile is None:
+            raise KeyError(f"llm profile not found: {profile_id}")
+        if not profile.enabled:
+            raise ValueError(f"llm profile is disabled: {profile_id}")
+        now = _now()
+        with self._session_factory() as session:
+            row = session.get(LLMRuntimeSettingRow, "default_profile_id")
+            payload = json.dumps({"profile_id": profile_id}, ensure_ascii=False)
+            if row is None:
+                session.add(
+                    LLMRuntimeSettingRow(
+                        key="default_profile_id",
+                        value_json=payload,
+                        updated_at=now,
+                    )
+                )
+            else:
+                row.value_json = payload
+                row.updated_at = now
+            session.commit()
+        return profile_id
+
+    def get_default_profile_id(self) -> str | None:
+        with self._session_factory() as session:
+            row = session.get(LLMRuntimeSettingRow, "default_profile_id")
+            if row is None:
+                return None
+            data = json.loads(row.value_json)
+            return data.get("profile_id")

@@ -1,0 +1,83 @@
+{
+  "version": "v1.5",
+  "release": "v1.5.0",
+  "offline_acceptance": true,
+  "real_network_called": false,
+  "api_key_required_for_ci": false,
+  "default_provider": "mock",
+  "checks": [
+    {
+      "name": "suite-loadable",
+      "ok": true,
+      "detail": "cases=25 version=eval_suite_v1"
+    },
+    {
+      "name": "manifest-valid",
+      "ok": true,
+      "detail": "files=3"
+    },
+    {
+      "name": "mock-planner-eval-runnable",
+      "ok": true,
+      "detail": "status=completed id=llm_eval_051be66d7029"
+    },
+    {
+      "name": "replay-planner-eval-runnable",
+      "ok": true,
+      "detail": "status=completed"
+    },
+    {
+      "name": "mock-critic-eval-runnable",
+      "ok": true,
+      "detail": "status=completed"
+    },
+    {
+      "name": "safety-cases-pass",
+      "ok": true,
+      "detail": "pass=True"
+    },
+    {
+      "name": "scorecard-generated",
+      "ok": true,
+      "detail": "{\"evaluation_report_json\": \"evaluation_report.json\", \"evaluation_report_md\": \"evaluation_report.md\", \"case_results\": \"case_results.jsonl\", \"failure_cases\": \"failure_cases.jsonl\", \"manifest\": \"manifest.json\"}"
+    },
+    {
+      "name": "quality-gate-blocks",
+      "ok": true,
+      "detail": "bad=blocked good=passed"
+    },
+    {
+      "name": "evaluations-comparable",
+      "ok": true,
+      "detail": "delta=-0.4"
+    },
+    {
+      "name": "prompt-regression-detectable",
+      "ok": true,
+      "detail": "Evidence-gap relevance decreased beyond the allowed threshold."
+    },
+    {
+      "name": "rank-only-qualified",
+      "ok": true,
+      "detail": "qualified=['rank_ok_profile']"
+    },
+    {
+      "name": "unevaluated-profile-blocked",
+      "ok": true,
+      "detail": "status=profile_not_qualified"
+    },
+    {
+      "name": "ci-zero-network-real-skipped",
+      "ok": true,
+      "detail": "status=skipped reason=CLI --allow-network not set"
+    },
+    {
+      "name": "default-still-mock",
+      "ok": true,
+      "detail": "default provider remains mock; accept_v15 is offline-only"
+    }
+  ],
+  "passed": 14,
+  "total": 14,
+  "real_llm": false
+}

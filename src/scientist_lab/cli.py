@@ -492,6 +492,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Explicit network permission for --provider real (also needs LLM_ALLOW_NETWORK)",
     )
+    plan_next.add_argument(
+        "--model-profile",
+        default=None,
+        help="LLMModelProfile id (required with --require-quality-gate unless default selected)",
+    )
+    plan_next.add_argument(
+        "--require-quality-gate",
+        action="store_true",
+        help="Require a Quality-Gate-qualified evaluation for the profile",
+    )
+    plan_next.add_argument(
+        "--allow-unqualified-profile",
+        action="store_true",
+        help="Dev-only bypass for --require-quality-gate (records warning; not formally approvable)",
+    )
 
     list_plans = sub.add_parser("list-plans", help="List experiment plans")
     list_plans.add_argument("--project-id", default=None)
@@ -614,6 +629,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-network",
         action="store_true",
         help="Explicit network permission for --provider real",
+    )
+    tree_plan.add_argument(
+        "--model-profile",
+        default=None,
+        help="LLMModelProfile id for quality-gated real planning",
+    )
+    tree_plan.add_argument(
+        "--require-quality-gate",
+        action="store_true",
+        help="Require a Quality-Gate-qualified evaluation before planning",
+    )
+    tree_plan.add_argument(
+        "--allow-unqualified-profile",
+        action="store_true",
+        help="Dev-only bypass for quality gate",
     )
     tree_plan.add_argument(
         "--no-rescore",
@@ -813,6 +843,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Apply Quality Gate to an evaluation scorecard (v1.5.6)",
     )
     llm_eval_verify.add_argument("evaluation_id")
+
+    llm_eval_compare = sub.add_parser(
+        "llm-eval-compare",
+        help="Compare two evaluations for Prompt/model regression (v1.5.7)",
+    )
+    llm_eval_compare.add_argument("baseline_evaluation_id")
+    llm_eval_compare.add_argument("candidate_evaluation_id")
+
+    llm_profile_rank = sub.add_parser(
+        "llm-profile-rank",
+        help="Rank Quality-Gate-qualified profiles (v1.5.8; does not auto-select)",
+    )
+    llm_profile_rank.add_argument(
+        "--suite",
+        default="eval_suite_v1",
+        help="Suite version used to pick latest evaluations",
+    )
+
+    llm_profile_select = sub.add_parser(
+        "llm-profile-select",
+        help="Human-select default LLM profile (v1.5.8)",
+    )
+    llm_profile_select.add_argument("profile_id")
 
     llm_usage = sub.add_parser(
         "llm-usage",
@@ -1566,9 +1619,20 @@ def main(argv: list[str] | None = None) -> int:
                 max_gpu_hours=args.max_gpu_hours,
                 provider=provider,
                 allow_network=bool(getattr(args, "allow_network", False)),
+                model_profile=getattr(args, "model_profile", None),
+                require_quality_gate=bool(
+                    getattr(args, "require_quality_gate", False)
+                ),
+                allow_unqualified_profile=bool(
+                    getattr(args, "allow_unqualified_profile", False)
+                ),
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
-            if data.get("status") in {"planner_failed", "real_provider_failed"}:
+            if data.get("status") in {
+                "planner_failed",
+                "real_provider_failed",
+                "profile_not_qualified",
+            }:
                 return 1
             return 0
         except (KeyError, ValueError) as exc:
@@ -1763,11 +1827,18 @@ def main(argv: list[str] | None = None) -> int:
                 max_gpu_hours=args.max_gpu_hours,
                 provider=provider,
                 allow_network=bool(getattr(args, "allow_network", False)),
+                model_profile=getattr(args, "model_profile", None),
+                require_quality_gate=bool(
+                    getattr(args, "require_quality_gate", False)
+                ),
+                allow_unqualified_profile=bool(
+                    getattr(args, "allow_unqualified_profile", False)
+                ),
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             if data.get("ascii_tree"):
                 print("\n" + data["ascii_tree"])
-            if data.get("status") == "real_provider_failed":
+            if data.get("status") in {"real_provider_failed", "profile_not_qualified"}:
                 return 1
             return 0 if data.get("status") == "planned" else 2
         except (KeyError, ValueError) as exc:
@@ -2012,6 +2083,31 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             return 0
         except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-eval-compare":
+        try:
+            data = service.compare_llm_evaluations(
+                args.baseline_evaluation_id, args.candidate_evaluation_id
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 1 if data.get("regression_detected") else 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-profile-rank":
+        data = service.rank_llm_profiles(suite_version=args.suite)
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "llm-profile-select":
+        try:
+            data = service.select_llm_profile(args.profile_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 
