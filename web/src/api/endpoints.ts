@@ -31,8 +31,29 @@ export const api = {
     apiGet<{ tree_id: string; mermaid: string }>(`/api/v1/trees/${id}/mermaid`),
   plans: () => apiGet<Page<Record<string, unknown>>>("/api/v1/plans?limit=50&offset=0"),
   plan: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/plans/${id}`),
+  approveCandidate: (planId: string, candidateId: string) =>
+    apiPost(`/api/v1/plans/${planId}/candidates/${candidateId}/approve`),
+  rejectCandidate: (planId: string, candidateId: string, reason = "") =>
+    apiPost(`/api/v1/plans/${planId}/candidates/${candidateId}/reject`, {
+      reason,
+    }),
   iterations: () =>
     apiGet<Page<Record<string, unknown>>>("/api/v1/iterations?limit=50&offset=0"),
+  iteration: (id: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/iterations/${id}`),
+  approveIteration: (id: string) =>
+    apiPost(`/api/v1/iterations/${id}/approve`),
+  advanceIteration: (id: string) =>
+    apiPost(`/api/v1/iterations/${id}/advance`),
+  finalizeIteration: (
+    id: string,
+    body: {
+      selected_node_id: string;
+      reason: string;
+      decision_type?: string;
+      evidence_strength?: string;
+    },
+  ) => apiPost(`/api/v1/iterations/${id}/finalize`, body),
   patches: () => apiGet<Page<PatchProposal>>("/api/v1/patches?limit=50&offset=0"),
   patch: (id: string) => apiGet<PatchProposal & Record<string, unknown>>(`/api/v1/patches/${id}`),
   evidence: () =>

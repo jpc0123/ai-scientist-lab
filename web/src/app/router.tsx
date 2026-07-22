@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
+import { ApprovalsPage } from "../pages/ApprovalsPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { ExecutionDetailPage, ExecutionsPage } from "../pages/ExecutionsPage";
 import { PatchDetailPage, PatchesPage } from "../pages/PatchesPage";
@@ -8,6 +9,7 @@ import { ProjectDetailPage, ProjectsPage } from "../pages/ProjectsPage";
 import {
   AuditsPage,
   EvidencePage,
+  IterationDetailPage,
   IterationsPage,
   PlanDetailPage,
   PlansPage,
@@ -22,6 +24,7 @@ export function AppRouter() {
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:projectId" element={<ProjectDetailRoute />} />
         <Route path="executions" element={<ExecutionsPage />} />
@@ -31,6 +34,7 @@ export function AppRouter() {
         <Route path="plans" element={<PlansPage />} />
         <Route path="plans/:id" element={<PlanDetailPage />} />
         <Route path="iterations" element={<IterationsPage />} />
+        <Route path="iterations/:id" element={<IterationDetailPage />} />
         <Route path="patches" element={<PatchesPage />} />
         <Route path="patches/:id" element={<PatchDetailPage />} />
         <Route path="evidence" element={<EvidencePage />} />

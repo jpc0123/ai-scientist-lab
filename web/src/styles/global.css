@@ -374,6 +374,93 @@ td {
   margin-top: 1rem;
 }
 
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0;
+}
+
+.meta-item {
+  margin: 0;
+}
+
+.meta-item dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-bottom: 0.15rem;
+}
+
+.meta-item dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.mermaid-wrap {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.mermaid-host {
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem;
+  min-height: 120px;
+}
+
+.mermaid-host svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-source summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  background: #edf2f6;
+}
+
+.chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.approval-item {
+  justify-content: space-between;
+  align-items: flex-start !important;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.field input {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  background: white;
+  color: var(--ink);
+}
+
+.finalize-box {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
@@ -385,7 +472,8 @@ td {
   }
 
   .stat-grid,
-  .split {
+  .split,
+  .meta-grid {
     grid-template-columns: 1fr;
   }
 }
