@@ -13,6 +13,10 @@ from scientist_lab.patching.fingerprint import fingerprint_diff
 from scientist_lab.patching.models import PatchApproval, PatchProposal
 from scientist_lab.patching.path_policy import PathPolicy
 from scientist_lab.patching.repository import PatchRepository
+from scientist_lab.patching.sandbox_checks import (
+    SandboxTestProfile,
+    SandboxTestRunner,
+)
 from scientist_lab.patching.verifier import PatchVerifier
 from scientist_lab.patching.workspace import PatchSandbox
 
@@ -67,6 +71,7 @@ class PatchingService:
             sandbox_root=self.sandbox_root,
             policy=self.policy,
         )
+        self.sandbox_tests = SandboxTestRunner(policy=self.policy)
 
     def propose_mock(
         self,
@@ -242,6 +247,42 @@ class PatchingService:
         }
         return view
 
+    def test_sandbox(
+        self,
+        patch_id: str,
+        *,
+        profile: SandboxTestProfile = "smoke",
+    ) -> dict[str, Any]:
+        """Run allow-listed in-process checks against an applied sandbox."""
+        proposal = self._repo.require(patch_id)
+        if proposal.status != "applied_sandbox":
+            raise ValueError(
+                f"sandbox tests require status applied_sandbox; "
+                f"got {proposal.status!r}"
+            )
+        meta = dict(proposal.metadata or {})
+        sandbox_dir = meta.get("sandbox_dir")
+        if not sandbox_dir:
+            raise ValueError("patch metadata missing sandbox_dir")
+        files_written = list(meta.get("sandbox_files_written") or [])
+        report = self.sandbox_tests.run(
+            patch_id=proposal.patch_id,
+            sandbox_dir=sandbox_dir,
+            files_written=files_written,
+            profile=profile,
+        )
+        proposal.metadata = {
+            **meta,
+            "sandbox_tests": report.to_dict(),
+            "sandbox_tests_ok": report.ok,
+            "sandbox_test_profile": profile,
+        }
+        # Status stays applied_sandbox; evidence recording is v1.6.6.
+        self._repo.upsert(proposal)
+        view = self._view(proposal)
+        view["sandbox_tests"] = report.to_dict()
+        return view
+
     def list_patches(self, project_id: str) -> list[dict[str, Any]]:
         return [self._view(item) for item in self._repo.list_for_project(project_id)]
 
@@ -255,6 +296,8 @@ class PatchingService:
             "failed_sandbox",
         }
         data["applied_sandbox"] = bool(meta.get("applied_sandbox"))
+        data["can_test_sandbox"] = proposal.status == "applied_sandbox"
+        data["sandbox_tests_ok"] = meta.get("sandbox_tests_ok")
         # Back-compat keys used by v1.6.1–1.6.3 tests/CLI.
         data["can_apply"] = False
         data["applied"] = bool(meta.get("applied_sandbox"))

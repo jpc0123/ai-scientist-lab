@@ -922,6 +922,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Recreate sandbox if it already exists / retry failed_sandbox",
     )
 
+    patch_test_sandbox = sub.add_parser(
+        "patch-test-sandbox",
+        help=(
+            "Run allow-listed in-process checks on an applied sandbox "
+            "(smoke|syntax|mock_experiment) (v1.6.5)"
+        ),
+    )
+    patch_test_sandbox.add_argument("patch_id")
+    patch_test_sandbox.add_argument(
+        "--profile",
+        choices=["smoke", "syntax", "mock_experiment"],
+        default="smoke",
+        help="Validation profile (default: smoke; never arbitrary shell)",
+    )
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2228,6 +2243,19 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") == "applied_sandbox" else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-test-sandbox":
+        try:
+            data = service.patches.test_sandbox(
+                args.patch_id,
+                profile=getattr(args, "profile", "smoke") or "smoke",
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            report = data.get("sandbox_tests") or {}
+            return 0 if report.get("ok") else 1
         except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1

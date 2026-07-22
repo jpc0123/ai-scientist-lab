@@ -167,6 +167,37 @@ def test_apply_sandbox_requires_approval(tmp_path: Path):
         service.patches.apply_sandbox(proposed["patch_id"])
 
 
+def test_test_sandbox_smoke_and_mock_experiment(tmp_path: Path):
+    service = _service(tmp_path)
+    proposed = service.patches.propose_mock("project_rgbt_003")
+    service.patches.approve(proposed["patch_id"])
+    service.patches.apply_sandbox(proposed["patch_id"])
+
+    smoke = service.patches.test_sandbox(proposed["patch_id"], profile="smoke")
+    assert smoke["can_test_sandbox"] is True
+    assert smoke["sandbox_tests"]["ok"] is True
+    assert smoke["sandbox_tests"]["main_workspace_modified"] is False
+    report_path = Path(smoke["sandbox_tests"]["report_path"])
+    assert report_path.is_file()
+
+    mock_exp = service.patches.test_sandbox(
+        proposed["patch_id"], profile="mock_experiment"
+    )
+    assert mock_exp["sandbox_tests"]["ok"] is True
+    assert mock_exp["sandbox_tests_ok"] is True
+    names = {c["name"] for c in mock_exp["sandbox_tests"]["checks"]}
+    assert "mock_experiment_no_shell" in names
+    assert "mock_experiment_marker" in names
+
+
+def test_test_sandbox_requires_applied(tmp_path: Path):
+    service = _service(tmp_path)
+    proposed = service.patches.propose_mock("project_rgbt_003")
+    service.patches.approve(proposed["patch_id"])
+    with pytest.raises(ValueError, match="applied_sandbox"):
+        service.patches.test_sandbox(proposed["patch_id"])
+
+
 def test_empty_diff_parse_error():
     with pytest.raises(DiffParseError):
         parse_unified_diff("")
