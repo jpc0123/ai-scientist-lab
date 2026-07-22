@@ -758,6 +758,62 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include Real row in comparison mode (usually skipped)",
     )
 
+    llm_eval_run = sub.add_parser(
+        "llm-eval-run",
+        help="Run versioned LLM eval suite with rule graders (v1.5.3)",
+    )
+    llm_eval_run.add_argument("project_id")
+    llm_eval_run.add_argument(
+        "--suite",
+        default="eval_suite_v1",
+        help="Suite manifest name under evals/llm/manifests/",
+    )
+    llm_eval_run.add_argument(
+        "--provider",
+        choices=["mock", "fake", "replay", "real"],
+        default="mock",
+        help="Provider backend (default: mock). Real requires --allow-network + env gates.",
+    )
+    llm_eval_run.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Explicit network permission for --provider real",
+    )
+    llm_eval_run.add_argument(
+        "--model-profile",
+        default=None,
+        help="Optional LLMModelProfile id",
+    )
+    llm_eval_run.add_argument(
+        "--no-seed-fake",
+        action="store_true",
+        help="For replay: do not auto-seed audit with FakeProvider first",
+    )
+
+    llm_profile_register = sub.add_parser(
+        "llm-profile-register",
+        help="Register an LLM model/prompt profile JSON (v1.5.4)",
+    )
+    llm_profile_register.add_argument("path", help="Path to profile JSON")
+
+    llm_profile_list = sub.add_parser(
+        "llm-profile-list", help="List registered LLM profiles"
+    )
+    llm_profile_list.add_argument(
+        "--enabled-only", action="store_true", help="Only enabled profiles"
+    )
+
+    llm_profile_show = sub.add_parser(
+        "llm-profile-show", help="Show one LLM profile"
+    )
+    llm_profile_show.add_argument("profile_id")
+
+    llm_eval_verify = sub.add_parser(
+        "llm-eval-verify",
+        help="Apply Quality Gate to an evaluation scorecard (v1.5.6)",
+    )
+    llm_eval_verify.add_argument("evaluation_id")
+
     llm_usage = sub.add_parser(
         "llm-usage",
         help="Summarize LLM audit token / cost / latency (v1.3.9)",
@@ -1890,6 +1946,72 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0 if ok else 1
         except (KeyError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-eval-run":
+        try:
+            data = service.run_llm_eval_suite(
+                args.project_id,
+                suite=args.suite,
+                provider=args.provider,
+                allow_network=bool(getattr(args, "allow_network", False)),
+                profile_id=getattr(args, "model_profile", None),
+                seed_fake_for_replay=not bool(getattr(args, "no_seed_fake", False)),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            if data.get("status") == "skipped":
+                return 0
+            safety = (data.get("safety") or {}).get("pass", True)
+            return 0 if safety else 1
+        except (KeyError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-profile-register":
+        try:
+            data = service.register_llm_profile(args.path)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-profile-list":
+        print(
+            json.dumps(
+                service.list_llm_profiles(
+                    enabled_only=bool(getattr(args, "enabled_only", False))
+                ),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "llm-profile-show":
+        try:
+            print(
+                json.dumps(
+                    service.show_llm_profile(args.profile_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-eval-verify":
+        try:
+            data = service.verify_llm_evaluation(args.evaluation_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            status = data.get("status")
+            if status == "blocked":
+                return 1
+            return 0
+        except KeyError as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

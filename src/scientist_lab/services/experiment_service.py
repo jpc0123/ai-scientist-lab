@@ -69,6 +69,9 @@ class ExperimentService:
             get_remaining_budget=self._tree_remaining_budget,
         )
         self.reporting = ReportingService(self)
+        from scientist_lab.llm_eval.repository import LLMEvalRepository
+
+        self.llm_evals = LLMEvalRepository(self.session_factory)
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),
@@ -1969,6 +1972,105 @@ class ExperimentService:
         else:
             raise ValueError("project_id or audit_root is required")
         return summarize_audit_usage(root)
+
+    def run_llm_eval_suite(
+        self,
+        project_id: str,
+        *,
+        suite: str = "eval_suite_v1",
+        provider: str = "mock",
+        allow_network: bool = False,
+        profile_id: str | None = None,
+        transport: Any = None,
+        openai_config: Any = None,
+        seed_fake_for_replay: bool = True,
+    ) -> dict[str, Any]:
+        """Run versioned llm_eval suite (v1.5.3) and write scorecard artifacts."""
+        from scientist_lab.llm_eval.profiles import default_mock_profile
+        from scientist_lab.llm_eval.runner import run_evaluation_suite
+
+        profile = default_mock_profile()
+        if profile_id:
+            loaded = self.llm_evals.get_profile(profile_id)
+            if loaded is None:
+                raise KeyError(f"llm profile not found: {profile_id}")
+            profile = loaded
+        return run_evaluation_suite(
+            suite,
+            provider=provider,
+            allow_network=allow_network,
+            project_id=project_id,
+            output_root=self.settings.outputs_dir,
+            profile=profile,
+            transport=transport,
+            openai_config=openai_config,
+            seed_fake_for_replay=seed_fake_for_replay,
+            repository=self.llm_evals,
+        )
+
+    def register_llm_profile(
+        self, path: str | Path | None = None, *, profile: Any = None
+    ) -> dict[str, Any]:
+        from scientist_lab.llm_eval.profiles import LLMModelProfile
+
+        if profile is not None:
+            item = (
+                profile
+                if isinstance(profile, LLMModelProfile)
+                else LLMModelProfile.model_validate(profile)
+            )
+        elif path is not None:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+            item = LLMModelProfile.model_validate(data)
+        else:
+            raise ValueError("path or profile is required")
+        self.llm_evals.upsert_profile(item)
+        return item.safe_dict()
+
+    def list_llm_profiles(self, *, enabled_only: bool = False) -> list[dict[str, Any]]:
+        return [
+            p.safe_dict()
+            for p in self.llm_evals.list_profiles(enabled_only=enabled_only)
+        ]
+
+    def show_llm_profile(self, profile_id: str) -> dict[str, Any]:
+        profile = self.llm_evals.get_profile(profile_id)
+        if profile is None:
+            raise KeyError(f"llm profile not found: {profile_id}")
+        return profile.safe_dict()
+
+    def get_llm_evaluation(self, evaluation_id: str) -> dict[str, Any]:
+        row = self.llm_evals.get_evaluation(evaluation_id)
+        if row is None:
+            raise KeyError(f"llm evaluation not found: {evaluation_id}")
+        return row
+
+    def verify_llm_evaluation(
+        self,
+        evaluation_id: str,
+        *,
+        thresholds: Any = None,
+    ) -> dict[str, Any]:
+        from scientist_lab.llm_eval.quality_gate import (
+            LLMQualityThresholds,
+            verify_quality_gate,
+        )
+
+        row = self.get_llm_evaluation(evaluation_id)
+        scorecard = dict(row.get("result") or {})
+        th = None
+        if thresholds is not None:
+            th = (
+                thresholds
+                if isinstance(thresholds, LLMQualityThresholds)
+                else LLMQualityThresholds.model_validate(thresholds)
+            )
+        gate = verify_quality_gate(scorecard, thresholds=th)
+        payload = gate.model_dump(mode="json")
+        payload["evaluation_id"] = evaluation_id
+        payload["profile_id"] = row.get("profile_id")
+        payload["suite_version"] = row.get("suite_version")
+        return payload
 
     def review_plan(
         self,

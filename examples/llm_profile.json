@@ -1,0 +1,14 @@
+{
+  "profile_id": "mock_default",
+  "provider": "mock",
+  "model": "mock-planner-v1",
+  "api_mode": "offline",
+  "planner_prompt_version": "mock_v1",
+  "critic_prompt_version": "mock_v1",
+  "temperature": 0.0,
+  "max_output_tokens": 2048,
+  "enabled": true,
+  "metadata": {
+    "description": "Builtin offline mock profile for CI and local defaults"
+  }
+}
