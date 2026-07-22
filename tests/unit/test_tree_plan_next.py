@@ -169,6 +169,25 @@ def test_tree_plan_next_mock_flow(tmp_path: Path):
     assert plan["candidates"]
 
 
+def test_tree_plan_next_fake_provider(tmp_path: Path):
+    service = _service(tmp_path)
+    _bootstrap(service)
+    created = service.tree_create(
+        "project_rgbt_003",
+        root_node_id="rgbt_formal_node_003",
+        protocol_id="protocol_rgbt_001",
+        max_depth=3,
+        max_nodes=8,
+        max_children=3,
+    )
+    result = service.tree_plan_next(created["tree_id"], provider="fake")
+    assert result["provider"] == "fake"
+    assert result["status"] in {"planned", "no_valid_candidates"}
+    assert result["plan_id"]
+    plan = service.show_plan(result["plan_id"])
+    assert "fake" in str(plan.get("model_provider") or "")
+
+
 def test_tree_plan_next_stop_when_terminal(tmp_path: Path):
     service = _service(tmp_path)
     _bootstrap(service)

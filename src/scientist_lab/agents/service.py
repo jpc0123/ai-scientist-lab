@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import sessionmaker
 
@@ -25,6 +25,9 @@ from scientist_lab.planning.candidate_verifier import (
 )
 from scientist_lab.planning.contract_generator import generate_contract_from_candidate
 
+if TYPE_CHECKING:
+    from scientist_lab.llm.limits import ProviderLimits
+
 
 class AgentPlanningService:
     def __init__(
@@ -34,12 +37,40 @@ class AgentPlanningService:
         planner: Planner | None = None,
         critic: Critic | None = None,
         outputs_root: Path | None = None,
+        provider_mode: str = "mock",
     ) -> None:
         self._repo = AgentPlanRepository(session_factory)
-        self.planner = planner or MockPlanner()
-        self.critic = critic or MockCritic()
-        self.verifier = CandidateVerifier()
         self.outputs_root = Path(outputs_root) if outputs_root else None
+        self.provider_mode = (provider_mode or "mock").strip().lower()
+        if planner is not None or critic is not None:
+            self.planner = planner or MockPlanner()
+            self.critic = critic or MockCritic()
+        else:
+            self.configure_provider(self.provider_mode)
+        self.verifier = CandidateVerifier()
+
+    def configure_provider(
+        self,
+        mode: str = "mock",
+        *,
+        project_id: str | None = None,
+        audit_root: Path | str | None = None,
+        limits: ProviderLimits | None = None,
+    ) -> None:
+        """Switch planner/critic between mock / fake / replay providers."""
+        from scientist_lab.agents.provider_bridge import build_planner_critic
+
+        resolved = (mode or "mock").strip().lower()
+        root = audit_root
+        if root is None and self.outputs_root is not None:
+            root = self.outputs_root / (project_id or "_llm") / "llm"
+        self.planner, self.critic = build_planner_critic(
+            resolved,  # type: ignore[arg-type]
+            audit_root=root,
+            project_id=project_id,
+            limits=limits,
+        )
+        self.provider_mode = resolved
 
     def plan_next(
         self,
@@ -100,15 +131,23 @@ class AgentPlanningService:
         if output.candidates and not valid_candidates and not output.stop_recommended:
             plan_status = "planner_failed"
 
+        model_provider = getattr(self.planner, "model_provider", None) or "mock"
+        model_name = getattr(self.planner, "model_name", None) or "mock-planner-v1"
+        prompt_version = (
+            "provider_v1"
+            if model_provider not in {"mock", "mock-planner"}
+            else "mock_v1"
+        )
+
         plan = ExperimentPlanRecord(
             plan_id=plan_id,
             project_id=context.project_id,
             status=plan_status,  # type: ignore[arg-type]
             context_json=context.model_dump(mode="json"),
             planner_output_json=output_payload,
-            model_provider="mock",
-            model_name="mock-planner-v1",
-            prompt_version="mock_v1",
+            model_provider=str(model_provider),
+            model_name=str(model_name),
+            prompt_version=prompt_version,
             context_sha256=context.context_sha256,
             output_sha256=output_sha256(output_payload),
             created_at=now,

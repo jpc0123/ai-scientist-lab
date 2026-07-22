@@ -8,6 +8,11 @@ from scientist_lab.agents.models import (
     PlannerOutput,
 )
 from scientist_lab.agents.planner import MockPlanner, Planner
+from scientist_lab.agents.provider_bridge import (
+    ProviderCritic,
+    ProviderPlanner,
+    build_planner_critic,
+)
 from scientist_lab.agents.service import AgentPlanningService
 
 __all__ = [
@@ -20,4 +25,7 @@ __all__ = [
     "Planner",
     "PlanningContext",
     "PlannerOutput",
+    "ProviderCritic",
+    "ProviderPlanner",
+    "build_planner_critic",
 ]

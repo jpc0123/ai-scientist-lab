@@ -1,0 +1,55 @@
+{
+  "version": "v1.3",
+  "checks": [
+    {
+      "name": "llm-eval-gates",
+      "ok": true,
+      "detail": "{\"mock_ok\": true, \"fake_ok\": true, \"replay_ok\": true, \"real_deferred\": true, \"offline_only\": true}"
+    },
+    {
+      "name": "real-deferred",
+      "ok": true,
+      "detail": "real mode skipped"
+    },
+    {
+      "name": "plan-next-fake",
+      "ok": true,
+      "detail": "provider=audit:fake status=verified"
+    },
+    {
+      "name": "plan-next-replay",
+      "ok": true,
+      "detail": "replay_provider=replay"
+    },
+    {
+      "name": "provider-limits-max-calls",
+      "ok": true,
+      "detail": "max_calls=1"
+    },
+    {
+      "name": "llm-usage-summary",
+      "ok": true,
+      "detail": "calls=10 tokens=4447"
+    },
+    {
+      "name": "tree-create",
+      "ok": true,
+      "detail": "tree_id=tree_6da9aec4a958"
+    },
+    {
+      "name": "tree-plan-next-fake",
+      "ok": true,
+      "detail": "status=planned top=candidate_fake_ablation_001 provider=fake"
+    },
+    {
+      "name": "tree-plan-next-mock-default",
+      "ok": true,
+      "detail": "status=planned top=candidate_8634c9c03af1"
+    }
+  ],
+  "passed": 9,
+  "total": 9,
+  "offline_only": true,
+  "real_llm": false,
+  "quality_report_path": "D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v13\\outputs\\project_rgbt_003\\acceptance\\llm_quality_report.json"
+}

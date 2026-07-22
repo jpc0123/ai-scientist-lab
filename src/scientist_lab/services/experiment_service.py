@@ -1703,6 +1703,7 @@ class ExperimentService:
         current_best_node_id: str | None = None,
         max_new_nodes: int = 3,
         max_gpu_hours: float = 12.0,
+        provider: str = "mock",
     ) -> dict[str, Any]:
         project = self.repo.get_project(project_id)
         research_goal = (
@@ -1760,6 +1761,13 @@ class ExperimentService:
             float(max_gpu_hours),
         )
 
+        mode = (provider or "mock").strip().lower()
+        self.agents.configure_provider(
+            mode,
+            project_id=project_id,
+            audit_root=self.settings.outputs_dir / project_id / "llm",
+        )
+
         return self.agents.plan_next(
             project_id=project_id,
             research_goal=research_goal,
@@ -1777,7 +1785,136 @@ class ExperimentService:
     def show_plan(self, plan_id: str) -> dict[str, Any]:
         return self.agents.get_plan(plan_id)
 
-    def review_plan(self, plan_id: str) -> dict[str, Any]:
+    def evaluate_llm_quality(
+        self,
+        project_id: str,
+        *,
+        protocol_id: str | None = None,
+        current_best_node_id: str | None = None,
+        max_new_nodes: int = 3,
+        max_gpu_hours: float = 12.0,
+        output: str | Path | None = None,
+        include_real: bool = False,
+    ) -> dict[str, Any]:
+        """Compare Mock / Fake / Replay planner-critic quality (v1.3.8, offline)."""
+        from scientist_lab.agents.context_builder import build_planning_context
+        from scientist_lab.llm.quality import (
+            evaluate_provider_quality,
+            write_quality_report,
+        )
+
+        project = self.repo.get_project(project_id)
+        research_goal = (
+            project.research_goal
+            if project is not None
+            else "Improve RGB-T detection under a fixed protocol."
+        )
+        nodes = self.repo.list_nodes(project_id=project_id)
+
+        protocol_payload = None
+        resolved_protocol_id = protocol_id
+        if not resolved_protocol_id:
+            for node in nodes:
+                contract = dict(node.contract_json or {})
+                if contract.get("protocol_id"):
+                    resolved_protocol_id = str(contract["protocol_id"])
+                    break
+        if resolved_protocol_id:
+            try:
+                protocol_payload = self.protocols.require(
+                    resolved_protocol_id
+                ).model_dump(mode="json")
+            except KeyError:
+                root = Path(self.settings.project_root)
+                default_protocol = root / "examples" / "rgbt_protocol.json"
+                if default_protocol.is_file():
+                    self.protocols.create_from_path(default_protocol)
+                    protocol_payload = self.protocols.require(
+                        resolved_protocol_id
+                    ).model_dump(mode="json")
+        if protocol_payload is None:
+            sample = dict((nodes[0].contract_json if nodes else {}) or {})
+            protocol_payload = {
+                "protocol_id": sample.get("protocol_id"),
+                "project_id": project_id,
+                "allowed_variables": ["input_mode", "fusion_method"],
+                "fixed_parameters": {},
+            }
+
+        evidence_records = self.list_evidence(project_id=project_id)
+        try:
+            claim_matrix = self.show_claim_matrix(project_id)
+        except Exception:  # noqa: BLE001
+            claim_matrix = {}
+
+        remaining = self.budget.remaining(project_id)
+        remaining["max_new_nodes"] = min(
+            int(remaining.get("max_new_nodes", max_new_nodes)),
+            int(max_new_nodes),
+        )
+        remaining["max_total_gpu_hours"] = min(
+            float(remaining.get("max_total_gpu_hours", max_gpu_hours)),
+            float(max_gpu_hours),
+        )
+
+        context = build_planning_context(
+            project_id=project_id,
+            research_goal=research_goal,
+            protocol=protocol_payload,
+            nodes=nodes,
+            evidence_records=evidence_records,
+            claim_support_matrix=claim_matrix,
+            current_best_node_id=current_best_node_id,
+            remaining_budget=remaining,
+        )
+        audit_root = self.settings.outputs_dir / project_id / "llm"
+        report = evaluate_provider_quality(
+            context,
+            audit_root=audit_root,
+            include_real=include_real,
+        )
+        out_path = (
+            Path(output)
+            if output
+            else (
+                self.settings.outputs_dir
+                / project_id
+                / "acceptance"
+                / "llm_quality_report.json"
+            )
+        )
+        report = write_quality_report(report, out_path)
+        return report.model_dump(mode="json")
+
+    def summarize_llm_usage(
+        self,
+        project_id: str | None = None,
+        *,
+        audit_root: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Aggregate token / cost / latency from LLM audit records (v1.3.9)."""
+        from scientist_lab.llm.quality import summarize_audit_usage
+
+        if audit_root is not None:
+            root = Path(audit_root)
+        elif project_id:
+            root = self.settings.outputs_dir / project_id / "llm"
+        else:
+            raise ValueError("project_id or audit_root is required")
+        return summarize_audit_usage(root)
+
+    def review_plan(
+        self, plan_id: str, *, provider: str | None = None
+    ) -> dict[str, Any]:
+        plan = self.agents.get_plan(plan_id)
+        project_id = str(plan.get("project_id") or "")
+        mode = (provider or self.agents.provider_mode or "mock").strip().lower()
+        if project_id:
+            self.agents.configure_provider(
+                mode,
+                project_id=project_id,
+                audit_root=self.settings.outputs_dir / project_id / "llm",
+            )
         return self.agents.review_plan(plan_id)
 
     def rank_candidates(self, plan_id: str) -> dict[str, Any]:
@@ -1945,8 +2082,12 @@ class ExperimentService:
         *,
         rescore: bool = True,
         max_gpu_hours: float = 12.0,
+        provider: str = "mock",
     ) -> dict[str, Any]:
-        """Best-First parent → MockPlanner plan-next → review → rank (v1.1.4)."""
+        """Best-First parent → plan-next → review → rank (v1.1.4 / v1.3.10).
+
+        ``provider`` defaults to mock; fake/replay are offline-only.
+        """
         from scientist_lab.search.expansion_service import (
             annotate_candidates_against_tree,
             remaining_candidate_slots,
@@ -2007,12 +2148,14 @@ class ExperimentService:
                 "stop_status": "no_valid_candidates",
             }
 
+        mode = (provider or "mock").strip().lower()
         planned = self.plan_next(
             tree.project_id,
             protocol_id=tree.protocol_id,
             current_best_node_id=parent_info["experiment_node_id"],
             max_new_nodes=slots,
             max_gpu_hours=max_gpu_hours,
+            provider=mode,
         )
         plan_id = str(planned.get("plan_id") or "")
         if planned.get("status") == "planner_failed" or not plan_id:
@@ -2029,6 +2172,7 @@ class ExperimentService:
                 "stop_status": "no_valid_candidates"
                 if planned.get("stop_recommended")
                 else None,
+                "provider": mode,
             }
 
         if planned.get("stop_recommended") and not (planned.get("candidates") or []):
@@ -2042,9 +2186,10 @@ class ExperimentService:
                 "reason": planned.get("stop_reason") or "planner recommended stop",
                 "stop_suggested": True,
                 "stop_status": "no_valid_candidates",
+                "provider": mode,
             }
 
-        reviewed = self.review_plan(plan_id)
+        reviewed = self.review_plan(plan_id, provider=mode)
         ranked = self.rank_candidates(plan_id)
 
         # Fingerprints of experiment nodes already on this tree.
@@ -2149,6 +2294,7 @@ class ExperimentService:
                 "reason": stop.get("reason"),
                 "next_action": "Tree stopped by StopPolicy.",
                 "ascii_tree": self.trees.render_ascii(tree_id),
+                "provider": mode,
             }
 
         return {
@@ -2184,6 +2330,7 @@ class ExperimentService:
             "stop_status": "no_valid_candidates"
             if status == "no_valid_candidates"
             else None,
+            "provider": mode,
         }
 
     def tree_approve(

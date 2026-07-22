@@ -481,6 +481,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Explicitly use MockPlanner (default in v1.0.1)",
     )
+    plan_next.add_argument(
+        "--provider",
+        choices=["mock", "fake", "replay"],
+        default="mock",
+        help="Planner/Critic backend: mock (default), fake, or replay (offline)",
+    )
 
     list_plans = sub.add_parser("list-plans", help="List experiment plans")
     list_plans.add_argument("--project-id", default=None)
@@ -492,6 +498,12 @@ def build_parser() -> argparse.ArgumentParser:
         "review-plan", help="Run Critic review on verified candidates"
     )
     review_plan.add_argument("plan_id")
+    review_plan.add_argument(
+        "--provider",
+        choices=["mock", "fake", "replay"],
+        default=None,
+        help="Optional Critic backend override (default: keep current agent mode)",
+    )
 
     rank_candidates = sub.add_parser(
         "rank-candidates", help="Rank reviewed/verified candidates"
@@ -574,13 +586,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     tree_plan = sub.add_parser(
         "tree-plan-next",
-        help="Select parent and run MockPlanner plan-next/review/rank (v1.1.4)",
+        help="Select parent and run plan-next/review/rank (mock default; fake/replay offline)",
     )
     tree_plan.add_argument("tree_id")
     tree_plan.add_argument(
         "--mock",
         action="store_true",
-        help="Explicitly use MockPlanner (default in v1.1.4)",
+        help="Explicitly use MockPlanner (default)",
+    )
+    tree_plan.add_argument(
+        "--provider",
+        choices=["mock", "fake", "replay"],
+        default="mock",
+        help="Planner/Critic backend for tree expansion (offline fake/replay)",
     )
     tree_plan.add_argument(
         "--no-rescore",
@@ -683,6 +701,35 @@ def build_parser() -> argparse.ArgumentParser:
     )
     audit_export.add_argument("bundle_id")
     audit_export.add_argument("--output", required=True)
+
+    llm_eval = sub.add_parser(
+        "llm-eval",
+        help="Compare Mock / Fake / Replay planner-critic quality (v1.3.8, offline)",
+    )
+    llm_eval.add_argument("project_id")
+    llm_eval.add_argument("--protocol-id", default=None)
+    llm_eval.add_argument("--best-node", default=None)
+    llm_eval.add_argument(
+        "--output",
+        default=None,
+        help="Optional path for llm_quality_report.json",
+    )
+    llm_eval.add_argument(
+        "--include-real",
+        action="store_true",
+        help="Include Real mode row (always skipped / deferred in v1.3)",
+    )
+
+    llm_usage = sub.add_parser(
+        "llm-usage",
+        help="Summarize LLM audit token / cost / latency (v1.3.9)",
+    )
+    llm_usage.add_argument("--project-id", default=None)
+    llm_usage.add_argument(
+        "--audit-root",
+        default=None,
+        help="Override audit root (default: outputs/<project_id>/llm)",
+    )
 
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
@@ -1416,12 +1463,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "plan-next":
         try:
+            provider = "mock" if args.mock else args.provider
             data = service.plan_next(
                 args.project_id,
                 protocol_id=args.protocol_id,
                 current_best_node_id=args.best_node,
                 max_new_nodes=args.max_new_nodes,
                 max_gpu_hours=args.max_gpu_hours,
+                provider=provider,
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") != "planner_failed" else 1
@@ -1455,7 +1504,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "review-plan":
         try:
-            data = service.review_plan(args.plan_id)
+            data = service.review_plan(args.plan_id, provider=args.provider)
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except KeyError as exc:
@@ -1606,10 +1655,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "tree-plan-next":
         try:
+            provider = "mock" if args.mock else args.provider
             data = service.tree_plan_next(
                 args.tree_id,
                 rescore=not args.no_rescore,
                 max_gpu_hours=args.max_gpu_hours,
+                provider=provider,
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             if data.get("ascii_tree"):
@@ -1764,6 +1815,37 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except (KeyError, ValueError, FileNotFoundError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-eval":
+        try:
+            data = service.evaluate_llm_quality(
+                args.project_id,
+                protocol_id=args.protocol_id,
+                current_best_node_id=args.best_node,
+                output=args.output,
+                include_real=args.include_real,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            gates = data.get("gates") or {}
+            ok = bool(
+                gates.get("mock_ok") and gates.get("fake_ok") and gates.get("replay_ok")
+            )
+            return 0 if ok else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "llm-usage":
+        try:
+            data = service.summarize_llm_usage(
+                args.project_id,
+                audit_root=args.audit_root,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 
