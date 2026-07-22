@@ -937,6 +937,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validation profile (default: smoke; never arbitrary shell)",
     )
 
+    patch_record_evidence = sub.add_parser(
+        "patch-record-evidence",
+        help="Record PatchEvidence from an applied sandbox (v1.6.6; no main apply)",
+    )
+    patch_record_evidence.add_argument("patch_id")
+    patch_record_evidence.add_argument(
+        "--require-tests",
+        action="store_true",
+        help="Fail if patch-test-sandbox has not been run",
+    )
+
+    patch_decide_merge = sub.add_parser(
+        "patch-decide-merge",
+        help=(
+            "Human merge/discard decision after evidence (records intent only; "
+            "never modifies main tree) (v1.6.6)"
+        ),
+    )
+    patch_decide_merge.add_argument("patch_id")
+    patch_decide_merge.add_argument(
+        "--decision",
+        choices=["merge", "discard"],
+        required=True,
+    )
+    patch_decide_merge.add_argument("--reason", default="")
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2256,6 +2282,31 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             report = data.get("sandbox_tests") or {}
             return 0 if report.get("ok") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-record-evidence":
+        try:
+            data = service.patches.record_evidence(
+                args.patch_id,
+                require_tests=bool(getattr(args, "require_tests", False)),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") == "evidence_recorded" else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-decide-merge":
+        try:
+            data = service.patches.decide_merge(
+                args.patch_id,
+                decision=str(args.decision),
+                reason=args.reason or "",
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") in {"merged", "discarded"} else 1
         except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1

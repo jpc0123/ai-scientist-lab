@@ -77,6 +77,7 @@ class ExperimentService:
             self.session_factory,
             project_root=Path(self.settings.project_root),
             sandbox_root=Path(self.settings.outputs_dir) / "_patch_sandboxes",
+            outputs_root=Path(self.settings.outputs_dir),
         )
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),

@@ -10,6 +10,10 @@ from sqlalchemy.orm import sessionmaker
 
 from scientist_lab.domain.models import new_id
 from scientist_lab.patching.fingerprint import fingerprint_diff
+from scientist_lab.patching.evidence import (
+    PatchMergeDecision,
+    build_patch_evidence,
+)
 from scientist_lab.patching.models import PatchApproval, PatchProposal
 from scientist_lab.patching.path_policy import PathPolicy
 from scientist_lab.patching.repository import PatchRepository
@@ -54,6 +58,7 @@ class PatchingService:
         *,
         project_root: Path | str | None = None,
         sandbox_root: Path | str | None = None,
+        outputs_root: Path | str | None = None,
         policy: PathPolicy | None = None,
     ) -> None:
         self._repo = PatchRepository(session_factory)
@@ -65,6 +70,11 @@ class PatchingService:
             sandbox_root
             if sandbox_root is not None
             else (self.project_root / "outputs" / "_patch_sandboxes")
+        )
+        self.outputs_root = Path(
+            outputs_root
+            if outputs_root is not None
+            else (self.project_root / "outputs")
         )
         self.sandbox = PatchSandbox(
             project_root=self.project_root,
@@ -283,6 +293,95 @@ class PatchingService:
         view["sandbox_tests"] = report.to_dict()
         return view
 
+    def record_evidence(
+        self,
+        patch_id: str,
+        *,
+        require_tests: bool = False,
+    ) -> dict[str, Any]:
+        """Persist PatchEvidence from an applied (and preferably tested) sandbox."""
+        proposal = self._repo.require(patch_id)
+        if proposal.status not in {"applied_sandbox", "evidence_recorded"}:
+            raise ValueError(
+                f"record_evidence requires applied_sandbox; got {proposal.status!r}"
+            )
+        meta = dict(proposal.metadata or {})
+        if require_tests and meta.get("sandbox_tests") is None:
+            raise ValueError(
+                "sandbox tests required before recording evidence "
+                "(run patch-test-sandbox first, or omit --require-tests)"
+            )
+        evidence = build_patch_evidence(proposal, outputs_root=self.outputs_root)
+        proposal.metadata = {
+            **meta,
+            "patch_evidence": evidence.model_dump(mode="json"),
+            "patch_evidence_id": evidence.evidence_id,
+            "applied_main": False,
+            "apply_main_available": False,
+        }
+        proposal.status = "evidence_recorded"
+        self._repo.upsert(proposal)
+        view = self._view(proposal)
+        view["patch_evidence"] = evidence.model_dump(mode="json")
+        return view
+
+    def decide_merge(
+        self,
+        patch_id: str,
+        *,
+        decision: str,
+        reason: str = "",
+    ) -> dict[str, Any]:
+        """Record human merge/discard intent without touching the main tree."""
+        proposal = self._repo.require(patch_id)
+        if proposal.status not in {"evidence_recorded", "merged", "discarded"}:
+            raise ValueError(
+                f"merge decision requires evidence_recorded; got {proposal.status!r}"
+            )
+        if decision not in {"merge", "discard"}:
+            raise ValueError("decision must be 'merge' or 'discard'")
+        if proposal.status in {"merged", "discarded"}:
+            expected = "merged" if decision == "merge" else "discarded"
+            if proposal.status != expected:
+                raise ValueError(
+                    f"patch already decided as {proposal.status!r}; "
+                    "cannot change decision in v1.6"
+                )
+            view = self._view(proposal)
+            view["merge_decision"] = (proposal.metadata or {}).get("merge_decision")
+            view["warning"] = (
+                "Merge decision already recorded; main workspace was not modified."
+            )
+            return view
+
+        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        merge = PatchMergeDecision(
+            decision=decision,  # type: ignore[arg-type]
+            reason=reason
+            or (
+                "human approved merge intent (main tree not modified)"
+                if decision == "merge"
+                else "human discarded patch"
+            ),
+            decided_at=now,
+            decided_by="human",
+            applied_main=False,
+        )
+        proposal.metadata = {
+            **dict(proposal.metadata or {}),
+            "merge_decision": merge.model_dump(mode="json"),
+            "applied_main": False,
+            "apply_main_available": False,
+        }
+        proposal.status = "merged" if decision == "merge" else "discarded"
+        self._repo.upsert(proposal)
+        view = self._view(proposal)
+        view["merge_decision"] = merge.model_dump(mode="json")
+        view["warning"] = (
+            "Merge decision recorded only; main workspace was not modified."
+        )
+        return view
+
     def list_patches(self, project_id: str) -> list[dict[str, Any]]:
         return [self._view(item) for item in self._repo.list_for_project(project_id)]
 
@@ -298,6 +397,13 @@ class PatchingService:
         data["applied_sandbox"] = bool(meta.get("applied_sandbox"))
         data["can_test_sandbox"] = proposal.status == "applied_sandbox"
         data["sandbox_tests_ok"] = meta.get("sandbox_tests_ok")
+        data["can_record_evidence"] = proposal.status in {
+            "applied_sandbox",
+            "evidence_recorded",
+        }
+        data["can_decide_merge"] = proposal.status == "evidence_recorded"
+        data["patch_evidence_id"] = meta.get("patch_evidence_id")
+        data["merge_decision"] = meta.get("merge_decision")
         # Back-compat keys used by v1.6.1–1.6.3 tests/CLI.
         data["can_apply"] = False
         data["applied"] = bool(meta.get("applied_sandbox"))

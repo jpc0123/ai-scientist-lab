@@ -2,6 +2,7 @@
 
 from scientist_lab.patching.apply_engine import PatchApplyError, apply_unified_diff_to_root
 from scientist_lab.patching.diff_parser import DiffParseError, parse_unified_diff
+from scientist_lab.patching.evidence import PatchEvidence, PatchMergeDecision
 from scientist_lab.patching.fingerprint import fingerprint_diff
 from scientist_lab.patching.models import PatchProposal, PatchVerification
 from scientist_lab.patching.path_policy import PathPolicy
@@ -13,6 +14,8 @@ from scientist_lab.patching.workspace import PatchSandbox
 __all__ = [
     "DiffParseError",
     "PatchApplyError",
+    "PatchEvidence",
+    "PatchMergeDecision",
     "PatchProposal",
     "PatchSandbox",
     "PatchVerification",

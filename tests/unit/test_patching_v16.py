@@ -198,6 +198,80 @@ def test_test_sandbox_requires_applied(tmp_path: Path):
         service.patches.test_sandbox(proposed["patch_id"])
 
 
+def test_record_evidence_and_decide_merge_no_main_apply(tmp_path: Path):
+    root = Path(__file__).resolve().parents[2]
+    service = _service(tmp_path)
+    proposed = service.patches.propose_mock("project_rgbt_003")
+    pid = proposed["patch_id"]
+    service.patches.approve(pid)
+    service.patches.apply_sandbox(pid)
+    service.patches.test_sandbox(pid, profile="mock_experiment")
+
+    recorded = service.patches.record_evidence(pid, require_tests=True)
+    assert recorded["status"] == "evidence_recorded"
+    assert recorded["can_apply_main"] is False
+    evidence = recorded["patch_evidence"]
+    assert evidence["main_workspace_modified"] is False
+    assert evidence["sandbox_tests_ok"] is True
+    assert evidence["evidence_strength"] == "moderate"
+    artifact = Path(evidence["artifact_path"])
+    assert artifact.is_file()
+    assert str(tmp_path / "outputs") in str(artifact)
+
+    merged = service.patches.decide_merge(
+        pid, decision="merge", reason="accept for later human git apply"
+    )
+    assert merged["status"] == "merged"
+    assert merged["can_apply_main"] is False
+    assert merged["applied_main"] is False
+    assert merged["merge_decision"]["applied_main"] is False
+    assert "not modified" in merged["warning"].lower()
+
+    # Main tree still untouched.
+    main_note = (
+        root
+        / "experiment_apps"
+        / "rgbt_detection_real"
+        / "adapters"
+        / "mock_patch_note.md"
+    )
+    assert not main_note.exists()
+
+
+def test_decide_merge_discard(tmp_path: Path):
+    service = _service(tmp_path)
+    proposed = service.patches.propose_mock(
+        "project_rgbt_003",
+        unified_diff=build_mock_unified_diff(
+            relative_path=(
+                "experiment_apps/rgbt_detection_real/adapters/discard_note.md"
+            )
+        ),
+    )
+    pid = proposed["patch_id"]
+    service.patches.approve(pid)
+    service.patches.apply_sandbox(pid)
+    service.patches.record_evidence(pid)
+    discarded = service.patches.decide_merge(pid, decision="discard", reason="noise")
+    assert discarded["status"] == "discarded"
+    assert discarded["applied_main"] is False
+
+
+def test_record_evidence_require_tests(tmp_path: Path):
+    service = _service(tmp_path)
+    proposed = service.patches.propose_mock(
+        "project_rgbt_003",
+        unified_diff=build_mock_unified_diff(
+            relative_path="experiment_apps/rgbt_detection_real/configs/req.yaml"
+        ),
+    )
+    pid = proposed["patch_id"]
+    service.patches.approve(pid)
+    service.patches.apply_sandbox(pid)
+    with pytest.raises(ValueError, match="sandbox tests required"):
+        service.patches.record_evidence(pid, require_tests=True)
+
+
 def test_empty_diff_parse_error():
     with pytest.raises(DiffParseError):
         parse_unified_diff("")
