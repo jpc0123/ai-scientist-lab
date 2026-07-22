@@ -45,6 +45,10 @@ class LLMResponse(BaseModel):
     schema_valid: bool = True
     schema_errors: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
+    provider_request_id: str | None = None
+    usage_unknown: bool = False
+    api_mode: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class LLMCallRecord(BaseModel):

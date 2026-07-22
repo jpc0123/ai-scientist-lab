@@ -24,21 +24,23 @@ _ENV_TIMEOUT = "LLM_TIMEOUT_SECONDS"
 
 # Patterns that may appear if a raw key leaks into text.
 _SECRET_PATTERNS = (
-    re.compile(r"(?i)(api[_-]?key|authorization|bearer)\s*[:=]\s*([^\s,;]+)"),
+    re.compile(r"(?i)(api[_-]?key|authorization|bearer)\s*[:=]\s*([^\s,;\"']+)"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9\-._~+/]+=*"),
-    re.compile(r"\bsk-[A-Za-z0-9]{8,}\b"),
+    re.compile(r"\bsk-[A-Za-z0-9\-_]{8,}\b"),
+    re.compile(r'(?i)"(api[_-]?key|access_token|token)"\s*:\s*"[^"]+"'),
 )
 
 
-class MissingAPIKeyError(ValueError):
-    """Raised when a real provider is selected without an API key."""
+from scientist_lab.llm.errors import (
+    InvalidLLMConfigError,
+    MissingAPIKeyError,
+)
+
+# Re-export for v1.4.1 call sites.
+__all_config_errors__ = ("MissingAPIKeyError", "InvalidLLMConfigError")
 
 
-class InvalidLLMConfigError(ValueError):
-    """Raised when real-provider configuration is incomplete or invalid."""
-
-
-def redact_secrets(text: str, *, placeholder: str = "***REDACTED***") -> str:
+def redact_secrets(text: str, *, placeholder: str = "[REDACTED]") -> str:
     """Best-effort scrub of API keys / bearer tokens from free text."""
     if not text:
         return text
@@ -55,12 +57,11 @@ def redact_secrets(text: str, *, placeholder: str = "***REDACTED***") -> str:
     return out
 
 
-def mask_secret(value: str | None, *, visible: int = 4) -> str:
+def mask_secret(value: str | None, *, visible: int = 0) -> str:
+    """Never reveal key prefixes/suffixes (v1.4 security policy)."""
     if not value:
         return ""
-    if len(value) <= visible:
-        return "***"
-    return f"{'*' * max(8, len(value) - visible)}{value[-visible:]}"
+    return "[REDACTED]"
 
 
 class LLMConfig(BaseModel):
@@ -149,7 +150,7 @@ class LLMConfig(BaseModel):
             f"base_url={self.base_url!r}, "
             f"model={self.model!r}, "
             f"timeout_seconds={self.timeout_seconds!r}, "
-            f"api_key={'***' if self.api_key_present else None}"
+            f"api_key={'[REDACTED]' if self.api_key_present else None}"
             ")"
         )
 

@@ -89,11 +89,11 @@ def test_repr_and_safe_dict_never_leak_key():
     )
     text = repr(cfg)
     assert secret not in text
-    assert "***" in text
+    assert "[REDACTED]" in text
     dumped = cfg.safe_dict()
     assert secret not in str(dumped)
     assert dumped["api_key_present"] is True
-    assert secret not in dumped["api_key_fingerprint"]
+    assert dumped["api_key_fingerprint"] == "[REDACTED]"
 
 
 def test_redact_secrets_scrubs_bearer_and_sk():
@@ -108,8 +108,8 @@ def test_redact_secrets_scrubs_bearer_and_sk():
 
 
 def test_mask_secret_keeps_tail_only():
-    assert mask_secret("sk-abcdefghijklmnop")[-4:] == "mnop"
-    assert "sk-abcdef" not in mask_secret("sk-abcdefghijklmnop")
+    assert mask_secret("sk-abcdefghijklmnop") == "[REDACTED]"
+    assert "mnop" not in mask_secret("sk-abcdefghijklmnop")
 
 
 def test_openai_alias_maps_to_compatible():
