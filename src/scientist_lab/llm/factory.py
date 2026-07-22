@@ -32,6 +32,9 @@ def create_llm_provider(
     openai_config: OpenAICompatibleConfig | None = None,
     transport: HttpTransport | None = None,
     audit_root: Path | str | None = None,
+    budget: Any = None,
+    concurrency: Any = None,
+    retry_policy: Any = None,
     **_kwargs: Any,
 ) -> LLMProvider:
     """Create an LLMProvider.
@@ -61,15 +64,19 @@ def create_llm_provider(
 
     if name == "openai-compatible":
         env_allows = _env_truthy("LLM_ALLOW_NETWORK", environ)
+        kwargs = {
+            "budget": budget,
+            "concurrency": concurrency,
+            "retry_policy": retry_policy,
+        }
         # Offline MockTransport path: transport provided without network flag.
         if transport is not None and not allow_network and not env_allows:
             if openai_config is None:
                 raise RealProviderNotEnabledError(
                     "openai-compatible with MockTransport still needs openai_config"
                 )
-            # Force allow_network false on config copy semantics via transport-only.
             cfg = openai_config.model_copy(update={"allow_network": False})
-            return OpenAICompatibleProvider(cfg, transport=transport)
+            return OpenAICompatibleProvider(cfg, transport=transport, **kwargs)
 
         if not allow_network and not env_allows:
             raise RealProviderNotEnabledError(
@@ -81,13 +88,12 @@ def create_llm_provider(
                 "openai-compatible requires OpenAICompatibleConfig"
             )
         if not openai_config.allow_network and transport is None:
-            # Config itself must also opt in when using real HttpxTransport.
             raise RealProviderNotEnabledError(
                 "OpenAICompatibleConfig.allow_network must be True for live HTTP"
             )
         cfg = openai_config
         if allow_network or env_allows:
             cfg = openai_config.model_copy(update={"allow_network": True})
-        return OpenAICompatibleProvider(cfg, transport=transport)
+        return OpenAICompatibleProvider(cfg, transport=transport, **kwargs)
 
     raise UnsupportedProviderError(f"unsupported LLM provider: {provider!r}")

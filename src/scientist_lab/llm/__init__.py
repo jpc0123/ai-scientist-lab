@@ -1,6 +1,8 @@
-"""LLM Provider layer (v1.3 offline + v1.4.1 config + v1.4.2 OpenAI-compatible)."""
+"""LLM Provider layer (v1.3–v1.4.3)."""
 
 from scientist_lab.llm.audit import AuditingProvider, build_usage_from_messages
+from scientist_lab.llm.budget import LLMBudget, ModelPricing
+from scientist_lab.llm.concurrency import ConcurrencyGate
 from scientist_lab.llm.config import (
     InvalidLLMConfigError,
     LLMConfig,
@@ -12,8 +14,11 @@ from scientist_lab.llm.config import (
 from scientist_lab.llm.context_codec import planning_context_to_planner_request
 from scientist_lab.llm.errors import (
     LLMAuthenticationError,
+    LLMBudgetExceededError,
     LLMError,
+    LLMRateLimitError,
     RealProviderNotEnabledError,
+    StructuredOutputValidationError,
     UnsupportedAPIModeError,
     UnsupportedProviderError,
 )
@@ -33,6 +38,7 @@ from scientist_lab.llm.openai_config import OpenAICompatibleConfig
 from scientist_lab.llm.provider import BaseLLMProvider, LLMProvider, request_fingerprint
 from scientist_lab.llm.replay_provider import ReplayMissError, ReplayProvider
 from scientist_lab.llm.repository import LLMCallRepository
+from scientist_lab.llm.retry_policy import RetryPolicy
 from scientist_lab.llm.schema_parser import (
     CRITIC_REVIEW_SCHEMA,
     PLANNER_OUTPUT_SCHEMA,
@@ -46,21 +52,26 @@ __all__ = [
     "AuditingProvider",
     "BaseLLMProvider",
     "CRITIC_REVIEW_SCHEMA",
+    "ConcurrencyGate",
     "FakeProvider",
     "HttpResponse",
     "HttpTransport",
     "InvalidLLMConfigError",
     "LLMAuthenticationError",
+    "LLMBudget",
+    "LLMBudgetExceededError",
     "LLMCallRecord",
     "LLMCallRepository",
     "LLMConfig",
     "LLMError",
     "LLMProvider",
+    "LLMRateLimitError",
     "LLMRequest",
     "LLMResponse",
     "LimitingProvider",
     "MissingAPIKeyError",
     "MockTransport",
+    "ModelPricing",
     "OpenAICompatibleConfig",
     "OpenAICompatibleProvider",
     "PLANNER_OUTPUT_SCHEMA",
@@ -69,7 +80,9 @@ __all__ = [
     "RealProviderNotEnabledError",
     "ReplayMissError",
     "ReplayProvider",
+    "RetryPolicy",
     "SchemaValidationError",
+    "StructuredOutputValidationError",
     "TokenUsage",
     "UnsupportedAPIModeError",
     "UnsupportedProviderError",
@@ -87,4 +100,4 @@ __all__ = [
     "validate_against_schema",
 ]
 
-API_VERSION = "v1.4.2"
+API_VERSION = "v1.4.3"
