@@ -1,6 +1,14 @@
-"""Offline LLM Provider layer (v1.3: Fake / Replay / Audit / Schema / Limits)."""
+"""Offline LLM Provider layer + config boundary (v1.3 / v1.4.1)."""
 
 from scientist_lab.llm.audit import AuditingProvider, build_usage_from_messages
+from scientist_lab.llm.config import (
+    InvalidLLMConfigError,
+    LLMConfig,
+    MissingAPIKeyError,
+    load_llm_config,
+    mask_secret,
+    redact_secrets,
+)
 from scientist_lab.llm.context_codec import planning_context_to_planner_request
 from scientist_lab.llm.fake_provider import FakeProvider
 from scientist_lab.llm.limits import (
@@ -28,12 +36,15 @@ __all__ = [
     "BaseLLMProvider",
     "CRITIC_REVIEW_SCHEMA",
     "FakeProvider",
+    "InvalidLLMConfigError",
     "LLMCallRecord",
     "LLMCallRepository",
+    "LLMConfig",
     "LLMProvider",
     "LLMRequest",
     "LLMResponse",
     "LimitingProvider",
+    "MissingAPIKeyError",
     "PLANNER_OUTPUT_SCHEMA",
     "ProviderLimitExceeded",
     "ProviderLimits",
@@ -45,10 +56,13 @@ __all__ = [
     "build_usage_from_messages",
     "estimate_cost_usd",
     "extract_json_object",
+    "load_llm_config",
+    "mask_secret",
     "parse_and_validate",
     "planning_context_to_planner_request",
+    "redact_secrets",
     "request_fingerprint",
     "validate_against_schema",
 ]
 
-API_VERSION = "v1.3.8"
+API_VERSION = "v1.4.1"
