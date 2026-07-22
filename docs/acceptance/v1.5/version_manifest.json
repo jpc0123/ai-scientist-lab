@@ -1,0 +1,19 @@
+﻿{
+  "release": "v1.5.0",
+  "package_version": "1.5.0",
+  "commit": "6ac80d9",
+  "acceptance": "scripts/accept_v15.py",
+  "acceptance_result": "14/14 ok",
+  "regression": "325 passed",
+  "default_provider": "mock",
+  "real_llm": false,
+  "features": [
+    "eval_suite_v1 + rule graders",
+    "llm-eval-run mock/fake/replay/real",
+    "LLMModelProfile registry",
+    "scorecards + Quality Gate",
+    "llm-eval-compare regression",
+    "llm-profile-rank/select",
+    "require-quality-gate planning gate"
+  ]
+}
