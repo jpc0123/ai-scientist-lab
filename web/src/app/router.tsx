@@ -7,13 +7,17 @@ import { ExecutionDetailPage, ExecutionsPage } from "../pages/ExecutionsPage";
 import { PatchDetailPage, PatchesPage } from "../pages/PatchesPage";
 import { ProjectDetailPage, ProjectsPage } from "../pages/ProjectsPage";
 import {
+  AuditDetailPage,
   AuditsPage,
   EvidencePage,
+  ReportDetailPage,
+  ReportsPage,
+} from "../pages/ReportsAuditsPages";
+import {
   IterationDetailPage,
   IterationsPage,
   PlanDetailPage,
   PlansPage,
-  ReportsPage,
   SettingsPage,
 } from "../pages/ResourcePages";
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
@@ -39,7 +43,9 @@ export function AppRouter() {
         <Route path="patches/:id" element={<PatchDetailPage />} />
         <Route path="evidence" element={<EvidencePage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="reports/:id" element={<ReportDetailPage />} />
         <Route path="audits" element={<AuditsPage />} />
+        <Route path="audits/:id" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>

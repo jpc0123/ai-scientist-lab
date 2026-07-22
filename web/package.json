@@ -1,7 +1,7 @@
 {
   "name": "scientist-lab-web",
   "private": true,
-  "version": "1.7.5",
+  "version": "1.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

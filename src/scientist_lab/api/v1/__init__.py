@@ -13,6 +13,7 @@ from scientist_lab.api.schemas import (
     IterationFinalizeBody,
     PatchApplySandboxBody,
     PatchDecideMergeBody,
+    PatchRecordEvidenceBody,
     PatchTestBody,
     ReasonBody,
 )
@@ -49,6 +50,21 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         service: ExperimentService = Depends(service_dep),
     ) -> dict[str, Any]:
         return service.system_summary()
+
+    @router.get("/system/path-policy")
+    def path_policy() -> dict[str, Any]:
+        from scientist_lab.patching.path_policy import PathPolicy
+
+        policy = PathPolicy()
+        return {
+            "allowed_prefixes": list(policy.allowed_prefixes),
+            "denied_prefixes": list(policy.denied_prefixes),
+            "denied_names": list(policy.denied_names),
+            "denied_suffixes": list(policy.denied_suffixes),
+            "denied_substrings": list(policy.denied_substrings),
+            "extra_denied_paths": list(policy.extra_denied_paths),
+            "note": "Frontend display only; enforcement remains server-side.",
+        }
 
     # --- projects --------------------------------------------------------
     @router.get("/projects")
@@ -334,6 +350,35 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
 
+    @router.get("/reports/{report_id}/markdown")
+    def get_report_markdown(
+        report_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from pathlib import Path
+
+        try:
+            report = service.show_report(report_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        md_path = report.get("markdown_path")
+        summary_path = report.get("summary_path")
+        markdown = ""
+        summary = ""
+        if md_path and Path(md_path).is_file():
+            markdown = Path(md_path).read_text(encoding="utf-8")
+        if summary_path and Path(summary_path).is_file():
+            summary = Path(summary_path).read_text(encoding="utf-8")
+        return {
+            "report_id": report_id,
+            "project_id": report.get("project_id"),
+            "markdown_path": md_path,
+            "summary_path": summary_path,
+            "markdown": markdown,
+            "summary": summary,
+            "has_markdown": bool(markdown),
+        }
+
     @router.get("/audits")
     def list_audits(
         project_id: str | None = None,
@@ -355,6 +400,18 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             return service.show_audit(bundle_id)
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/audits/{bundle_id}/verify")
+    def verify_audit(
+        bundle_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.verify_audit(bundle_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
 
     # --- patches ---------------------------------------------------------
     @router.get("/patches")
@@ -432,6 +489,22 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         profile = body.profile if body else "smoke"
         try:
             return service.patches.test_sandbox(patch_id, profile=profile)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/patches/{patch_id}/record-evidence")
+    def record_patch_evidence(
+        patch_id: str,
+        body: PatchRecordEvidenceBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        require_tests = bool(body.require_tests) if body else False
+        try:
+            return service.patches.record_evidence(
+                patch_id, require_tests=require_tests
+            )
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:

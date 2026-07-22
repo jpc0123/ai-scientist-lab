@@ -19,6 +19,10 @@ class PatchApplySandboxBody(BaseModel):
     force: bool = False
 
 
+class PatchRecordEvidenceBody(BaseModel):
+    require_tests: bool = False
+
+
 class PatchDecideMergeBody(BaseModel):
     decision: Literal["merge", "discard"]
     reason: str = ""

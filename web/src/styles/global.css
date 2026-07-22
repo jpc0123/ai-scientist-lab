@@ -446,13 +446,20 @@ td {
   font-size: 0.9rem;
 }
 
-.field input {
+.field input,
+.field select {
   font: inherit;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.45rem 0.65rem;
   background: white;
   color: var(--ink);
+}
+
+.badge.bad-badge,
+.bad-badge {
+  background: #f8e8e8;
+  color: var(--danger);
 }
 
 .finalize-box {

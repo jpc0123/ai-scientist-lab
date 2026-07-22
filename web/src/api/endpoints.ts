@@ -61,7 +61,28 @@ export const api = {
   claims: () => apiGet<Page<Record<string, unknown>>>("/api/v1/claims?limit=50&offset=0"),
   reports: () =>
     apiGet<Page<Record<string, unknown>>>("/api/v1/reports?limit=50&offset=0"),
+  report: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/reports/${id}`),
+  reportMarkdown: (id: string) =>
+    apiGet<{
+      report_id: string;
+      markdown: string;
+      summary: string;
+      has_markdown: boolean;
+      markdown_path?: string | null;
+    }>(`/api/v1/reports/${id}/markdown`),
   audits: () => apiGet<Page<Record<string, unknown>>>("/api/v1/audits?limit=50&offset=0"),
+  audit: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/audits/${id}`),
+  verifyAudit: (id: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/audits/${id}/verify`),
+  pathPolicy: () =>
+    apiGet<{
+      allowed_prefixes: string[];
+      denied_prefixes: string[];
+      denied_names: string[];
+      denied_suffixes: string[];
+      denied_substrings: string[];
+      extra_denied_paths: string[];
+    }>("/api/v1/system/path-policy"),
   approvePatch: (id: string, reason = "") =>
     apiPost(`/api/v1/patches/${id}/approve`, { reason }),
   rejectPatch: (id: string, reason = "") =>
@@ -70,6 +91,8 @@ export const api = {
     apiPost(`/api/v1/patches/${id}/apply-sandbox`, { force }),
   testPatchSandbox: (id: string, profile = "smoke") =>
     apiPost(`/api/v1/patches/${id}/test-sandbox`, { profile }),
+  recordPatchEvidence: (id: string, body?: { require_tests?: boolean }) =>
+    apiPost(`/api/v1/patches/${id}/record-evidence`, body || {}),
   decidePatchMerge: (id: string, decision: "merge" | "discard", reason = "") =>
     apiPost(`/api/v1/patches/${id}/decide-merge`, { decision, reason }),
 };

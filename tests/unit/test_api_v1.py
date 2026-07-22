@@ -125,7 +125,10 @@ def test_openapi_contains_v1_paths(api_client):
     paths = schema["paths"]
     assert "/api/v1/health" in paths
     assert "/api/v1/system/summary" in paths
+    assert "/api/v1/system/path-policy" in paths
     assert "/api/v1/patches/{patch_id}/apply-sandbox" in paths
+    assert "/api/v1/patches/{patch_id}/record-evidence" in paths
+    assert "/api/v1/reports/{report_id}/markdown" in paths
     assert "/api/v1/trees/{tree_id}/mermaid" in paths
 
 

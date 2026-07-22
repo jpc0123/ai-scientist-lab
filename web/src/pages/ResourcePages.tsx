@@ -250,30 +250,12 @@ export function IterationDetailPage() {
   );
 }
 
-export function EvidencePage() {
-  return (
-    <ListPage title="Evidence" queryKey="evidence" queryFn={api.evidence} idKey="evidence_id" />
-  );
-}
-
-export function ReportsPage() {
-  return (
-    <ListPage title="Reports" queryKey="reports" queryFn={api.reports} idKey="report_id" />
-  );
-}
-
-export function AuditsPage() {
-  return (
-    <ListPage title="Audits" queryKey="audits" queryFn={api.audits} idKey="bundle_id" />
-  );
-}
-
 export function SettingsPage() {
   const health = useQuery({ queryKey: ["health"], queryFn: api.health });
   return (
     <div className="page">
       <h1>Settings</h1>
-      <p>本地单用户模式 · 无登录 · 无角色系统</p>
+      <p>本地单用户模式 · 无登录 · 无角色系统 · 无任意 Shell</p>
       <pre className="code-block">
         {JSON.stringify(health.data || health.error, null, 2)}
       </pre>

@@ -52,6 +52,29 @@
         }
       }
     },
+    "/api/v1/system/path-policy": {
+      "get": {
+        "tags": [
+          "v1"
+        ],
+        "summary": "Path Policy",
+        "operationId": "path_policy_api_v1_system_path_policy_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Path Policy Api V1 System Path Policy Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "tags": [
@@ -1337,6 +1360,50 @@
         }
       }
     },
+    "/api/v1/reports/{report_id}/markdown": {
+      "get": {
+        "tags": [
+          "v1"
+        ],
+        "summary": "Get Report Markdown",
+        "operationId": "get_report_markdown_api_v1_reports__report_id__markdown_get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Report Markdown Api V1 Reports  Report Id  Markdown Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audits": {
       "get": {
         "tags": [
@@ -1438,6 +1505,50 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Get Audit Api V1 Audits  Bundle Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audits/{bundle_id}/verify": {
+      "post": {
+        "tags": [
+          "v1"
+        ],
+        "summary": "Verify Audit",
+        "operationId": "verify_audit_api_v1_audits__bundle_id__verify_post",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Verify Audit Api V1 Audits  Bundle Id  Verify Post"
                 }
               }
             }
@@ -1817,6 +1928,67 @@
         }
       }
     },
+    "/api/v1/patches/{patch_id}/record-evidence": {
+      "post": {
+        "tags": [
+          "v1"
+        ],
+        "summary": "Record Patch Evidence",
+        "operationId": "record_patch_evidence_api_v1_patches__patch_id__record_evidence_post",
+        "parameters": [
+          {
+            "name": "patch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Patch Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PatchRecordEvidenceBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Record Patch Evidence Api V1 Patches  Patch Id  Record Evidence Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patches/{patch_id}/decide-merge": {
       "post": {
         "tags": [
@@ -1875,6 +2047,22 @@
       "get": {
         "summary": "Index",
         "operationId": "index__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/legacy": {
+      "get": {
+        "summary": "Legacy Index",
+        "operationId": "legacy_index_legacy_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2566,6 +2754,44 @@
           }
         }
       }
+    },
+    "/{spa_path}": {
+      "get": {
+        "summary": "Spa Fallback",
+        "description": "Serve SPA index for client-side routes when dist is built.",
+        "operationId": "spa_fallback__spa_path__get",
+        "parameters": [
+          {
+            "name": "spa_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Spa Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2845,6 +3071,17 @@
           "decision"
         ],
         "title": "PatchDecideMergeBody"
+      },
+      "PatchRecordEvidenceBody": {
+        "properties": {
+          "require_tests": {
+            "type": "boolean",
+            "title": "Require Tests",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "PatchRecordEvidenceBody"
       },
       "PatchTestBody": {
         "properties": {
