@@ -56,21 +56,34 @@ class AgentPlanningService:
         project_id: str | None = None,
         audit_root: Path | str | None = None,
         limits: ProviderLimits | None = None,
+        allow_network: bool = False,
+        transport: Any = None,
+        openai_config: Any = None,
+        environ: dict[str, str] | None = None,
     ) -> None:
-        """Switch planner/critic between mock / fake / replay providers."""
-        from scientist_lab.agents.provider_bridge import build_planner_critic
+        """Switch planner/critic between mock / fake / replay / real providers."""
+        from scientist_lab.agents.provider_bridge import (
+            build_planner_critic,
+            normalize_provider_mode,
+        )
 
-        resolved = (mode or "mock").strip().lower()
+        resolved = normalize_provider_mode(mode)
         root = audit_root
         if root is None and self.outputs_root is not None:
             root = self.outputs_root / (project_id or "_llm") / "llm"
         self.planner, self.critic = build_planner_critic(
-            resolved,  # type: ignore[arg-type]
+            resolved,
             audit_root=root,
             project_id=project_id,
             limits=limits,
+            allow_network=allow_network,
+            transport=transport,
+            openai_config=openai_config,
+            environ=environ,
         )
         self.provider_mode = resolved
+        self.requested_provider = resolved
+        self.allow_network = bool(allow_network)
 
     def plan_next(
         self,
@@ -164,6 +177,10 @@ class AgentPlanningService:
             "model_provider": plan.model_provider,
             "model_name": plan.model_name,
             "prompt_version": plan.prompt_version,
+            "requested_provider": getattr(self, "requested_provider", None)
+            or self.provider_mode,
+            "actual_provider": plan.model_provider,
+            "fallback_used": False,
             "context_sha256": plan.context_sha256,
             "output_sha256": plan.output_sha256,
             "reasoning_summary": output.reasoning_summary,

@@ -1704,7 +1704,18 @@ class ExperimentService:
         max_new_nodes: int = 3,
         max_gpu_hours: float = 12.0,
         provider: str = "mock",
+        allow_network: bool = False,
+        transport: Any = None,
+        openai_config: Any = None,
     ) -> dict[str, Any]:
+        from scientist_lab.agents.provider_bridge import normalize_provider_mode
+        from scientist_lab.llm.config import redact_secrets
+        from scientist_lab.llm.errors import (
+            LLMError,
+            MissingAPIKeyError,
+            RealProviderNotEnabledError,
+        )
+
         project = self.repo.get_project(project_id)
         research_goal = (
             project.research_goal
@@ -1761,23 +1772,42 @@ class ExperimentService:
             float(max_gpu_hours),
         )
 
-        mode = (provider or "mock").strip().lower()
-        self.agents.configure_provider(
-            mode,
-            project_id=project_id,
-            audit_root=self.settings.outputs_dir / project_id / "llm",
-        )
-
-        return self.agents.plan_next(
-            project_id=project_id,
-            research_goal=research_goal,
-            protocol=protocol_payload,
-            nodes=nodes,
-            evidence_records=evidence_records,
-            claim_support_matrix=claim_matrix,
-            current_best_node_id=current_best_node_id,
-            remaining_budget=remaining,
-        )
+        mode = normalize_provider_mode(provider)
+        try:
+            self.agents.configure_provider(
+                mode,
+                project_id=project_id,
+                audit_root=self.settings.outputs_dir / project_id / "llm",
+                allow_network=allow_network,
+                transport=transport,
+                openai_config=openai_config,
+            )
+            result = self.agents.plan_next(
+                project_id=project_id,
+                research_goal=research_goal,
+                protocol=protocol_payload,
+                nodes=nodes,
+                evidence_records=evidence_records,
+                claim_support_matrix=claim_matrix,
+                current_best_node_id=current_best_node_id,
+                remaining_budget=remaining,
+            )
+            result["requested_provider"] = mode
+            result["actual_provider"] = result.get("model_provider")
+            result["fallback_used"] = False
+            return result
+        except (RealProviderNotEnabledError, MissingAPIKeyError, LLMError, ValueError) as exc:
+            if mode not in {"real", "openai-compatible"}:
+                raise
+            return {
+                "status": "real_provider_failed",
+                "project_id": project_id,
+                "requested_provider": mode,
+                "actual_provider": None,
+                "fallback_used": False,
+                "error_type": type(exc).__name__,
+                "error": redact_secrets(str(exc)),
+            }
 
     def list_plans(self, *, project_id: str | None = None) -> list[dict[str, Any]]:
         return self.agents.list_plans(project_id=project_id)
@@ -1941,18 +1971,56 @@ class ExperimentService:
         return summarize_audit_usage(root)
 
     def review_plan(
-        self, plan_id: str, *, provider: str | None = None
+        self,
+        plan_id: str,
+        *,
+        provider: str | None = None,
+        allow_network: bool = False,
+        transport: Any = None,
+        openai_config: Any = None,
     ) -> dict[str, Any]:
+        from scientist_lab.agents.provider_bridge import normalize_provider_mode
+        from scientist_lab.llm.config import redact_secrets
+        from scientist_lab.llm.errors import (
+            LLMError,
+            MissingAPIKeyError,
+            RealProviderNotEnabledError,
+        )
+
         plan = self.agents.get_plan(plan_id)
         project_id = str(plan.get("project_id") or "")
-        mode = (provider or self.agents.provider_mode or "mock").strip().lower()
-        if project_id:
-            self.agents.configure_provider(
-                mode,
-                project_id=project_id,
-                audit_root=self.settings.outputs_dir / project_id / "llm",
+        mode = normalize_provider_mode(
+            provider or self.agents.provider_mode or "mock"
+        )
+        try:
+            if project_id:
+                self.agents.configure_provider(
+                    mode,
+                    project_id=project_id,
+                    audit_root=self.settings.outputs_dir / project_id / "llm",
+                    allow_network=allow_network,
+                    transport=transport,
+                    openai_config=openai_config,
+                )
+            result = self.agents.review_plan(plan_id)
+            result["requested_provider"] = mode
+            result["actual_provider"] = getattr(
+                self.agents.critic, "model_provider", mode
             )
-        return self.agents.review_plan(plan_id)
+            result["fallback_used"] = False
+            return result
+        except (RealProviderNotEnabledError, MissingAPIKeyError, LLMError, ValueError) as exc:
+            if mode not in {"real", "openai-compatible"}:
+                raise
+            return {
+                "status": "real_provider_failed",
+                "plan_id": plan_id,
+                "requested_provider": mode,
+                "actual_provider": None,
+                "fallback_used": False,
+                "error_type": type(exc).__name__,
+                "error": redact_secrets(str(exc)),
+            }
 
     def rank_candidates(self, plan_id: str) -> dict[str, Any]:
         return self.agents.rank_plan_candidates(plan_id)
@@ -2120,11 +2188,15 @@ class ExperimentService:
         rescore: bool = True,
         max_gpu_hours: float = 12.0,
         provider: str = "mock",
+        allow_network: bool = False,
+        transport: Any = None,
+        openai_config: Any = None,
     ) -> dict[str, Any]:
-        """Best-First parent → plan-next → review → rank (v1.1.4 / v1.3.10).
+        """Best-First parent → plan-next → review → rank.
 
-        ``provider`` defaults to mock; fake/replay are offline-only.
+        ``provider`` defaults to mock; fake/replay offline; real needs gates.
         """
+        from scientist_lab.agents.provider_bridge import normalize_provider_mode
         from scientist_lab.search.expansion_service import (
             annotate_candidates_against_tree,
             remaining_candidate_slots,
@@ -2185,7 +2257,7 @@ class ExperimentService:
                 "stop_status": "no_valid_candidates",
             }
 
-        mode = (provider or "mock").strip().lower()
+        mode = normalize_provider_mode(provider)
         planned = self.plan_next(
             tree.project_id,
             protocol_id=tree.protocol_id,
@@ -2193,7 +2265,24 @@ class ExperimentService:
             max_new_nodes=slots,
             max_gpu_hours=max_gpu_hours,
             provider=mode,
+            allow_network=allow_network,
+            transport=transport,
+            openai_config=openai_config,
         )
+        if planned.get("status") == "real_provider_failed":
+            return {
+                "tree_id": tree_id,
+                "status": "real_provider_failed",
+                "tree_status": tree.status,
+                "selection": selection,
+                "plan": planned,
+                "ranking": None,
+                "provider": mode,
+                "requested_provider": mode,
+                "actual_provider": None,
+                "fallback_used": False,
+                "reason": planned.get("error") or "real provider failed",
+            }
         plan_id = str(planned.get("plan_id") or "")
         if planned.get("status") == "planner_failed" or not plan_id:
             return {
@@ -2226,7 +2315,28 @@ class ExperimentService:
                 "provider": mode,
             }
 
-        reviewed = self.review_plan(plan_id, provider=mode)
+        reviewed = self.review_plan(
+            plan_id,
+            provider=mode,
+            allow_network=allow_network,
+            transport=transport,
+            openai_config=openai_config,
+        )
+        if reviewed.get("status") == "real_provider_failed":
+            return {
+                "tree_id": tree_id,
+                "status": "real_provider_failed",
+                "tree_status": tree.status,
+                "selection": selection,
+                "plan": planned,
+                "review": reviewed,
+                "ranking": None,
+                "provider": mode,
+                "requested_provider": mode,
+                "actual_provider": None,
+                "fallback_used": False,
+                "reason": reviewed.get("error") or "real critic failed",
+            }
         ranked = self.rank_candidates(plan_id)
 
         # Fingerprints of experiment nodes already on this tree.

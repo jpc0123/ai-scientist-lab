@@ -483,9 +483,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan_next.add_argument(
         "--provider",
-        choices=["mock", "fake", "replay"],
+        choices=["mock", "fake", "replay", "real"],
         default="mock",
-        help="Planner/Critic backend: mock (default), fake, or replay (offline)",
+        help="Planner/Critic backend: mock (default), fake, replay, or real (needs --allow-network)",
+    )
+    plan_next.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Explicit network permission for --provider real (also needs LLM_ALLOW_NETWORK)",
     )
 
     list_plans = sub.add_parser("list-plans", help="List experiment plans")
@@ -500,9 +505,14 @@ def build_parser() -> argparse.ArgumentParser:
     review_plan.add_argument("plan_id")
     review_plan.add_argument(
         "--provider",
-        choices=["mock", "fake", "replay"],
+        choices=["mock", "fake", "replay", "real"],
         default=None,
         help="Optional Critic backend override (default: keep current agent mode)",
+    )
+    review_plan.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Explicit network permission for --provider real",
     )
 
     rank_candidates = sub.add_parser(
@@ -586,7 +596,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     tree_plan = sub.add_parser(
         "tree-plan-next",
-        help="Select parent and run plan-next/review/rank (mock default; fake/replay offline)",
+        help="Select parent and run plan-next/review/rank (mock default; real needs --allow-network)",
     )
     tree_plan.add_argument("tree_id")
     tree_plan.add_argument(
@@ -596,9 +606,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     tree_plan.add_argument(
         "--provider",
-        choices=["mock", "fake", "replay"],
+        choices=["mock", "fake", "replay", "real"],
         default="mock",
-        help="Planner/Critic backend for tree expansion (offline fake/replay)",
+        help="Planner/Critic backend for tree expansion (offline fake/replay; real gated)",
+    )
+    tree_plan.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Explicit network permission for --provider real",
     )
     tree_plan.add_argument(
         "--no-rescore",
@@ -1494,9 +1509,12 @@ def main(argv: list[str] | None = None) -> int:
                 max_new_nodes=args.max_new_nodes,
                 max_gpu_hours=args.max_gpu_hours,
                 provider=provider,
+                allow_network=bool(getattr(args, "allow_network", False)),
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
-            return 0 if data.get("status") != "planner_failed" else 1
+            if data.get("status") in {"planner_failed", "real_provider_failed"}:
+                return 1
+            return 0
         except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
@@ -1527,9 +1545,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "review-plan":
         try:
-            data = service.review_plan(args.plan_id, provider=args.provider)
+            data = service.review_plan(
+                args.plan_id,
+                provider=args.provider,
+                allow_network=bool(getattr(args, "allow_network", False)),
+            )
             print(json.dumps(data, ensure_ascii=False, indent=2))
-            return 0
+            return 0 if data.get("status") != "real_provider_failed" else 1
         except KeyError as exc:
             print(str(exc), file=sys.stderr)
             return 1
@@ -1684,10 +1706,13 @@ def main(argv: list[str] | None = None) -> int:
                 rescore=not args.no_rescore,
                 max_gpu_hours=args.max_gpu_hours,
                 provider=provider,
+                allow_network=bool(getattr(args, "allow_network", False)),
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             if data.get("ascii_tree"):
                 print("\n" + data["ascii_tree"])
+            if data.get("status") == "real_provider_failed":
+                return 1
             return 0 if data.get("status") == "planned" else 2
         except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
