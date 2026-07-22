@@ -570,6 +570,14 @@ def test_approve_async_stays_running_then_advance_compares(
     assert approved.get("submitted") is True
     assert len(approved["execution_ids"]) == 5
 
+    def _refresh(execution_id: str):
+        attempt = service.repo.get_attempt(execution_id)
+        assert attempt is not None
+        return attempt
+
+    # Avoid touching Docker while executions are still queued.
+    monkeypatch.setattr(service, "refresh_execution", _refresh)
+
     # Still queued → advance does not complete.
     pending = iteration.advance_iteration(started["iteration_id"])
     assert pending["status"] == "running"
@@ -590,12 +598,6 @@ def test_approve_async_stays_running_then_advance_compares(
             )
         )
 
-    def _refresh(execution_id: str):
-        attempt = service.repo.get_attempt(execution_id)
-        assert attempt is not None
-        return attempt
-
-    monkeypatch.setattr(service, "refresh_execution", _refresh)
     done = iteration.advance_iteration(started["iteration_id"])
     assert done["status"] == "waiting_decision"
     assert done.get("advanced") is True

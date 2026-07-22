@@ -14,7 +14,7 @@ WEB_DIR = Path(__file__).resolve().parents[3] / "web"
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="scientist-lab console", version="0.2.0")
+    app = FastAPI(title="scientist-lab console", version="1.2.0")
     service = get_shared_service()
 
     if WEB_DIR.exists():

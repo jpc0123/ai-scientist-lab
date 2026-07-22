@@ -643,6 +643,47 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional file path to write the export payload",
     )
 
+    report_context = sub.add_parser(
+        "report-context",
+        help="Build ReportContext snapshot for a project (v1.2.1)",
+    )
+    report_context.add_argument("project_id")
+    report_context.add_argument("--tree-id", default=None)
+    report_context.add_argument("--protocol-id", default=None)
+
+    report_build = sub.add_parser(
+        "report-build",
+        help="Build ResearchReport JSON + Markdown (v1.2)",
+    )
+    report_build.add_argument("project_id")
+    report_build.add_argument("--tree-id", default=None)
+    report_build.add_argument("--protocol-id", default=None)
+
+    report_show = sub.add_parser("report-show", help="Show a ResearchReport")
+    report_show.add_argument("report_id")
+
+    report_verify = sub.add_parser(
+        "report-verify", help="Verify claim-gated ResearchReport"
+    )
+    report_verify.add_argument("report_id")
+
+    audit_build = sub.add_parser(
+        "audit-build", help="Build Audit Bundle for a project (v1.2)"
+    )
+    audit_build.add_argument("project_id")
+    audit_build.add_argument("--tree-id", default=None)
+    audit_build.add_argument("--protocol-id", default=None)
+    audit_build.add_argument("--report-id", default=None)
+
+    audit_verify = sub.add_parser("audit-verify", help="Verify an Audit Bundle")
+    audit_verify.add_argument("bundle_id")
+
+    audit_export = sub.add_parser(
+        "audit-export", help="Export Audit Bundle directory to a destination"
+    )
+    audit_export.add_argument("bundle_id")
+    audit_export.add_argument("--output", required=True)
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -1647,6 +1688,82 @@ def main(argv: list[str] | None = None) -> int:
                     print("\n" + data["ascii_tree"])
             return 0
         except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "report-context":
+        try:
+            data = service.build_report_context(
+                args.project_id,
+                tree_id=args.tree_id,
+                protocol_id=args.protocol_id,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "report-build":
+        try:
+            data = service.build_report(
+                args.project_id,
+                tree_id=args.tree_id,
+                protocol_id=args.protocol_id,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") in {"draft", "verified", "tables_ready"} else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "report-show":
+        try:
+            data = service.show_report(args.report_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "report-verify":
+        try:
+            data = service.verify_report(args.report_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("valid") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "audit-build":
+        try:
+            data = service.build_audit(
+                args.project_id,
+                tree_id=args.tree_id,
+                protocol_id=args.protocol_id,
+                report_id=args.report_id,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") in {"built", "invalid"} else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "audit-verify":
+        try:
+            data = service.verify_audit(args.bundle_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("valid") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "audit-export":
+        try:
+            data = service.export_audit(args.bundle_id, args.output)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError, FileNotFoundError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

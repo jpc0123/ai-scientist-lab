@@ -10,6 +10,7 @@ from scientist_lab.agents.service import AgentPlanningService
 from scientist_lab.budget.service import BudgetService
 from scientist_lab.checkpoints.registry import CheckpointRegistry
 from scientist_lab.search.service import TreeSearchService
+from scientist_lab.reporting.service import ReportingService
 from scientist_lab.domain import JobStatus, NodeStage, NodeStatus, NodeType, ProjectStatus
 from scientist_lab.domain.contracts import ExperimentContract
 from scientist_lab.domain.models import (
@@ -67,6 +68,7 @@ class ExperimentService:
             get_claim_matrix=self._tree_claim_matrix,
             get_remaining_budget=self._tree_remaining_budget,
         )
+        self.reporting = ReportingService(self)
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),
@@ -1874,6 +1876,56 @@ class ExperimentService:
 
     def tree_export(self, tree_id: str, *, format: str = "json") -> dict[str, Any]:
         return self.trees.export_tree(tree_id, format=format)
+
+    def build_report_context(
+        self,
+        project_id: str,
+        *,
+        tree_id: str | None = None,
+        protocol_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Assemble ReportContext snapshot (v1.2.1)."""
+        return self.reporting.show_context_dict(
+            project_id, tree_id=tree_id, protocol_id=protocol_id
+        )
+
+    def build_report(
+        self,
+        project_id: str,
+        *,
+        tree_id: str | None = None,
+        protocol_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self.reporting.build_report(
+            project_id, tree_id=tree_id, protocol_id=protocol_id
+        )
+
+    def show_report(self, report_id: str) -> dict[str, Any]:
+        return self.reporting.show_report(report_id)
+
+    def verify_report(self, report_id: str) -> dict[str, Any]:
+        return self.reporting.verify_report(report_id)
+
+    def build_audit(
+        self,
+        project_id: str,
+        *,
+        tree_id: str | None = None,
+        protocol_id: str | None = None,
+        report_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self.reporting.build_audit(
+            project_id,
+            tree_id=tree_id,
+            protocol_id=protocol_id,
+            report_id=report_id,
+        )
+
+    def verify_audit(self, bundle_id: str) -> dict[str, Any]:
+        return self.reporting.verify_audit(bundle_id)
+
+    def export_audit(self, bundle_id: str, output_dir: str | Path) -> dict[str, Any]:
+        return self.reporting.export_audit(bundle_id, output_dir)
 
     def tree_score(
         self, tree_id: str, *, tree_node_id: str | None = None

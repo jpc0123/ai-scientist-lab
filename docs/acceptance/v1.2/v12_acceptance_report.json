@@ -1,0 +1,56 @@
+{
+  "version": "v1.2",
+  "ok": true,
+  "tree_id": "tree_18613ed35c7e",
+  "report_id": "report_9bd217fe7d40",
+  "bundle_id": "audit_c5192170769d",
+  "steps": [
+    {
+      "name": "report-context",
+      "ok": true,
+      "detail": "sha=a3d6aae04ba0318c1746b1dda82c8ad45aceaf045f1452ee9e1e36e8d7105ae6"
+    },
+    {
+      "name": "report-build",
+      "ok": true,
+      "detail": "report_id=report_9bd217fe7d40"
+    },
+    {
+      "name": "report-markdown",
+      "ok": true,
+      "detail": "outputs/_accept_v12/outputs/project_rgbt_003/reports/report_9bd217fe7d40.md"
+    },
+    {
+      "name": "report-show",
+      "ok": true,
+      "detail": "report_9bd217fe7d40"
+    },
+    {
+      "name": "report-verify",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "claim-gate-no-sota-phrasing",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "audit-build",
+      "ok": true,
+      "detail": "bundle=audit_c5192170769d"
+    },
+    {
+      "name": "audit-verify",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "audit-export",
+      "ok": true,
+      "detail": "outputs/_accept_v12/exports/audit_c5192170769d"
+    }
+  ],
+  "passed": 9,
+  "total": 9
+}

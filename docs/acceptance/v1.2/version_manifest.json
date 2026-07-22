@@ -1,0 +1,9 @@
+﻿{
+  "release": "v1.2.0",
+  "acceptance_script": "scripts/accept_v12.py",
+  "acceptance_passed": 9,
+  "acceptance_total": 9,
+  "regression_tests_passed": 254,
+  "report_generation_mode": "deterministic_template",
+  "real_llm_reporting_enabled": false
+}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scientist-lab"
-version = "0.1.0"
+version = "1.2.0"
 description = "Trackable and reproducible experiment execution base for AI Scientist"
 readme = "README.md"
 requires-python = ">=3.11"
