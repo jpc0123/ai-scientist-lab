@@ -1,7 +1,7 @@
 {
   "release": "v1.4.0",
   "package_version": "1.4.0",
-  "commit": "725db35",
+  "commit": "83b54c7",
   "acceptance": "scripts/accept_v14.py",
   "acceptance_result": "17/17 ok",
   "regression": "306 passed",
