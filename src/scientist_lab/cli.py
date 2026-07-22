@@ -704,20 +704,43 @@ def build_parser() -> argparse.ArgumentParser:
 
     llm_eval = sub.add_parser(
         "llm-eval",
-        help="Compare Mock / Fake / Replay planner-critic quality (v1.3.8, offline)",
+        help="LLM quality eval: compare modes or run a suite (v1.4.4)",
     )
     llm_eval.add_argument("project_id")
     llm_eval.add_argument("--protocol-id", default=None)
     llm_eval.add_argument("--best-node", default=None)
     llm_eval.add_argument(
+        "--suite",
+        default=None,
+        help="Eval suite name under evals/llm/ (e.g. planner-basic). "
+        "Omit to run Mock/Fake/Replay comparison.",
+    )
+    llm_eval.add_argument(
+        "--provider",
+        choices=["mock", "fake", "replay", "real"],
+        default="mock",
+        help="Suite provider (default: mock). Real requires gates.",
+    )
+    llm_eval.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Explicit network permission for --provider real",
+    )
+    llm_eval.add_argument(
+        "--max-cases",
+        type=int,
+        default=None,
+        help="Optional cap on suite cases",
+    )
+    llm_eval.add_argument(
         "--output",
         default=None,
-        help="Optional path for llm_quality_report.json",
+        help="Optional path for report JSON",
     )
     llm_eval.add_argument(
         "--include-real",
         action="store_true",
-        help="Include Real mode row (always skipped / deferred in v1.3)",
+        help="Include Real row in comparison mode (usually skipped)",
     )
 
     llm_usage = sub.add_parser(
@@ -1826,14 +1849,22 @@ def main(argv: list[str] | None = None) -> int:
                 current_best_node_id=args.best_node,
                 output=args.output,
                 include_real=args.include_real,
+                suite=args.suite,
+                provider=args.provider,
+                allow_network=args.allow_network,
+                max_cases=args.max_cases,
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
+            if args.suite:
+                if data.get("skipped"):
+                    return 0  # real skipped is success for CI
+                return 0 if data.get("gates", {}).get("suite_ok", True) else 1
             gates = data.get("gates") or {}
             ok = bool(
                 gates.get("mock_ok") and gates.get("fake_ok") and gates.get("replay_ok")
             )
             return 0 if ok else 1
-        except (KeyError, ValueError) as exc:
+        except (KeyError, ValueError, FileNotFoundError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

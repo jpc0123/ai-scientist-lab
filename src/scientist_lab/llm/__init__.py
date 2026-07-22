@@ -12,6 +12,12 @@ from scientist_lab.llm.config import (
     redact_secrets,
 )
 from scientist_lab.llm.context_codec import planning_context_to_planner_request
+from scientist_lab.llm.eval_suite import (
+    SuiteEvalReport,
+    real_eval_gates,
+    run_llm_eval_suite,
+    write_suite_report,
+)
 from scientist_lab.llm.errors import (
     LLMAuthenticationError,
     LLMBudgetExceededError,
@@ -81,6 +87,7 @@ __all__ = [
     "ReplayMissError",
     "ReplayProvider",
     "RetryPolicy",
+    "SuiteEvalReport",
     "SchemaValidationError",
     "StructuredOutputValidationError",
     "TokenUsage",
@@ -95,9 +102,12 @@ __all__ = [
     "mask_secret",
     "parse_and_validate",
     "planning_context_to_planner_request",
+    "real_eval_gates",
     "redact_secrets",
     "request_fingerprint",
+    "run_llm_eval_suite",
     "validate_against_schema",
+    "write_suite_report",
 ]
 
-API_VERSION = "v1.4.3"
+API_VERSION = "v1.4.4"

@@ -1795,13 +1795,50 @@ class ExperimentService:
         max_gpu_hours: float = 12.0,
         output: str | Path | None = None,
         include_real: bool = False,
+        suite: str | None = None,
+        provider: str = "mock",
+        allow_network: bool = False,
+        max_cases: int | None = None,
     ) -> dict[str, Any]:
-        """Compare Mock / Fake / Replay planner-critic quality (v1.3.8, offline)."""
+        """LLM quality eval (v1.3 compare or v1.4.4 suite).
+
+        Without ``suite``: Mock/Fake/Replay comparison report.
+        With ``suite``: run ``evals/llm/<suite>.jsonl`` for one provider.
+        Real provider is skipped unless gates pass (never fails CI by default).
+        """
         from scientist_lab.agents.context_builder import build_planning_context
+        from scientist_lab.llm.eval_suite import (
+            run_llm_eval_suite,
+            write_suite_report,
+        )
         from scientist_lab.llm.quality import (
             evaluate_provider_quality,
             write_quality_report,
         )
+
+        if suite:
+            audit_root = self.settings.outputs_dir / project_id / "llm"
+            report = run_llm_eval_suite(
+                suite=suite,
+                provider=provider,
+                project_id=project_id,
+                audit_root=audit_root,
+                evals_root=Path(self.settings.project_root) / "evals" / "llm",
+                max_cases=max_cases,
+                allow_network=allow_network,
+            )
+            out_path = (
+                Path(output)
+                if output
+                else (
+                    self.settings.outputs_dir
+                    / project_id
+                    / "acceptance"
+                    / f"llm_eval_{suite}_{provider}.json"
+                )
+            )
+            report = write_suite_report(report, out_path)
+            return report.model_dump(mode="json")
 
         project = self.repo.get_project(project_id)
         research_goal = (
@@ -1871,7 +1908,7 @@ class ExperimentService:
         report = evaluate_provider_quality(
             context,
             audit_root=audit_root,
-            include_real=include_real,
+            include_real=include_real or (provider in {"real", "openai-compatible"}),
         )
         out_path = (
             Path(output)
