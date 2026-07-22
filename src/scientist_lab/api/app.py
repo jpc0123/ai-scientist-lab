@@ -19,6 +19,8 @@ from scientist_lab.services.experiment_service import (
 )
 
 WEB_DIR = Path(__file__).resolve().parents[3] / "web"
+WEB_DIST = WEB_DIR / "dist"
+WEB_LEGACY = Path(__file__).resolve().parents[3] / "web-legacy"
 
 
 def create_app(
@@ -52,20 +54,36 @@ def create_app(
     install_exception_handlers(app)
     app.include_router(build_v1_router(service_factory))
 
-    # Legacy static console (pre-v1.7 SPA).
-    if WEB_DIR.exists() and (WEB_DIR / "static").exists():
+    # SPA build (v1.7+) takes precedence when present.
+    if WEB_DIST.exists():
+        assets = WEB_DIST / "assets"
+        if assets.exists():
+            app.mount("/assets", StaticFiles(directory=str(assets)), name="assets")
+
+    # Legacy static console assets.
+    if WEB_LEGACY.exists() and (WEB_LEGACY / "static").exists():
         app.mount(
-            "/static",
-            StaticFiles(directory=str(WEB_DIR / "static")),
-            name="static",
+            "/legacy/static",
+            StaticFiles(directory=str(WEB_LEGACY / "static")),
+            name="legacy_static",
         )
 
     @app.get("/")
     def index() -> FileResponse:
-        index_path = WEB_DIR / "index.html"
-        if not index_path.exists():
-            raise HTTPException(status_code=404, detail="前端页面不存在")
-        return FileResponse(index_path)
+        spa = WEB_DIST / "index.html"
+        if spa.exists():
+            return FileResponse(spa)
+        legacy = WEB_LEGACY / "index.html"
+        if legacy.exists():
+            return FileResponse(legacy)
+        raise HTTPException(status_code=404, detail="前端页面不存在；请先构建 web/")
+
+    @app.get("/legacy")
+    def legacy_index() -> FileResponse:
+        legacy = WEB_LEGACY / "index.html"
+        if not legacy.exists():
+            raise HTTPException(status_code=404, detail="legacy console 不存在")
+        return FileResponse(legacy)
 
     # ---- legacy /api/* (kept for old console.js) -------------------------
     @app.get("/api/health")
@@ -270,6 +288,19 @@ def create_app(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/{spa_path:path}")
+    def spa_fallback(spa_path: str) -> FileResponse:
+        """Serve SPA index for client-side routes when dist is built."""
+        if spa_path.startswith(("api/", "legacy", "assets/", "docs", "openapi")):
+            raise HTTPException(status_code=404, detail="not found")
+        spa = WEB_DIST / "index.html"
+        if spa.exists():
+            candidate = WEB_DIST / spa_path
+            if spa_path and candidate.is_file():
+                return FileResponse(candidate)
+            return FileResponse(spa)
+        raise HTTPException(status_code=404, detail="SPA 未构建")
 
     return app
 
