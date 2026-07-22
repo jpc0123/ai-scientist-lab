@@ -73,7 +73,11 @@ class ExperimentService:
         from scientist_lab.patching.service import PatchingService
 
         self.llm_evals = LLMEvalRepository(self.session_factory)
-        self.patches = PatchingService(self.session_factory)
+        self.patches = PatchingService(
+            self.session_factory,
+            project_root=Path(self.settings.project_root),
+            sandbox_root=Path(self.settings.outputs_dir) / "_patch_sandboxes",
+        )
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),

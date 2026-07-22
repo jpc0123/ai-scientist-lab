@@ -911,6 +911,17 @@ def build_parser() -> argparse.ArgumentParser:
     patch_reject.add_argument("patch_id")
     patch_reject.add_argument("--reason", default="")
 
+    patch_apply_sandbox = sub.add_parser(
+        "patch-apply-sandbox",
+        help="Apply an approved patch into an isolated sandbox (never main tree) (v1.6.4)",
+    )
+    patch_apply_sandbox.add_argument("patch_id")
+    patch_apply_sandbox.add_argument(
+        "--force",
+        action="store_true",
+        help="Recreate sandbox if it already exists / retry failed_sandbox",
+    )
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2207,6 +2218,17 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-apply-sandbox":
+        try:
+            data = service.patches.apply_sandbox(
+                args.patch_id, force=bool(getattr(args, "force", False))
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") == "applied_sandbox" else 1
+        except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

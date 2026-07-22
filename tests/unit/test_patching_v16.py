@@ -1,4 +1,4 @@
-"""v1.6.1–1.6.3 restricted patching tests."""
+"""v1.6.1–1.6.4 restricted patching tests."""
 
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ def test_parse_mock_diff():
     diff = build_mock_unified_diff()
     parsed = parse_unified_diff(diff)
     assert len(parsed.files) == 1
-    assert parsed.files[0].path.endswith("feedback_rules.py")
-    assert parsed.files[0].hunks
+    assert "adapters/mock_patch_note.md" in parsed.files[0].path.replace("\\", "/")
+    assert parsed.files[0].is_new_file is True
 
 
 def test_path_policy_allows_and_denies():
@@ -86,12 +86,12 @@ def test_fingerprint_stable():
     assert fingerprint_diff(diff) == fingerprint_diff(diff + "\n")
 
 
-def test_propose_verify_approve_reject_no_apply(tmp_path: Path):
+def test_propose_verify_approve_reject_no_main_apply(tmp_path: Path):
     service = _service(tmp_path)
     proposed = service.patches.propose_mock("project_rgbt_003")
     assert proposed["status"] == "verified"
     assert proposed["can_apply"] is False
-    assert proposed["applied"] is False
+    assert proposed["can_apply_main"] is False
     assert proposed["provider"] == "mock"
     assert proposed["verification"]["ok"] is True
     assert proposed["files_touched"]
@@ -102,16 +102,17 @@ def test_propose_verify_approve_reject_no_apply(tmp_path: Path):
     verified = service.patches.verify(proposed["patch_id"])
     assert verified["status"] == "verified"
 
-    approved = service.patches.approve(proposed["patch_id"], reason="ok for later sandbox")
+    approved = service.patches.approve(proposed["patch_id"], reason="ok for sandbox")
     assert approved["status"] == "approved"
-    assert approved["can_apply"] is False
-    assert approved["metadata"]["applied"] is False
+    assert approved["can_apply_main"] is False
+    assert approved["can_apply_sandbox"] is True
 
-    # Reject path on a second patch
     second = service.patches.propose_mock(
         "project_rgbt_003",
         unified_diff=build_mock_unified_diff(
-            relative_path="src/scientist_lab/tasks/rgbt_detection/claim_gate.py"
+            relative_path=(
+                "experiment_apps/rgbt_detection_real/adapters/other_note.md"
+            )
         ),
     )
     rejected = service.patches.reject(second["patch_id"], reason="not needed")
@@ -125,6 +126,45 @@ def test_duplicate_fingerprint_blocked(tmp_path: Path):
     second = service.patches.propose_mock("project_rgbt_003")
     assert second["status"] == "rejected_by_verifier"
     assert second["verification"]["duplicate_of"] == first["patch_id"]
+
+
+def test_apply_sandbox_writes_only_sandbox(tmp_path: Path):
+    root = Path(__file__).resolve().parents[2]
+    service = _service(tmp_path)
+    proposed = service.patches.propose_mock("project_rgbt_003")
+    service.patches.approve(proposed["patch_id"])
+    applied = service.patches.apply_sandbox(proposed["patch_id"])
+    assert applied["status"] == "applied_sandbox"
+    assert applied["sandbox"]["ok"] is True
+    assert applied["sandbox"]["main_workspace_modified"] is False
+    sandbox_dir = Path(applied["sandbox"]["sandbox_dir"])
+    assert sandbox_dir.is_dir()
+    assert str(tmp_path / "outputs") in str(sandbox_dir)
+    note = sandbox_dir / "experiment_apps/rgbt_detection_real/adapters/mock_patch_note.md"
+    assert note.is_file()
+    text = note.read_text(encoding="utf-8")
+    assert "fusion ablation" in text
+    # Main tree must not contain this new file.
+    main_note = (
+        root
+        / "experiment_apps"
+        / "rgbt_detection_real"
+        / "adapters"
+        / "mock_patch_note.md"
+    )
+    assert not main_note.exists()
+
+
+def test_apply_sandbox_requires_approval(tmp_path: Path):
+    service = _service(tmp_path)
+    proposed = service.patches.propose_mock(
+        "project_rgbt_003",
+        unified_diff=build_mock_unified_diff(
+            relative_path="experiment_apps/rgbt_detection_real/configs/demo.yaml"
+        ),
+    )
+    with pytest.raises(ValueError, match="approved"):
+        service.patches.apply_sandbox(proposed["patch_id"])
 
 
 def test_empty_diff_parse_error():
