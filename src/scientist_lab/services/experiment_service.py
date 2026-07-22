@@ -70,8 +70,10 @@ class ExperimentService:
         )
         self.reporting = ReportingService(self)
         from scientist_lab.llm_eval.repository import LLMEvalRepository
+        from scientist_lab.patching.service import PatchingService
 
         self.llm_evals = LLMEvalRepository(self.session_factory)
+        self.patches = PatchingService(self.session_factory)
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),

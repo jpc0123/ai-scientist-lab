@@ -878,6 +878,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override audit root (default: outputs/<project_id>/llm)",
     )
 
+    patch_propose = sub.add_parser(
+        "patch-propose",
+        help="Propose a restricted source patch (Mock; no apply) (v1.6)",
+    )
+    patch_propose.add_argument("project_id")
+    patch_propose.add_argument(
+        "--mock",
+        action="store_true",
+        default=True,
+        help="Use Mock patch generator (default)",
+    )
+    patch_propose.add_argument("--title", default=None)
+    patch_propose.add_argument("--rationale", default=None)
+
+    patch_show = sub.add_parser("patch-show", help="Show a PatchProposal")
+    patch_show.add_argument("patch_id")
+
+    patch_verify = sub.add_parser(
+        "patch-verify", help="Re-run static PathPolicy/Diff verification"
+    )
+    patch_verify.add_argument("patch_id")
+
+    patch_approve = sub.add_parser(
+        "patch-approve",
+        help="Human-approve a verified patch (does NOT apply in v1.6.1–1.6.3)",
+    )
+    patch_approve.add_argument("patch_id")
+    patch_approve.add_argument("--reason", default="")
+
+    patch_reject = sub.add_parser("patch-reject", help="Human-reject a patch")
+    patch_reject.add_argument("patch_id")
+    patch_reject.add_argument("--reason", default="")
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2120,6 +2153,60 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-propose":
+        try:
+            data = service.patches.propose_mock(
+                args.project_id,
+                title=args.title,
+                rationale=args.rationale,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") in {"proposed", "verified"} else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-show":
+        try:
+            print(
+                json.dumps(
+                    service.patches.show(args.patch_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-verify":
+        try:
+            data = service.patches.verify(args.patch_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if (data.get("verification") or {}).get("ok") else 1
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-approve":
+        try:
+            data = service.patches.approve(args.patch_id, reason=args.reason or "")
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-reject":
+        try:
+            data = service.patches.reject(args.patch_id, reason=args.reason or "")
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except KeyError as exc:
             print(str(exc), file=sys.stderr)
             return 1
 
