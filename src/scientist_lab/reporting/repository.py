@@ -47,6 +47,87 @@ class ReportingRepository:
             raise KeyError(f"report not found: {report_id}")
         return report
 
+    def list_reports(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[ResearchReport]:
+        if not self.outputs_root.exists():
+            return []
+        pattern = (
+            f"{project_id}/reports/*.json"
+            if project_id
+            else "*/reports/*.json"
+        )
+        items: list[ResearchReport] = []
+        for path in sorted(
+            self.outputs_root.glob(pattern),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        ):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                items.append(ResearchReport.model_validate(data))
+            except (OSError, json.JSONDecodeError, ValueError):
+                continue
+            if len(items) >= max(1, int(limit)):
+                break
+        return items
+
+    def list_audit_indexes(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        if not self.outputs_root.exists():
+            return []
+        pattern = (
+            f"{project_id}/audit/*.index.json"
+            if project_id
+            else "*/audit/*.index.json"
+        )
+        items: list[dict[str, Any]] = []
+        for path in sorted(
+            self.outputs_root.glob(pattern),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        ):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                data["_index_path"] = str(path)
+                items.append(data)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if len(items) >= max(1, int(limit)):
+                break
+        # Also discover bundle directories without index.
+        bundle_pattern = (
+            f"{project_id}/audit/*/audit_bundle.json"
+            if project_id
+            else "*/audit/*/audit_bundle.json"
+        )
+        seen = {str(item.get("bundle_id") or "") for item in items}
+        for path in sorted(
+            self.outputs_root.glob(bundle_pattern),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        ):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                bid = str(data.get("bundle_id") or path.parent.name)
+                if bid in seen:
+                    continue
+                items.append(
+                    {
+                        "bundle_id": bid,
+                        "project_id": data.get("project_id"),
+                        "bundle_root": str(path.parent),
+                        "status": data.get("status"),
+                    }
+                )
+                seen.add(bid)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if len(items) >= max(1, int(limit)):
+                break
+        return items[: max(1, int(limit))]
+
     def save_bundle_index(self, bundle: AuditBundle) -> None:
         folder = self.outputs_root / bundle.project_id / "audit"
         folder.mkdir(parents=True, exist_ok=True)

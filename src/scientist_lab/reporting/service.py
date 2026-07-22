@@ -87,6 +87,22 @@ class ReportingService:
     def show_report(self, report_id: str) -> dict[str, Any]:
         return self._repo.require_report(report_id).model_dump(mode="json")
 
+    def list_reports(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return [
+            item.model_dump(mode="json")
+            for item in self._repo.list_reports(project_id=project_id, limit=limit)
+        ]
+
+    def list_audits(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self._repo.list_audit_indexes(project_id=project_id, limit=limit)
+
+    def show_audit(self, bundle_id: str) -> dict[str, Any]:
+        return self._repo.load_bundle(bundle_id)
+
     def verify_report(self, report_id: str) -> dict[str, Any]:
         report = self._repo.require_report(report_id)
         result = verify_research_report(report)

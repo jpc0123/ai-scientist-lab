@@ -385,6 +385,14 @@ class PatchingService:
     def list_patches(self, project_id: str) -> list[dict[str, Any]]:
         return [self._view(item) for item in self._repo.list_for_project(project_id)]
 
+    def list_patches_all(
+        self, *, project_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        if project_id:
+            items = self._repo.list_for_project(project_id)
+            return [self._view(item) for item in items[: max(1, int(limit))]]
+        return [self._view(item) for item in self._repo.list_all(limit=limit)]
+
     def _view(self, proposal: PatchProposal) -> dict[str, Any]:
         data = proposal.model_dump(mode="json")
         meta = dict(proposal.metadata or {})

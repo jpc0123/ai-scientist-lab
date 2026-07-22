@@ -1,23 +1,59 @@
+"""FastAPI application factory for Scientist Lab console + /api/v1."""
+
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
+from scientist_lab.api.errors import install_exception_handlers
+from scientist_lab.api.schemas import CompareExecutionsBody, CompareNodesBody
+from scientist_lab.api.v1 import build_v1_router
 from scientist_lab.domain.contracts import ExperimentContract
-from scientist_lab.services.experiment_service import get_shared_service
+from scientist_lab.services.experiment_service import (
+    ExperimentService,
+    get_shared_service,
+)
 
 WEB_DIR = Path(__file__).resolve().parents[3] / "web"
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="scientist-lab console", version="1.5.0")
-    service = get_shared_service()
+def create_app(
+    *,
+    service: ExperimentService | None = None,
+    service_factory: Callable[[], ExperimentService] | None = None,
+) -> FastAPI:
+    """Create the console app.
 
-    if WEB_DIR.exists():
+    Prefer injecting ``service`` / ``service_factory`` in tests so the
+    process-wide shared singleton is not required.
+    """
+    if service_factory is None:
+        if service is not None:
+            bound = service
+
+            def service_factory() -> ExperimentService:
+                return bound
+
+        else:
+            service_factory = get_shared_service
+
+    app = FastAPI(
+        title="Scientist Lab Web Console API",
+        version="1.7.1",
+        description=(
+            "Local single-user research workbench API. "
+            "All mutations go through ExperimentService state machines."
+        ),
+    )
+    install_exception_handlers(app)
+    app.include_router(build_v1_router(service_factory))
+
+    # Legacy static console (pre-v1.7 SPA).
+    if WEB_DIR.exists() and (WEB_DIR / "static").exists():
         app.mount(
             "/static",
             StaticFiles(directory=str(WEB_DIR / "static")),
@@ -31,12 +67,14 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="前端页面不存在")
         return FileResponse(index_path)
 
+    # ---- legacy /api/* (kept for old console.js) -------------------------
     @app.get("/api/health")
-    def health() -> dict:
+    def legacy_health() -> dict:
+        svc = service_factory()
         docker_ok = False
         docker_error = None
         try:
-            service.runner.client.ping()
+            svc.runner.client.ping()
             docker_ok = True
         except Exception as exc:  # noqa: BLE001
             docker_error = str(exc)
@@ -44,20 +82,21 @@ def create_app() -> FastAPI:
             "ok": True,
             "docker_ok": docker_ok,
             "docker_error": docker_error,
-            "db_path": str(service.settings.db_path),
+            "db_path": str(svc.settings.db_path),
+            "deprecated": True,
+            "see": "/api/v1/health",
         }
 
     @app.get("/api/projects")
-    def list_projects() -> list[dict]:
-        return service.list_projects()
+    def legacy_list_projects() -> list[dict]:
+        return service_factory().list_projects()
 
     @app.get("/api/nodes")
-    def list_nodes(project_id: str | None = None) -> list[dict]:
-        return service.list_nodes(project_id=project_id)
+    def legacy_list_nodes(project_id: str | None = None) -> list[dict]:
+        return service_factory().list_nodes(project_id=project_id)
 
     @app.get("/api/scenarios")
     def list_scenarios() -> list[dict]:
-        """内置演示场景，对应第二步失败/成功路径。"""
         return [
             {
                 "id": "success",
@@ -121,7 +160,7 @@ def create_app() -> FastAPI:
         item = mapping.get(scenario_id)
         if item is None:
             raise HTTPException(status_code=404, detail=f"未知场景: {scenario_id}")
-        path = service.settings.project_root / item["file"]
+        path = service_factory().settings.project_root / item["file"]
         if not path.exists():
             raise HTTPException(status_code=404, detail=f"场景文件不存在: {path}")
         import json
@@ -130,35 +169,35 @@ def create_app() -> FastAPI:
         return {**item, "contract": contract}
 
     @app.get("/api/executions")
-    def list_executions(
+    def legacy_list_executions(
         project_id: str | None = None,
         node_id: str | None = None,
         limit: int = 50,
     ) -> list[dict]:
-        attempts = service.list_executions(
+        attempts = service_factory().list_executions(
             limit=limit, project_id=project_id, node_id=node_id
         )
         return [a.model_dump() for a in attempts]
 
     @app.get("/api/executions/{execution_id}")
-    def get_execution(execution_id: str) -> dict:
+    def legacy_get_execution(execution_id: str) -> dict:
         try:
-            return service.get_execution(execution_id)
+            return service_factory().get_execution(execution_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get("/api/executions/{execution_id}/log")
-    def get_log(execution_id: str) -> dict:
+    def legacy_get_log(execution_id: str) -> dict:
         try:
-            text = service.get_log_text(execution_id)
+            text = service_factory().get_log_text(execution_id)
             return {"execution_id": execution_id, "log": text}
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/executions/{execution_id}/cancel")
-    def cancel_execution(execution_id: str) -> dict:
+    def legacy_cancel_execution(execution_id: str) -> dict:
         try:
-            attempt = service.cancel_execution(execution_id)
+            attempt = service_factory().cancel_execution(execution_id)
             return attempt.model_dump()
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -168,7 +207,7 @@ def create_app() -> FastAPI:
     @app.post("/api/contracts/submit")
     def submit_contract(contract: ExperimentContract) -> dict:
         try:
-            result = service.submit_contract(contract)
+            result = service_factory().submit_contract(contract)
             return {
                 "execution_id": result.execution_id,
                 "status": str(result.status),
@@ -177,60 +216,56 @@ def create_app() -> FastAPI:
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    class CompareRequest(BaseModel):
-        execution_id_a: str
-        execution_id_b: str
-
-    class CompareNodesRequest(BaseModel):
-        node_id_a: str
-        node_id_b: str
-
     @app.post("/api/compare")
-    def compare(req: CompareRequest) -> dict:
+    def compare(req: CompareExecutionsBody) -> dict:
         try:
-            return service.compare_executions(req.execution_id_a, req.execution_id_b)
+            return service_factory().compare_executions(
+                req.execution_id_a, req.execution_id_b
+            )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/compare/nodes")
-    def compare_nodes(req: CompareNodesRequest) -> dict:
+    def compare_nodes(req: CompareNodesBody) -> dict:
         try:
-            return service.compare_nodes(req.node_id_a, req.node_id_b)
+            return service_factory().compare_nodes(req.node_id_a, req.node_id_b)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/compare/node-groups")
-    def compare_node_groups(req: CompareNodesRequest) -> dict:
+    def compare_node_groups(req: CompareNodesBody) -> dict:
         try:
-            return service.compare_node_groups(req.node_id_a, req.node_id_b)
+            return service_factory().compare_node_groups(
+                req.node_id_a, req.node_id_b
+            )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/nodes/{node_id}/aggregate")
     def aggregate_node(node_id: str) -> dict:
         try:
-            return service.aggregate_node(node_id)
+            return service_factory().aggregate_node(node_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/feedback/analyze")
-    def analyze_feedback(req: CompareNodesRequest) -> dict:
+    def analyze_feedback(req: CompareNodesBody) -> dict:
         try:
-            return service.analyze_feedback(req.node_id_a, req.node_id_b)
+            return service_factory().analyze_feedback(req.node_id_a, req.node_id_b)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get("/api/feedback/{node_id}")
     def show_feedback(node_id: str) -> dict:
         try:
-            return service.show_feedback(node_id)
+            return service_factory().show_feedback(node_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/feedback/propose-next")
-    def propose_next(req: CompareNodesRequest) -> dict:
+    def propose_next(req: CompareNodesBody) -> dict:
         try:
-            return service.propose_next(req.node_id_a, req.node_id_b)
+            return service_factory().propose_next(req.node_id_a, req.node_id_b)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:

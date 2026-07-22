@@ -103,3 +103,12 @@ class PatchRepository:
             return [
                 PatchProposal.model_validate_json(row.payload_json) for row in rows
             ]
+
+    def list_all(self, *, limit: int = 100) -> list[PatchProposal]:
+        with self._session_factory() as session:
+            rows = list(session.scalars(select(PatchProposalRow)).all())
+            rows.sort(key=lambda r: r.updated_at, reverse=True)
+            return [
+                PatchProposal.model_validate_json(row.payload_json)
+                for row in rows[: max(1, int(limit))]
+            ]

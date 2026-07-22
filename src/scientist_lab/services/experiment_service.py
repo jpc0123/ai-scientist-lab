@@ -515,6 +515,196 @@ class ExperimentService:
             )
         return items
 
+    def get_project(self, project_id: str) -> dict[str, Any]:
+        project = self.repo.get_project(project_id)
+        if project is None:
+            raise KeyError(f"project not found: {project_id}")
+        payload = {
+            "project_id": project.project_id,
+            "title": project.title,
+            "research_goal": project.research_goal,
+            "status": str(project.status),
+            "node_count": self.repo.count_nodes(project.project_id),
+            "created_at": project.created_at,
+            "updated_at": project.updated_at,
+        }
+        try:
+            payload["budget"] = self.show_budget(project_id)
+        except Exception:  # noqa: BLE001
+            payload["budget"] = None
+        return payload
+
+    def system_summary(self) -> dict[str, Any]:
+        """Dashboard aggregate for the web console (v1.7.1)."""
+        from scientist_lab.iteration.service import IterationService
+
+        projects = self.list_projects()
+        executions = self.list_executions(limit=100)
+        running = [
+            a
+            for a in executions
+            if str(a.status) in {"queued", "running", "pending", "submitted"}
+        ]
+        failed = [
+            a
+            for a in executions
+            if str(a.status) in {"failed", "timed_out", "cancelled"}
+        ][:10]
+
+        plans = self.list_plans()
+        pending_plan_candidates = 0
+        for plan in plans:
+            for cand in plan.get("candidates") or []:
+                if str(cand.get("status") or "") in {
+                    "proposed",
+                    "ranked",
+                    "pending_approval",
+                    "waiting_approval",
+                }:
+                    pending_plan_candidates += 1
+
+        iterations = IterationService(self).list_iterations(limit=100)
+        pending_iterations = [
+            item
+            for item in iterations
+            if item.get("status") in {"waiting_approval", "proposal_ready", "waiting_decision"}
+        ]
+
+        patches = self.patches.list_patches_all(limit=100)
+        pending_patches = [
+            item
+            for item in patches
+            if item.get("status") in {"verified", "proposed", "approved", "applied_sandbox", "evidence_recorded"}
+            and item.get("status") != "merged"
+        ]
+        awaiting_patch_approval = [
+            item for item in patches if item.get("status") in {"verified", "proposed"}
+        ]
+
+        trees = [
+            self.trees.tree_status(t.tree_id)
+            for t in self.trees._repo.list_trees()
+        ]
+        reports = self.reporting.list_reports(limit=10)
+
+        return {
+            "project_count": len(projects),
+            "running_executions": len(running),
+            "pending_plan_candidates": pending_plan_candidates,
+            "pending_iterations": len(pending_iterations),
+            "pending_patches": len(awaiting_patch_approval),
+            "patch_actionable": len(pending_patches),
+            "tree_count": len(trees),
+            "recent_failures": [
+                {
+                    "execution_id": a.execution_id,
+                    "status": str(a.status),
+                    "node_id": a.node_id,
+                    "project_id": a.project_id,
+                    "created_at": a.created_at,
+                    "error_type": getattr(a, "error_type", None),
+                }
+                for a in failed
+            ],
+            "recent_reports": reports,
+            "budgets": [
+                self.show_budget(p["project_id"])
+                for p in projects[:20]
+            ],
+        }
+
+    def list_trees(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        trees = self.trees._repo.list_trees(project_id=project_id)
+        items = [self.trees.tree_status(t.tree_id) for t in trees]
+        return items[: max(1, int(limit))]
+
+    def list_iterations(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        from scientist_lab.iteration.service import IterationService
+
+        return IterationService(self).list_iterations(
+            project_id=project_id, limit=limit
+        )
+
+    def show_iteration(self, iteration_id: str) -> dict[str, Any]:
+        from scientist_lab.iteration.service import IterationService
+
+        return IterationService(self).get_status(iteration_id)
+
+    def approve_iteration(self, iteration_id: str, **kwargs: Any) -> dict[str, Any]:
+        from scientist_lab.iteration.service import IterationService
+
+        return IterationService(self).approve_and_run(iteration_id, **kwargs)
+
+    def advance_iteration(self, iteration_id: str) -> dict[str, Any]:
+        from scientist_lab.iteration.service import IterationService
+
+        return IterationService(self).advance_iteration(iteration_id)
+
+    def finalize_iteration(
+        self,
+        iteration_id: str,
+        *,
+        selected_node_id: str,
+        reason: str,
+        decision_type: str = "efficiency_tradeoff",
+        evidence_strength: str = "moderate",
+    ) -> dict[str, Any]:
+        from scientist_lab.iteration.service import IterationService
+
+        return IterationService(self).finalize(
+            iteration_id,
+            selected_node_id=selected_node_id,
+            decision_type=decision_type,
+            reason=reason,
+            evidence_strength=evidence_strength,
+        )
+
+    def list_reports(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self.reporting.list_reports(project_id=project_id, limit=limit)
+
+    def list_audits(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self.reporting.list_audits(project_id=project_id, limit=limit)
+
+    def show_audit(self, bundle_id: str) -> dict[str, Any]:
+        return self.reporting.show_audit(bundle_id)
+
+    def list_patches(
+        self, *, project_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        return self.patches.list_patches_all(project_id=project_id, limit=limit)
+
+    def show_patch(self, patch_id: str) -> dict[str, Any]:
+        return self.patches.show(patch_id)
+
+    def list_claims(
+        self, *, project_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        if project_id:
+            matrix = self.show_claim_matrix(project_id)
+            claims = list(matrix.get("claims") or [])
+            for claim in claims:
+                claim["project_id"] = project_id
+            return claims
+        items: list[dict[str, Any]] = []
+        for project in self.list_projects():
+            try:
+                matrix = self.show_claim_matrix(project["project_id"])
+            except Exception:  # noqa: BLE001
+                continue
+            for claim in matrix.get("claims") or []:
+                claim = dict(claim)
+                claim["project_id"] = project["project_id"]
+                items.append(claim)
+        return items
+
     def list_executions(
         self,
         limit: int = 20,
