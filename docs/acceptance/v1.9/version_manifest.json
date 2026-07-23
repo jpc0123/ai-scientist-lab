@@ -1,0 +1,27 @@
+{
+  "version": "v1.9.0",
+  "tag_target": "v1.9.0",
+  "branch": "feat/v1.9-controlled-merge-rollback",
+  "baseline_tag": "v1.8.0",
+  "title": "Scientist Lab Controlled Merge, Rollback & RC",
+  "principles": [
+    "Whitelist GitAdapter only; no shell=True",
+    "No push / reset --hard / force / rebase",
+    "Commit only in isolated worktree; finalize --no-ff",
+    "Rollback via git revert -m 1 only",
+    "Release Candidate is local manifest only"
+  ],
+  "completed_subversions": [
+    "v1.9.1",
+    "v1.9.2",
+    "v1.9.3",
+    "v1.9.4",
+    "v1.9.5",
+    "v1.9.6",
+    "v1.9.7",
+    "v1.9.8",
+    "v1.9.9",
+    "v1.9.10"
+  ],
+  "acceptance_script": "scripts/accept_v19.py"
+}
