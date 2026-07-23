@@ -16,14 +16,49 @@ export type Page<T> = {
   count: number;
 };
 
+export type TodoItem = {
+  kind: string;
+  title: string;
+  status: string;
+  resource_id: string;
+  href?: string;
+  project_id?: string | null;
+  actor?: string;
+};
+
 export type SystemSummary = {
   project_count: number;
+  ready_project_count?: number;
+  running_project_count?: number;
   running_executions: number;
   pending_plan_candidates: number;
   pending_iterations: number;
   pending_patches: number;
+  pending_merges?: number;
   patch_actionable?: number;
   tree_count: number;
+  active_tree_count?: number;
+  evidence_count?: number;
+  todo_count?: number;
+  claim_summary?: {
+    supported?: number;
+    partially_supported?: number;
+    unsupported?: number;
+    blocked?: number;
+    other?: number;
+    total?: number;
+  };
+  best_nodes?: Array<{
+    tree_id?: string;
+    project_id?: string;
+    node_id?: string;
+    score?: number | null;
+    status?: string;
+    href?: string;
+  }>;
+  todos?: TodoItem[];
+  recent_activity?: Array<Record<string, unknown>>;
+  recent_evidence?: Array<Record<string, unknown>>;
   recent_failures: Array<{
     execution_id: string;
     status: string;
@@ -33,7 +68,24 @@ export type SystemSummary = {
     error_type?: string | null;
   }>;
   recent_reports: Array<Record<string, unknown>>;
+  recent_audits?: Array<Record<string, unknown>>;
   budgets: Array<Record<string, unknown>>;
+  system_health?: {
+    api?: string;
+    version?: string;
+    default_llm?: string;
+    network_default?: boolean;
+    shell_available?: boolean;
+    main_tree_writable_from_ui?: boolean;
+  };
+  answers?: {
+    what_is_running?: number;
+    what_awaits_me?: number;
+    what_failed?: number;
+    budget_projects?: number;
+    best_node?: Record<string, unknown> | null;
+    claims_supported?: number;
+  };
 };
 
 export type Project = {

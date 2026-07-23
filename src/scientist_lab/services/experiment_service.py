@@ -591,7 +591,7 @@ class ExperimentService:
         return self.get_project(project_id)
 
     def system_summary(self) -> dict[str, Any]:
-        """Dashboard aggregate for the web console (v1.7.1)."""
+        """Unified workbench dashboard aggregate (v2.0.2)."""
         from scientist_lab.iteration.service import IterationService
 
         projects = self.list_projects()
@@ -608,65 +608,336 @@ class ExperimentService:
         ][:10]
 
         plans = self.list_plans()
+        pending_plan_items: list[dict[str, Any]] = []
         pending_plan_candidates = 0
         for plan in plans:
+            plan_id = str(plan.get("plan_id") or "")
             for cand in plan.get("candidates") or []:
-                if str(cand.get("status") or "") in {
+                status = str(cand.get("status") or "")
+                if status in {
                     "proposed",
                     "ranked",
                     "pending_approval",
                     "waiting_approval",
+                    "verified",
+                    "reviewed",
                 }:
                     pending_plan_candidates += 1
+                    pending_plan_items.append(
+                        {
+                            "kind": "plan_candidate",
+                            "title": str(
+                                cand.get("title") or cand.get("candidate_id") or "候选"
+                            ),
+                            "status": status,
+                            "resource_id": str(cand.get("candidate_id") or ""),
+                            "href": "/approvals",
+                            "project_id": str(plan.get("project_id") or ""),
+                            "plan_id": plan_id,
+                            "actor": "local_user",
+                        }
+                    )
 
         iterations = IterationService(self).list_iterations(limit=100)
         pending_iterations = [
             item
             for item in iterations
-            if item.get("status") in {"waiting_approval", "proposal_ready", "waiting_decision"}
+            if item.get("status")
+            in {"waiting_approval", "proposal_ready", "waiting_decision"}
         ]
 
         patches = self.patches.list_patches_all(limit=100)
         pending_patches = [
             item
             for item in patches
-            if item.get("status") in {"verified", "proposed", "approved", "applied_sandbox", "evidence_recorded"}
+            if item.get("status")
+            in {
+                "verified",
+                "proposed",
+                "approved",
+                "applied_sandbox",
+                "evidence_recorded",
+            }
             and item.get("status") != "merged"
         ]
         awaiting_patch_approval = [
             item for item in patches if item.get("status") in {"verified", "proposed"}
         ]
 
-        trees = [
-            self.trees.tree_status(t.tree_id)
-            for t in self.trees._repo.list_trees()
+        trees_raw = list(self.trees._repo.list_trees())  # noqa: SLF001
+        trees = [self.trees.tree_status(t.tree_id) for t in trees_raw]
+        active_trees = [
+            t
+            for t in trees
+            if str(t.get("status") or "")
+            not in {"stopped", "completed", "archived", "failed"}
         ]
+
+        best_nodes: list[dict[str, Any]] = []
+        for tree_meta in trees_raw[:20]:
+            try:
+                shown = self.trees.show_tree(tree_meta.tree_id)
+            except Exception:  # noqa: BLE001
+                continue
+            nodes = list(shown.get("nodes") or [])
+            scored = [
+                n
+                for n in nodes
+                if isinstance(n, dict) and n.get("score") is not None
+            ]
+            if not scored:
+                # Fall back to best_score_seen on tree without per-node scores.
+                if shown.get("best_score_seen") is not None:
+                    best_nodes.append(
+                        {
+                            "tree_id": shown.get("tree_id"),
+                            "project_id": shown.get("project_id"),
+                            "node_id": shown.get("selected_node_id")
+                            or shown.get("root_node_id"),
+                            "score": shown.get("best_score_seen"),
+                            "status": shown.get("status"),
+                            "href": f"/trees/{shown.get('tree_id')}",
+                        }
+                    )
+                continue
+            top = max(scored, key=lambda n: float(n.get("score") or 0.0))
+            best_nodes.append(
+                {
+                    "tree_id": shown.get("tree_id"),
+                    "project_id": shown.get("project_id"),
+                    "node_id": top.get("experiment_node_id")
+                    or top.get("tree_node_id")
+                    or top.get("node_id"),
+                    "score": top.get("score"),
+                    "status": top.get("status"),
+                    "href": f"/trees/{shown.get('tree_id')}",
+                }
+            )
+        best_nodes.sort(key=lambda n: float(n.get("score") or 0.0), reverse=True)
+
         reports = self.reporting.list_reports(limit=10)
+        try:
+            audits = self.list_audits(limit=10)
+        except Exception:  # noqa: BLE001
+            audits = []
+
+        evidence_items: list[dict[str, Any]] = []
+        try:
+            evidence_items = self.list_evidence()[:8]
+        except Exception:  # noqa: BLE001
+            evidence_items = []
+
+        claim_counts = {
+            "supported": 0,
+            "partially_supported": 0,
+            "unsupported": 0,
+            "blocked": 0,
+            "other": 0,
+            "total": 0,
+        }
+        try:
+            for claim in self.list_claims():
+                claim_counts["total"] += 1
+                st = str(
+                    claim.get("support_status")
+                    or claim.get("status")
+                    or claim.get("state")
+                    or ""
+                ).lower()
+                if st in claim_counts:
+                    claim_counts[st] += 1
+                else:
+                    claim_counts["other"] += 1
+        except Exception:  # noqa: BLE001
+            pass
+
+        merges: list[dict[str, Any]] = []
+        try:
+            merges = self.list_merge_candidates(limit=50)
+        except Exception:  # noqa: BLE001
+            merges = []
+        pending_merges = [
+            m
+            for m in merges
+            if str(m.get("status") or "")
+            in {"waiting_approval", "approved", "created", "preparing", "testing"}
+        ]
+
+        releases: list[dict[str, Any]] = []
+        try:
+            releases = self.list_releases(limit=20)
+        except Exception:  # noqa: BLE001
+            releases = []
+        pending_releases = [
+            r
+            for r in releases
+            if str(r.get("status") or "") in {"draft", "frozen", "created"}
+        ]
+
+        todos: list[dict[str, Any]] = []
+        for item in pending_plan_items[:8]:
+            todos.append(item)
+        for item in pending_iterations[:8]:
+            todos.append(
+                {
+                    "kind": "iteration",
+                    "title": str(item.get("iteration_id") or "Iteration"),
+                    "status": str(item.get("status") or ""),
+                    "resource_id": str(item.get("iteration_id") or ""),
+                    "href": f"/iterations/{item.get('iteration_id')}",
+                    "project_id": str(item.get("project_id") or ""),
+                    "actor": "local_user",
+                }
+            )
+        for item in awaiting_patch_approval[:8]:
+            todos.append(
+                {
+                    "kind": "patch",
+                    "title": str(item.get("title") or item.get("patch_id") or "补丁"),
+                    "status": str(item.get("status") or ""),
+                    "resource_id": str(item.get("patch_id") or ""),
+                    "href": f"/patches/{item.get('patch_id')}",
+                    "project_id": str(item.get("project_id") or ""),
+                    "actor": "local_user",
+                }
+            )
+        for a in failed[:5]:
+            todos.append(
+                {
+                    "kind": "failed_execution",
+                    "title": f"失败执行 {a.execution_id}",
+                    "status": str(a.status),
+                    "resource_id": a.execution_id,
+                    "href": f"/executions/{a.execution_id}",
+                    "project_id": getattr(a, "project_id", None),
+                    "actor": "system",
+                }
+            )
+        for m in pending_merges[:5]:
+            todos.append(
+                {
+                    "kind": "merge",
+                    "title": str(m.get("merge_candidate_id") or "Merge"),
+                    "status": str(m.get("status") or ""),
+                    "resource_id": str(m.get("merge_candidate_id") or ""),
+                    "href": f"/merges/{m.get('merge_candidate_id')}",
+                    "project_id": str(m.get("project_id") or ""),
+                    "actor": "local_user",
+                }
+            )
+        for r in pending_releases[:5]:
+            rid = str(r.get("release_id") or "")
+            todos.append(
+                {
+                    "kind": "release",
+                    "title": str(r.get("title") or rid or "Release"),
+                    "status": str(r.get("status") or ""),
+                    "resource_id": rid,
+                    "href": "/reports",
+                    "project_id": str(r.get("project_id") or ""),
+                    "actor": "local_user",
+                }
+            )
+
+        recent_activity: list[dict[str, Any]] = []
+        for a in executions[:12]:
+            recent_activity.append(
+                {
+                    "actor": "system",
+                    "action": "execution",
+                    "resource_type": "execution",
+                    "resource_id": a.execution_id,
+                    "status": str(a.status),
+                    "project_id": getattr(a, "project_id", None),
+                    "created_at": a.created_at,
+                    "href": f"/executions/{a.execution_id}",
+                }
+            )
+        for p in patches[:8]:
+            recent_activity.append(
+                {
+                    "actor": "local_user",
+                    "action": "patch",
+                    "resource_type": "patch",
+                    "resource_id": p.get("patch_id"),
+                    "status": p.get("status"),
+                    "project_id": p.get("project_id"),
+                    "created_at": p.get("updated_at") or p.get("created_at"),
+                    "href": f"/patches/{p.get('patch_id')}",
+                }
+            )
+        for report in reports[:5]:
+            recent_activity.append(
+                {
+                    "actor": "system",
+                    "action": "report",
+                    "resource_type": "report",
+                    "resource_id": report.get("report_id"),
+                    "status": report.get("status"),
+                    "project_id": report.get("project_id"),
+                    "created_at": report.get("created_at") or report.get("updated_at"),
+                    "href": f"/reports/{report.get('report_id')}",
+                }
+            )
+
+        ready_projects = [
+            p for p in projects if str(p.get("status") or "") in {"ready", "active"}
+        ]
+        running_projects = [
+            p for p in projects if str(p.get("status") or "") == "running"
+        ]
+
+        health = {
+            "api": "ok",
+            "version": "v2.0.2",
+            "default_llm": "mock",
+            "network_default": False,
+            "shell_available": False,
+            "main_tree_writable_from_ui": False,
+        }
 
         return {
             "project_count": len(projects),
+            "ready_project_count": len(ready_projects),
+            "running_project_count": len(running_projects),
             "running_executions": len(running),
             "pending_plan_candidates": pending_plan_candidates,
             "pending_iterations": len(pending_iterations),
             "pending_patches": len(awaiting_patch_approval),
             "patch_actionable": len(pending_patches),
+            "pending_merges": len(pending_merges),
             "tree_count": len(trees),
+            "active_tree_count": len(active_trees),
+            "evidence_count": len(evidence_items),
+            "claim_summary": claim_counts,
+            "best_nodes": best_nodes[:5],
+            "todos": todos[:30],
+            "todo_count": len(todos),
+            "recent_activity": recent_activity[:20],
+            "recent_evidence": evidence_items,
             "recent_failures": [
                 {
                     "execution_id": a.execution_id,
                     "status": str(a.status),
                     "node_id": a.node_id,
-                    "project_id": a.project_id,
+                    "project_id": getattr(a, "project_id", None),
                     "created_at": a.created_at,
                     "error_type": getattr(a, "error_type", None),
                 }
                 for a in failed
             ],
             "recent_reports": reports,
-            "budgets": [
-                self.show_budget(p["project_id"])
-                for p in projects[:20]
-            ],
+            "recent_audits": audits[:5] if isinstance(audits, list) else [],
+            "budgets": [self.show_budget(p["project_id"]) for p in projects[:20]],
+            "system_health": health,
+            "answers": {
+                "what_is_running": len(running),
+                "what_awaits_me": len(todos),
+                "what_failed": len(failed),
+                "budget_projects": len(projects),
+                "best_node": best_nodes[0] if best_nodes else None,
+                "claims_supported": claim_counts.get("supported", 0),
+            },
         }
 
     def list_trees(

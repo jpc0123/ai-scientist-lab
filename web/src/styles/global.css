@@ -154,6 +154,18 @@ button:disabled {
   text-decoration: none;
 }
 
+.nav-group {
+  margin-bottom: 0.65rem;
+}
+
+.nav-group-title {
+  margin: 0.4rem 0.65rem 0.25rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .nav-hint {
   font-size: 0.72rem;
   color: var(--muted);
