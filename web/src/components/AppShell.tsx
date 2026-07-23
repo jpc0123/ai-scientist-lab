@@ -19,7 +19,8 @@ const groups: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "实验",
     items: [
-      { to: "/executions", label: "执行记录", hint: "日志与指标" },
+      { to: "/executions", label: "实验中心", hint: "执行与筛选" },
+      { to: "/compare", label: "比较工作台", hint: "文字结论" },
       { to: "/trees", label: "实验树", hint: "Mermaid" },
     ],
   },

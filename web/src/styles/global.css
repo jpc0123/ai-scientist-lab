@@ -600,6 +600,20 @@ td {
   color: var(--accent);
 }
 
+button.chip {
+  cursor: pointer;
+  border: 1px solid transparent;
+  font: inherit;
+}
+
+button.chip.active-chip,
+.chip.active-chip {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .approval-item {
   justify-content: space-between;
   align-items: flex-start !important;

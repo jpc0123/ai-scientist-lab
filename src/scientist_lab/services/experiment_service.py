@@ -1086,6 +1086,43 @@ class ExperimentService:
             "log_available": self.get_log_path(execution_id).exists(),
             "can_cancel": can_cancel,
             "status_label": str(attempt.status),
+            "sections": self._execution_sections(attempt, node, artifacts),
+        }
+
+    def _execution_sections(
+        self,
+        attempt,
+        node,
+        artifacts: list,
+    ) -> dict[str, Any]:
+        result = dict(attempt.result_json or {})
+        contract = dict(result.get("contract") or {})
+        if not contract and node is not None:
+            contract = dict(node.contract_json or {})
+        metrics = dict(result.get("metrics") or {})
+        nested = metrics.get("metrics")
+        if isinstance(nested, dict):
+            flat_metrics = nested
+        else:
+            flat_metrics = metrics
+        return {
+            "overview": {
+                "execution_id": attempt.execution_id,
+                "node_id": attempt.node_id,
+                "project_id": getattr(attempt, "project_id", None)
+                or (node.project_id if node is not None else None),
+                "status": str(attempt.status),
+                "runner_profile": attempt.runner_profile,
+                "started_at": attempt.started_at,
+                "completed_at": attempt.completed_at,
+            },
+            "contract": contract,
+            "parameters": dict(contract.get("parameters") or {}),
+            "metrics": flat_metrics,
+            "history": result.get("history") or result.get("train_history") or {},
+            "artifacts": [a.model_dump() for a in artifacts],
+            "checkpoint": result.get("checkpoint") or result.get("checkpoints") or {},
+            "evidence": result.get("evidence") or {},
         }
 
     def show_execution(self, execution_id: str):
@@ -1201,6 +1238,7 @@ class ExperimentService:
     def compare_executions(
         self, execution_id_a: str, execution_id_b: str
     ) -> dict[str, Any]:
+        from scientist_lab.services.comparison_labels import enrich_comparison
         from scientist_lab.services.verifier import compare_attempts
 
         a = self.repo.get_attempt(execution_id_a)
@@ -1208,12 +1246,17 @@ class ExperimentService:
         if a is None or b is None:
             raise KeyError("对比需要两个都存在的 execution_id")
         result = compare_attempts(a, b)
-        return result.model_dump()
+        return enrich_comparison(result.model_dump(), mode="executions")
 
     def compare_nodes(self, node_id_a: str, node_id_b: str) -> dict[str, Any]:
+        from scientist_lab.services.comparison_labels import enrich_comparison
+
         a = self.get_best_completed_attempt(node_id_a)
         b = self.get_best_completed_attempt(node_id_b)
-        return self.compare_executions(a.execution_id, b.execution_id)
+        raw = self.compare_executions(a.execution_id, b.execution_id)
+        raw["node_id_a"] = node_id_a
+        raw["node_id_b"] = node_id_b
+        return enrich_comparison(raw, mode="nodes")
 
     def compare_node_groups(
         self, node_id_a: str, node_id_b: str
@@ -1222,9 +1265,11 @@ class ExperimentService:
             NodeAggregationService,
             compare_node_groups,
         )
+        from scientist_lab.services.comparison_labels import enrich_comparison
 
         aggregation = NodeAggregationService(self.repo, self.settings.outputs_dir)
-        return compare_node_groups(aggregation, node_id_a, node_id_b)
+        raw = compare_node_groups(aggregation, node_id_a, node_id_b)
+        return enrich_comparison(raw, mode="node_groups")
 
     def compare_fast_eval_triad(
         self,
@@ -1307,7 +1352,9 @@ class ExperimentService:
             write_json(out_path, report)
             report["report_path"] = str(out_path)
 
-        return report
+        from scientist_lab.services.comparison_labels import enrich_comparison
+
+        return enrich_comparison(report, mode="fast_eval_triad")
 
     def validate_fast_eval_triad_contracts(
         self, contract_paths: list[str] | None = None

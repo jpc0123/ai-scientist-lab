@@ -4,6 +4,7 @@ import { AppShell } from "../components/AppShell";
 import { ApprovalsPage } from "../pages/ApprovalsPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { ExecutionDetailPage, ExecutionsPage } from "../pages/ExecutionsPage";
+import { ComparePage } from "../pages/ComparePage";
 import { PatchDetailPage, PatchesPage } from "../pages/PatchesPage";
 import { ProjectCreateWizardPage, ProjectDetailPage, ProjectsPage } from "../pages/ProjectsPage";
 import {
@@ -45,6 +46,7 @@ export function AppRouter() {
         <Route path="projects/:projectId" element={<ProjectDetailRoute />} />
         <Route path="executions" element={<ExecutionsPage />} />
         <Route path="executions/:id" element={<ExecutionDetailPage />} />
+        <Route path="compare" element={<ComparePage />} />
         <Route path="trees" element={<TreesPage />} />
         <Route path="trees/:id" element={<TreeDetailPage />} />
         <Route path="plans" element={<PlansPage />} />

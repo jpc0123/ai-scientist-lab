@@ -49,6 +49,13 @@ class CompareNodesBody(BaseModel):
     node_id_b: str
 
 
+class CompareTriadBody(BaseModel):
+    rgb_node_id: str = "rgbt_fast_node_001"
+    thermal_node_id: str = "rgbt_fast_node_002"
+    fusion_node_id: str = "rgbt_fast_node_003"
+    write_report: bool = True
+
+
 class ReportBuildBody(BaseModel):
     project_id: str
     tree_id: str | None = None

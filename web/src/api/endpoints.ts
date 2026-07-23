@@ -42,17 +42,59 @@ export const api = {
   },
   runnerProfiles: () =>
     apiGet<{ items: Array<Record<string, unknown>> }>("/api/v1/runner-profiles"),
-  executions: (params?: { limit?: number; project_id?: string }) => {
+  executions: (params?: {
+    limit?: number;
+    project_id?: string;
+    node_id?: string;
+    status?: string;
+    runner_profile?: string;
+  }) => {
     const q = new URLSearchParams({
       limit: String(params?.limit ?? 50),
       offset: "0",
     });
     if (params?.project_id) q.set("project_id", params.project_id);
+    if (params?.node_id) q.set("node_id", params.node_id);
+    if (params?.status) q.set("status", params.status);
+    if (params?.runner_profile) q.set("runner_profile", params.runner_profile);
     return apiGet<Page<ExecutionAttempt>>(`/api/v1/executions?${q}`);
   },
   execution: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/executions/${id}`),
   executionLogs: (id: string) =>
     apiGet<{ execution_id: string; log: string }>(`/api/v1/executions/${id}/logs`),
+  nodes: (params?: { limit?: number; project_id?: string }) => {
+    const q = new URLSearchParams({
+      limit: String(params?.limit ?? 50),
+      offset: "0",
+    });
+    if (params?.project_id) q.set("project_id", params.project_id);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/nodes?${q}`);
+  },
+  compareExecutions: (executionIdA: string, executionIdB: string) =>
+    apiPost<Record<string, unknown>>("/api/v1/comparisons/executions", {
+      execution_id_a: executionIdA,
+      execution_id_b: executionIdB,
+    }),
+  compareNodes: (nodeIdA: string, nodeIdB: string) =>
+    apiPost<Record<string, unknown>>("/api/v1/comparisons/nodes", {
+      node_id_a: nodeIdA,
+      node_id_b: nodeIdB,
+    }),
+  compareNodeGroups: (nodeIdA: string, nodeIdB: string) =>
+    apiPost<Record<string, unknown>>("/api/v1/comparisons/node-groups", {
+      node_id_a: nodeIdA,
+      node_id_b: nodeIdB,
+    }),
+  compareFastEvalTriad: (body?: {
+    rgb_node_id?: string;
+    thermal_node_id?: string;
+    fusion_node_id?: string;
+    write_report?: boolean;
+  }) =>
+    apiPost<Record<string, unknown>>(
+      "/api/v1/comparisons/fast-eval-triad",
+      body || {},
+    ),
   trees: () => apiGet<Page<Record<string, unknown>>>("/api/v1/trees?limit=50&offset=0"),
   tree: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/trees/${id}`),
   treeMermaid: (id: string) =>

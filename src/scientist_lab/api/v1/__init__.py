@@ -12,6 +12,9 @@ from scientist_lab.api.schemas import (
     AuditBuildBody,
     AuditExportBody,
     CandidateRejectBody,
+    CompareExecutionsBody,
+    CompareNodesBody,
+    CompareTriadBody,
     IterationFinalizeBody,
     MergeApproveBody,
     MergeFinalizeBody,
@@ -52,7 +55,7 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             docker_error = str(exc)
         return {
             "ok": True,
-            "version": "v2.0.2",
+            "version": "v2.0.3",
             "api": "v1",
             "docker_ok": docker_ok,
             "docker_error": docker_error,
@@ -187,6 +190,8 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
     def list_executions(
         project_id: str | None = None,
         node_id: str | None = None,
+        status: str | None = None,
+        runner_profile: str | None = None,
         limit: int = Query(50, ge=1, le=200),
         offset: int = Query(0, ge=0),
         service: ExperimentService = Depends(service_dep),
@@ -197,7 +202,23 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             project_id=project_id,
             node_id=node_id,
         )
-        items = [a.model_dump(mode="json") for a in attempts]
+        items: list[dict[str, Any]] = []
+        for attempt in attempts:
+            payload = attempt.model_dump(mode="json")
+            if not payload.get("project_id"):
+                node = service.repo.get_node(attempt.node_id)
+                if node is not None:
+                    payload["project_id"] = node.project_id
+            items.append(payload)
+        if status:
+            wanted = {part.strip() for part in status.split(",") if part.strip()}
+            items = [item for item in items if str(item.get("status") or "") in wanted]
+        if runner_profile:
+            items = [
+                item
+                for item in items
+                if str(item.get("runner_profile") or "") == runner_profile
+            ]
         return page_response(
             items, limit=clamp_limit(limit), offset=clamp_offset(offset)
         )
@@ -222,6 +243,74 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             return {"execution_id": execution_id, "log": text}
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.get("/nodes")
+    def list_nodes(
+        project_id: str | None = None,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        items = service.list_nodes(project_id=project_id)
+        return page_response(
+            items, limit=clamp_limit(limit), offset=clamp_offset(offset)
+        )
+
+    @router.post("/comparisons/executions")
+    def compare_executions_api(
+        body: CompareExecutionsBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.compare_executions(
+                body.execution_id_a, body.execution_id_b
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/comparisons/nodes")
+    def compare_nodes_api(
+        body: CompareNodesBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.compare_nodes(body.node_id_a, body.node_id_b)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/comparisons/node-groups")
+    def compare_node_groups_api(
+        body: CompareNodesBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.compare_node_groups(body.node_id_a, body.node_id_b)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/comparisons/fast-eval-triad")
+    def compare_fast_eval_triad_api(
+        body: CompareTriadBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        payload = body or CompareTriadBody()
+        try:
+            return service.compare_fast_eval_triad(
+                rgb_node_id=payload.rgb_node_id,
+                thermal_node_id=payload.thermal_node_id,
+                fusion_node_id=payload.fusion_node_id,
+                write_report=payload.write_report,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
 
     # --- trees -----------------------------------------------------------
     @router.get("/trees")
