@@ -228,11 +228,86 @@ def test_merge_finalize_on_disposable_repo(tmp_path: Path):
     committed = service.merge_commit(mc)
     assert committed["commit_sha"]
     head_before = GitAdapter(repo).rev_parse("HEAD")
-    finalized = service.merge_finalize(mc)
+    finalized = service.merge_finalize(mc, post_merge_profile=None)
     assert finalized["status"] == "merged"
     assert finalized["merge_commit_sha"]
     assert GitAdapter(repo).rev_parse("HEAD") != head_before
     assert GitAdapter(repo).rev_parse("HEAD") == finalized["merge_commit_sha"]
+
+    rolled = service.merge_rollback(mc, reason="manual rollback test")
+    assert rolled["status"] == "rolled_back"
+    assert rolled["rollback"]["rollback_commit_sha"]
+    assert rolled["rollback"]["original_commit_sha"] == finalized["merge_commit_sha"]
+    assert GitAdapter(repo).rev_parse("HEAD") == rolled["rollback"]["rollback_commit_sha"]
+
+
+def test_finalize_auto_rollback_when_post_merge_fails(tmp_path: Path):
+    import subprocess
+
+    repo = tmp_path / "mini_repo2"
+    adapters = repo / "experiment_apps" / "rgbt_detection_real" / "adapters"
+    adapters.mkdir(parents=True)
+    (adapters / ".gitkeep").write_text("", encoding="utf-8")
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "merge-test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Merge Test"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+    service = ExperimentService(
+        settings=Settings(
+            project_root=repo,
+            db_path=tmp_path / "mini2.db",
+            runtime_dir=tmp_path / "runtime2",
+            outputs_dir=tmp_path / "outputs2",
+            experiment_app_dir=repo,
+        ).resolve()
+    )
+    proposed = service.patches.propose_mock(
+        "project_mini2",
+        unified_diff=build_mock_unified_diff(
+            relative_path="experiment_apps/rgbt_detection_real/adapters/mini2_note.md"
+        ),
+    )
+    patch_id = proposed["patch_id"]
+    service.patches.approve(patch_id, reason="mini")
+    service.patches.apply_sandbox(patch_id)
+    service.patches.test_sandbox(patch_id, profile="smoke")
+    service.patches.record_evidence(patch_id)
+    service.patches.decide_merge(patch_id, decision="merge", reason="intent")
+    mc = service.merge_prepare(patch_id, target_branch="main")["merge_candidate_id"]
+    service.merge_apply(mc)
+    candidate = service.merges._repo.require(mc)
+    candidate.status = "waiting_approval"
+    candidate.metadata = {
+        **dict(candidate.metadata or {}),
+        "last_test": {"ok": True, "profile_id": "syntax"},
+        "workspace_applied": True,
+    }
+    service.merges._repo.upsert(candidate)
+    service.merge_approve(mc, reason="approve")
+    service.merge_commit(mc)
+    # unit profile runs pytest on missing tests in mini repo → fail → auto rollback
+    result = service.merge_finalize(mc, post_merge_profile="unit")
+    assert result["status"] == "rolled_back"
+    assert result.get("auto_rolled_back") is True
+    assert result["rollback"]["trigger"] == "post_merge_failure"
+    assert result["post_merge_check"]["ok"] is False
 
 
 def test_merge_test_rejects_unknown_profile(tmp_path: Path):

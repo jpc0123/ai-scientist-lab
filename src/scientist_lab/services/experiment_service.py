@@ -2679,8 +2679,29 @@ class ExperimentService:
     def merge_commit(self, merge_candidate_id: str) -> dict[str, Any]:
         return self.merges.commit_candidate(merge_candidate_id)
 
-    def merge_finalize(self, merge_candidate_id: str) -> dict[str, Any]:
-        return self.merges.finalize(merge_candidate_id)
+    def merge_finalize(
+        self,
+        merge_candidate_id: str,
+        *,
+        post_merge_profile: str | None = "syntax",
+        auto_rollback_on_failure: bool = True,
+    ) -> dict[str, Any]:
+        return self.merges.finalize(
+            merge_candidate_id,
+            post_merge_profile=post_merge_profile,
+            auto_rollback_on_failure=auto_rollback_on_failure,
+        )
+
+    def merge_rollback(
+        self,
+        merge_candidate_id: str,
+        *,
+        reason: str = "",
+        trigger: str = "human",
+    ) -> dict[str, Any]:
+        return self.merges.rollback(
+            merge_candidate_id, reason=reason, trigger=trigger
+        )
 
     def list_merge_candidates(
         self,

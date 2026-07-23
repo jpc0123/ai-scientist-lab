@@ -258,3 +258,34 @@ class GitAdapter:
                 f"merge --no-ff failed: {result.stderr or result.stdout}"
             )
         return self.rev_parse("HEAD")
+
+    def revert_commit(
+        self,
+        commit_sha: str,
+        *,
+        mainline: int = 1,
+        message_file: Path | None = None,
+    ) -> str:
+        """Revert a commit (use mainline=1 for merge commits). Returns new SHA.
+
+        Note: ``git revert`` has no ``-F`` message-file flag (unlike commit);
+        ``message_file`` is accepted for API symmetry but ignored — use --no-edit.
+        """
+        if not commit_sha or commit_sha.startswith("-"):
+            raise GitAdapterError("invalid revert commit sha")
+        _ = message_file  # retained for callers; revert uses --no-edit only
+        args: list[str] = [
+            "revert",
+            "--no-edit",
+            "-m",
+            str(int(mainline)),
+            "--",
+            commit_sha,
+        ]
+        result = self._run(args, check=False)
+        if not result.ok:
+            self._run(["revert", "--abort"], check=False)
+            raise GitAdapterError(
+                f"git revert failed: {result.stderr or result.stdout}"
+            )
+        return self.rev_parse("HEAD")

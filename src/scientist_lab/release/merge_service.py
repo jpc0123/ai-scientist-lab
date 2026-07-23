@@ -15,6 +15,7 @@ from scientist_lab.patching.repository import PatchRepository
 from scientist_lab.release.git_adapter import GitAdapter, GitAdapterError
 from scientist_lab.release.models import MergeApproval, MergeCandidate
 from scientist_lab.release.repository import MergeCandidateRepository
+from scientist_lab.release.rollback_service import RollbackService
 from scientist_lab.release.test_profiles import list_profile_ids, require_profile
 from scientist_lab.release.verifier import reverify_patch, sha256_text
 from scientist_lab.release.workspace_service import WorkspaceRegistry
@@ -46,6 +47,11 @@ class MergeService:
         self._repo = MergeCandidateRepository(session_factory)
         self.git = GitAdapter(self.project_root)
         self.workspaces = WorkspaceRegistry(self.project_root, git=self.git)
+        self.rollbacks = RollbackService(
+            project_root=self.project_root,
+            git=self.git,
+            candidates=self._repo,
+        )
 
     def show(self, merge_candidate_id: str) -> dict[str, Any]:
         return self._view(self._repo.require(merge_candidate_id))
@@ -523,8 +529,14 @@ class MergeService:
         self._repo.upsert(candidate)
         return self._view(candidate)
 
-    def finalize(self, merge_candidate_id: str) -> dict[str, Any]:
-        """Merge worktree commit into target_branch with --no-ff (v1.9.6). No push."""
+    def finalize(
+        self,
+        merge_candidate_id: str,
+        *,
+        post_merge_profile: str | None = "syntax",
+        auto_rollback_on_failure: bool = True,
+    ) -> dict[str, Any]:
+        """Merge worktree commit into target_branch with --no-ff (v1.9.6/7). No push."""
         candidate = self._repo.require(merge_candidate_id)
         if candidate.status not in {"committing", "approved"}:
             raise ValueError(
@@ -532,8 +544,6 @@ class MergeService:
                 f"got {candidate.status!r}"
             )
         if not candidate.commit_sha:
-            raise ValueError("run merge-commit before merge-finalize")
-        if candidate.status == "approved" and not candidate.commit_sha:
             raise ValueError("run merge-commit before merge-finalize")
 
         current = self.git.current_branch()
@@ -544,7 +554,6 @@ class MergeService:
             )
 
         main_before = self.git.status_porcelain()
-        # Allow only ignored / worktree registry dirt; refuse other main dirt.
         dirty = [
             line
             for line in main_before.splitlines()
@@ -589,15 +598,69 @@ class MergeService:
                 "target_branch": candidate.target_branch,
             },
             "v19_stage": "1.9.6-merged",
-            # Main branch history intentionally advanced by controlled merge.
             "main_branch_updated": True,
             "main_workspace_modified": False,
             "pushed": False,
         }
         self._repo.upsert(candidate)
+
+        post_check: dict[str, Any] | None = None
+        if post_merge_profile:
+            post_check = self.rollbacks.run_post_merge_check(
+                candidate, profile_id=post_merge_profile
+            )
+            candidate.metadata = {
+                **dict(candidate.metadata or {}),
+                "post_merge_check": post_check,
+                "v19_stage": "1.9.7-post-merge-checked",
+            }
+            self._repo.upsert(candidate)
+            if not post_check.get("ok"):
+                if auto_rollback_on_failure:
+                    rolled = self.rollbacks.rollback(
+                        merge_candidate_id,
+                        reason=(
+                            f"auto rollback: post-merge profile "
+                            f"{post_merge_profile!r} failed"
+                        ),
+                        trigger="post_merge_failure",
+                        verify_profile=post_merge_profile,
+                        run_verify=True,
+                    )
+                    rolled["post_merge_check"] = post_check
+                    rolled["auto_rolled_back"] = True
+                    return rolled
+                candidate.status = "failed"
+                candidate.error = (
+                    f"post-merge profile {post_merge_profile!r} failed; "
+                    "run merge-rollback"
+                )
+                self._repo.upsert(candidate)
+                view = self._view(candidate)
+                view["post_merge_check"] = post_check
+                view["merge_commit_sha"] = merge_sha
+                return view
+
         view = self._view(candidate)
         view["merge_commit_sha"] = merge_sha
+        view["post_merge_check"] = post_check
         return view
+
+    def rollback(
+        self,
+        merge_candidate_id: str,
+        *,
+        reason: str = "",
+        trigger: str = "human",
+        verify_profile: str = "syntax",
+    ) -> dict[str, Any]:
+        return self.rollbacks.rollback(
+            merge_candidate_id,
+            reason=reason,
+            trigger=trigger,
+            verify_profile=verify_profile,
+            run_verify=True,
+        )
 
     def _collect_changed_paths(self, workspace: Path) -> list[str]:
         names = set(self.git.diff_name_only(cwd=workspace))
@@ -678,6 +741,9 @@ class MergeService:
             "approved",
         }
         data["can_merge"] = data["can_finalize"]
+        data["can_rollback"] = candidate.status == "merged" and bool(
+            dict(meta.get("finalize") or {}).get("merge_commit_sha")
+        )
         data["main_workspace_modified"] = False
         data["workspace_exists"] = Path(candidate.workspace_path).exists()
         data["workspace_applied"] = applied

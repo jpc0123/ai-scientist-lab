@@ -1033,6 +1033,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Merge worktree commit into target branch with --no-ff (v1.9.6; no push)",
     )
     merge_finalize.add_argument("merge_candidate_id")
+    merge_finalize.add_argument(
+        "--post-merge-profile",
+        default="syntax",
+        choices=["syntax", "unit", "smoke", "full_regression", "acceptance", "none"],
+        help="Registry profile after merge; 'none' skips post-merge check",
+    )
+    merge_finalize.add_argument(
+        "--no-auto-rollback",
+        action="store_true",
+        help="Do not auto revert when post-merge check fails",
+    )
+
+    merge_rollback = sub.add_parser(
+        "merge-rollback",
+        help="Revert a finalized merge commit with git revert -m 1 (v1.9.7)",
+    )
+    merge_rollback.add_argument("merge_candidate_id")
+    merge_rollback.add_argument("--reason", default="")
 
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
@@ -2468,9 +2486,29 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "merge-finalize":
         try:
-            data = service.merge_finalize(args.merge_candidate_id)
+            profile_raw = str(getattr(args, "post_merge_profile", "syntax") or "syntax")
+            profile = None if profile_raw == "none" else profile_raw
+            data = service.merge_finalize(
+                args.merge_candidate_id,
+                post_merge_profile=profile,
+                auto_rollback_on_failure=not bool(
+                    getattr(args, "no_auto_rollback", False)
+                ),
+            )
             print(json.dumps(data, ensure_ascii=False, indent=2))
-            return 0 if data.get("status") == "merged" else 1
+            return 0 if data.get("status") in {"merged", "rolled_back"} else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-rollback":
+        try:
+            data = service.merge_rollback(
+                args.merge_candidate_id,
+                reason=getattr(args, "reason", "") or "",
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") == "rolled_back" else 1
         except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1

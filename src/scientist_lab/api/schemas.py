@@ -103,3 +103,15 @@ class MergeApproveBody(BaseModel):
 class MergeRejectBody(BaseModel):
     reason: str = ""
     approved_by: str = "human"
+
+
+class MergeFinalizeBody(BaseModel):
+    post_merge_profile: (
+        Literal["syntax", "unit", "smoke", "full_regression", "acceptance"] | None
+    ) = "syntax"
+    auto_rollback_on_failure: bool = True
+
+
+class MergeRollbackBody(BaseModel):
+    reason: str = ""
+    trigger: str = "human"

@@ -14,8 +14,10 @@ from scientist_lab.api.schemas import (
     CandidateRejectBody,
     IterationFinalizeBody,
     MergeApproveBody,
+    MergeFinalizeBody,
     MergePrepareBody,
     MergeRejectBody,
+    MergeRollbackBody,
     MergeTestBody,
     PatchApplySandboxBody,
     PatchDecideMergeBody,
@@ -707,10 +709,34 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
     @router.post("/merges/{merge_candidate_id}/finalize")
     def finalize_merge(
         merge_candidate_id: str,
+        body: MergeFinalizeBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        profile = body.post_merge_profile if body else "syntax"
+        auto_rb = body.auto_rollback_on_failure if body else True
+        try:
+            return service.merge_finalize(
+                merge_candidate_id,
+                post_merge_profile=profile,
+                auto_rollback_on_failure=auto_rb,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/merges/{merge_candidate_id}/rollback")
+    def rollback_merge(
+        merge_candidate_id: str,
+        body: MergeRollbackBody | None = None,
         service: ExperimentService = Depends(service_dep),
     ) -> dict[str, Any]:
         try:
-            return service.merge_finalize(merge_candidate_id)
+            return service.merge_rollback(
+                merge_candidate_id,
+                reason=(body.reason if body else "") or "",
+                trigger=(body.trigger if body else "human") or "human",
+            )
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:
