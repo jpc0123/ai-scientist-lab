@@ -301,6 +301,55 @@ def build_parser() -> argparse.ArgumentParser:
     register_dataset.add_argument("--path", required=True)
     register_dataset.add_argument("--container-path", default=None)
 
+    project_create = sub.add_parser(
+        "project-create",
+        help="Create a research project from wizard fields (v2.0.1)",
+    )
+    project_create.add_argument("--title", required=True)
+    project_create.add_argument("--research-question", default="")
+    project_create.add_argument("--research-goal", default="")
+    project_create.add_argument("--description", default="")
+    project_create.add_argument(
+        "--task-type",
+        default="general_ml",
+        choices=["general_ml", "rgbt_detection", "custom_registered_task"],
+    )
+    project_create.add_argument(
+        "--dataset-key",
+        action="append",
+        default=[],
+        dest="dataset_keys",
+    )
+    project_create.add_argument(
+        "--protocol-id",
+        action="append",
+        default=[],
+        dest="protocol_ids",
+    )
+    project_create.add_argument(
+        "--runner-profile",
+        action="append",
+        default=[],
+        dest="runner_profile_keys",
+    )
+    project_create.add_argument("--project-id", default=None)
+    project_create.add_argument(
+        "--keep-configuring",
+        action="store_true",
+        help="Leave status as configuring instead of ready",
+    )
+
+    project_list = sub.add_parser("project-list", help="List research projects (v2.0.1)")
+    _ = project_list
+
+    project_show = sub.add_parser("project-show", help="Show one research project")
+    project_show.add_argument("project_id")
+
+    project_archive = sub.add_parser(
+        "project-archive", help="Archive a research project"
+    )
+    project_archive.add_argument("project_id")
+
     register_runner = sub.add_parser(
         "register-runner-profile", help="Register a local/remote runner profile"
     )
@@ -1478,6 +1527,58 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except (FileNotFoundError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "project-create":
+        try:
+            data = service.create_project(
+                title=str(args.title),
+                research_question=getattr(args, "research_question", "") or "",
+                research_goal=getattr(args, "research_goal", "") or "",
+                description=getattr(args, "description", "") or "",
+                task_type=str(getattr(args, "task_type", "general_ml") or "general_ml"),
+                dataset_keys=list(getattr(args, "dataset_keys", None) or []),
+                protocol_ids=list(getattr(args, "protocol_ids", None) or []),
+                runner_profile_keys=list(
+                    getattr(args, "runner_profile_keys", None) or []
+                ),
+                project_id=getattr(args, "project_id", None),
+                mark_ready=not bool(getattr(args, "keep_configuring", False)),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "project-list":
+        print(json.dumps(service.list_projects(), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "project-show":
+        try:
+            print(
+                json.dumps(
+                    service.get_project(args.project_id), ensure_ascii=False, indent=2
+                )
+            )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "project-archive":
+        try:
+            print(
+                json.dumps(
+                    service.archive_project(args.project_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

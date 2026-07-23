@@ -5,7 +5,7 @@ import { ApprovalsPage } from "../pages/ApprovalsPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { ExecutionDetailPage, ExecutionsPage } from "../pages/ExecutionsPage";
 import { PatchDetailPage, PatchesPage } from "../pages/PatchesPage";
-import { ProjectDetailPage, ProjectsPage } from "../pages/ProjectsPage";
+import { ProjectCreateWizardPage, ProjectDetailPage, ProjectsPage } from "../pages/ProjectsPage";
 import {
   AuditDetailPage,
   AuditsPage,
@@ -41,6 +41,7 @@ export function AppRouter() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="projects" element={<ProjectsPage />} />
+        <Route path="projects/new" element={<ProjectCreateWizardPage />} />
         <Route path="projects/:projectId" element={<ProjectDetailRoute />} />
         <Route path="executions" element={<ExecutionsPage />} />
         <Route path="executions/:id" element={<ExecutionDetailPage />} />

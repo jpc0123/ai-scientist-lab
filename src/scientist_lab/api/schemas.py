@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -123,3 +123,20 @@ class ReleaseCandidateCreateBody(BaseModel):
     base_tag: str = ""
     merge_candidate_ids: list[str] = Field(default_factory=list)
     notes: str = ""
+
+
+class ProjectCreateBody(BaseModel):
+    title: str
+    research_question: str = ""
+    research_goal: str = ""
+    description: str = ""
+    task_type: str = "general_ml"
+    dataset_keys: list[str] = Field(default_factory=list)
+    protocol_ids: list[str] = Field(default_factory=list)
+    runner_profile_keys: list[str] = Field(default_factory=list)
+    default_llm_profile_id: str | None = None
+    expected_metrics: dict[str, Any] = Field(default_factory=dict)
+    constraints: dict[str, Any] = Field(default_factory=dict)
+    protocol_draft: dict[str, Any] = Field(default_factory=dict)
+    project_id: str | None = None
+    mark_ready: bool = True

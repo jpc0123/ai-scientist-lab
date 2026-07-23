@@ -20,6 +20,7 @@ from scientist_lab.api.schemas import (
     MergeRollbackBody,
     MergeTestBody,
     PatchApplySandboxBody,
+    ProjectCreateBody,
     ReleaseCandidateCreateBody,
     PatchDecideMergeBody,
     PatchRecordEvidenceBody,
@@ -51,7 +52,7 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             docker_error = str(exc)
         return {
             "ok": True,
-            "version": "v1.9.0",
+            "version": "v2.0.1",
             "api": "v1",
             "docker_ok": docker_ok,
             "docker_error": docker_error,
@@ -124,6 +125,62 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             return service.get_project(project_id)
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/projects")
+    def create_project(
+        body: ProjectCreateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.create_project(
+                title=body.title,
+                research_question=body.research_question,
+                research_goal=body.research_goal,
+                description=body.description,
+                task_type=body.task_type,
+                dataset_keys=body.dataset_keys,
+                protocol_ids=body.protocol_ids,
+                runner_profile_keys=body.runner_profile_keys,
+                default_llm_profile_id=body.default_llm_profile_id,
+                expected_metrics=body.expected_metrics,
+                constraints=body.constraints,
+                protocol_draft=body.protocol_draft,
+                project_id=body.project_id,
+                mark_ready=body.mark_ready,
+            )
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/projects/{project_id}/archive")
+    def archive_project(
+        project_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.archive_project(project_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.get("/datasets")
+    def list_datasets_api(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return {"items": service.list_datasets()}
+
+    @router.get("/protocols")
+    def list_protocols_api(
+        project_id: str | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return {"items": service.list_protocols(project_id=project_id)}
+
+    @router.get("/runner-profiles")
+    def list_runner_profiles_api(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return {"items": service.list_runner_profiles()}
 
     # --- executions ------------------------------------------------------
     @router.get("/executions")

@@ -30,6 +30,7 @@ from scientist_lab.settings import Settings, get_settings
 from scientist_lab.storage.database import init_db
 from scientist_lab.storage.repositories import Repository
 from scientist_lab.datasets.registry import DatasetRegistry, parse_dataset_reference
+from scientist_lab.projects.service import ProjectService
 
 
 class ExperimentService:
@@ -37,6 +38,7 @@ class ExperimentService:
         self.settings = settings or get_settings()
         self.session_factory = init_db(str(self.settings.db_path))
         self.repo = Repository(self.session_factory)
+        self.projects = ProjectService(self.repo)
         self.datasets = DatasetRegistry(
             self.session_factory,
             project_root=Path(self.settings.project_root),
@@ -515,12 +517,9 @@ class ExperimentService:
         items: list[dict[str, Any]] = []
         for project in projects:
             latest = self.repo.latest_attempt_for_project(project.project_id)
-            items.append(
+            view = self.projects.to_view(project)
+            view.update(
                 {
-                    "project_id": project.project_id,
-                    "title": project.title,
-                    "research_goal": project.research_goal,
-                    "status": str(project.status),
                     "node_count": self.repo.count_nodes(project.project_id),
                     "latest_execution": None
                     if latest is None
@@ -530,30 +529,66 @@ class ExperimentService:
                         "node_id": latest.node_id,
                         "created_at": latest.created_at,
                     },
-                    "created_at": project.created_at,
-                    "updated_at": project.updated_at,
                 }
             )
+            items.append(view)
         return items
 
     def get_project(self, project_id: str) -> dict[str, Any]:
         project = self.repo.get_project(project_id)
         if project is None:
             raise KeyError(f"project not found: {project_id}")
-        payload = {
-            "project_id": project.project_id,
-            "title": project.title,
-            "research_goal": project.research_goal,
-            "status": str(project.status),
-            "node_count": self.repo.count_nodes(project.project_id),
-            "created_at": project.created_at,
-            "updated_at": project.updated_at,
-        }
+        payload = self.projects.to_view(project)
+        payload["node_count"] = self.repo.count_nodes(project.project_id)
         try:
             payload["budget"] = self.show_budget(project_id)
         except Exception:  # noqa: BLE001
             payload["budget"] = None
         return payload
+
+    def create_project(
+        self,
+        *,
+        title: str,
+        research_question: str = "",
+        research_goal: str = "",
+        description: str = "",
+        task_type: str = "general_ml",
+        dataset_keys: list[str] | None = None,
+        protocol_ids: list[str] | None = None,
+        runner_profile_keys: list[str] | None = None,
+        default_llm_profile_id: str | None = None,
+        expected_metrics: dict[str, Any] | None = None,
+        constraints: dict[str, Any] | None = None,
+        protocol_draft: dict[str, Any] | None = None,
+        project_id: str | None = None,
+        mark_ready: bool = True,
+    ) -> dict[str, Any]:
+        project = self.projects.create_from_wizard(
+            title=title,
+            research_question=research_question,
+            research_goal=research_goal,
+            description=description,
+            task_type=task_type,
+            dataset_keys=dataset_keys,
+            protocol_ids=protocol_ids,
+            runner_profile_keys=runner_profile_keys,
+            default_llm_profile_id=default_llm_profile_id,
+            expected_metrics=expected_metrics,
+            constraints=constraints,
+            protocol_draft=protocol_draft,
+            project_id=project_id,
+            mark_ready=mark_ready,
+        )
+        try:
+            self.set_budget(project.project_id)
+        except Exception:  # noqa: BLE001
+            pass
+        return self.get_project(project.project_id)
+
+    def archive_project(self, project_id: str) -> dict[str, Any]:
+        self.projects.archive(project_id)
+        return self.get_project(project_id)
 
     def system_summary(self) -> dict[str, Any]:
         """Dashboard aggregate for the web console (v1.7.1)."""

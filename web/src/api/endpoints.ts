@@ -14,6 +14,34 @@ export const api = {
     apiGet<Page<Project>>(
       `/api/v1/projects?limit=${params?.limit ?? 50}&offset=0`,
     ),
+  project: (id: string) =>
+    apiGet<Project & Record<string, unknown>>(`/api/v1/projects/${id}`),
+  createProject: (body: {
+    title: string;
+    research_question?: string;
+    research_goal?: string;
+    description?: string;
+    task_type?: string;
+    dataset_keys?: string[];
+    protocol_ids?: string[];
+    runner_profile_keys?: string[];
+    protocol_draft?: Record<string, unknown>;
+    expected_metrics?: Record<string, unknown>;
+    constraints?: Record<string, unknown>;
+    mark_ready?: boolean;
+  }) => apiPost<Project & Record<string, unknown>>("/api/v1/projects", body),
+  archiveProject: (id: string) =>
+    apiPost<Project & Record<string, unknown>>(`/api/v1/projects/${id}/archive`),
+  datasets: () =>
+    apiGet<{ items: Array<Record<string, unknown>> }>("/api/v1/datasets"),
+  protocols: (projectId?: string) => {
+    const q = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+    return apiGet<{ items: Array<Record<string, unknown>> }>(
+      `/api/v1/protocols${q}`,
+    );
+  },
+  runnerProfiles: () =>
+    apiGet<{ items: Array<Record<string, unknown>> }>("/api/v1/runner-profiles"),
   executions: (params?: { limit?: number; project_id?: string }) => {
     const q = new URLSearchParams({
       limit: String(params?.limit ?? 50),

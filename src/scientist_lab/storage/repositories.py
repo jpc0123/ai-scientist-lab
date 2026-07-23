@@ -46,16 +46,19 @@ class Repository:
         return self._session_factory()
 
     def upsert_project(self, project: ResearchProject) -> None:
+        payload = project.model_dump(mode="json")
+        # Columns keep primary display fields; payload holds full model.
         with self._session() as session:
             row = session.get(ResearchProjectRow, project.project_id)
             if row is None:
                 row = ResearchProjectRow(project_id=project.project_id)
                 session.add(row)
             row.title = project.title
-            row.research_goal = project.research_goal
+            row.research_goal = project.research_goal or ""
             row.status = str(project.status)
             row.created_at = project.created_at
             row.updated_at = project.updated_at
+            row.payload_json = json.dumps(payload, ensure_ascii=False)
             session.commit()
 
     def get_project(self, project_id: str) -> ResearchProject | None:
@@ -63,14 +66,34 @@ class Repository:
             row = session.get(ResearchProjectRow, project_id)
             if row is None:
                 return None
-            return ResearchProject(
-                project_id=row.project_id,
-                title=row.title,
-                research_goal=row.research_goal,
-                status=ProjectStatus(row.status),
-                created_at=row.created_at,
-                updated_at=row.updated_at,
-            )
+            return self._row_to_project(row)
+
+    def _row_to_project(self, row: ResearchProjectRow) -> ResearchProject:
+        if row.payload_json:
+            try:
+                data = json.loads(row.payload_json)
+                data["project_id"] = row.project_id
+                data["title"] = row.title or data.get("title") or ""
+                data["research_goal"] = row.research_goal or data.get("research_goal") or ""
+                data["status"] = row.status or data.get("status") or "draft"
+                data["created_at"] = row.created_at or data.get("created_at") or ""
+                data["updated_at"] = row.updated_at or data.get("updated_at") or ""
+                return ResearchProject.model_validate(data)
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            status = ProjectStatus(row.status)
+        except ValueError:
+            status = ProjectStatus.READY
+        return ResearchProject(
+            project_id=row.project_id,
+            title=row.title,
+            research_goal=row.research_goal,
+            research_question=row.research_goal,
+            status=status,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
 
     def upsert_node(self, node: ExperimentNode) -> None:
         with self._session() as session:
@@ -157,17 +180,7 @@ class Repository:
                 .order_by(ResearchProjectRow.updated_at.desc())
                 .all()
             )
-            return [
-                ResearchProject(
-                    project_id=row.project_id,
-                    title=row.title,
-                    research_goal=row.research_goal,
-                    status=ProjectStatus(row.status),
-                    created_at=row.created_at,
-                    updated_at=row.updated_at,
-                )
-                for row in rows
-            ]
+            return [self._row_to_project(row) for row in rows]
 
     def count_nodes(self, project_id: str) -> int:
         with self._session() as session:

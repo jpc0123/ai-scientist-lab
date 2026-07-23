@@ -25,12 +25,34 @@ def new_id(prefix: str) -> str:
 
 
 class ResearchProject(BaseModel):
-    project_id: str
+    """Research project with workbench lifecycle fields (v2.0.1)."""
+
+    project_id: str = Field(default_factory=lambda: new_id("project"))
     title: str
-    research_goal: str
-    status: ProjectStatus = ProjectStatus.ACTIVE
-    created_at: str
-    updated_at: str
+    research_goal: str = ""
+    description: str = ""
+    research_question: str = ""
+    task_type: str = "general_ml"
+    status: ProjectStatus = ProjectStatus.DRAFT
+    dataset_keys: list[str] = Field(default_factory=list)
+    protocol_ids: list[str] = Field(default_factory=list)
+    runner_profile_keys: list[str] = Field(default_factory=list)
+    default_llm_profile_id: str | None = None
+    default_tree_id: str | None = None
+    expected_metrics: dict[str, Any] = Field(default_factory=dict)
+    constraints: dict[str, Any] = Field(default_factory=dict)
+    protocol_draft: dict[str, Any] = Field(default_factory=dict)
+    wizard_completed: bool = False
+    created_at: str = Field(default_factory=utc_now_iso)
+    updated_at: str = Field(default_factory=utc_now_iso)
+
+    def touch(self) -> None:
+        self.updated_at = utc_now_iso()
+
+    def normalized_status(self) -> ProjectStatus:
+        if self.status == ProjectStatus.ACTIVE:
+            return ProjectStatus.READY
+        return self.status
 
 
 class ExperimentNode(BaseModel):

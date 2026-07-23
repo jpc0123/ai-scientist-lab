@@ -4,8 +4,17 @@ from enum import StrEnum
 
 
 class ProjectStatus(StrEnum):
-    ACTIVE = "active"
+    """Project lifecycle (v2.0.1). Legacy ``active`` maps to ready on read."""
+
+    DRAFT = "draft"
+    CONFIGURING = "configuring"
+    READY = "ready"
+    RUNNING = "running"
+    REVIEWING = "reviewing"
+    COMPLETED = "completed"
     ARCHIVED = "archived"
+    # Pre-v2.0 rows
+    ACTIVE = "active"
 
 
 class NodeType(StrEnum):

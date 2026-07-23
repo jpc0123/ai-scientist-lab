@@ -25,6 +25,8 @@ class ResearchProjectRow(Base):
     status: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[str] = mapped_column(String, nullable=False)
     updated_at: Mapped[str] = mapped_column(String, nullable=False)
+    # v2.0.1 extended fields (JSON); absent on legacy DBs until ensure_project_schema
+    payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ExperimentNodeRow(Base):
@@ -159,9 +161,11 @@ def init_db(db_path: str) -> sessionmaker:
     from scientist_lab.release.repository import ensure_release_schema
     from scientist_lab.runners.profile_repository import ensure_runner_profile_schema
     from scientist_lab.search.repository import ensure_search_tree_schema
+    from scientist_lab.storage.project_schema import ensure_project_schema
 
     engine = make_engine(db_path)
     Base.metadata.create_all(engine)
+    ensure_project_schema(engine)
     ensure_dataset_schema(engine)
     ensure_runner_profile_schema(engine)
     ensure_checkpoint_schema(engine)
