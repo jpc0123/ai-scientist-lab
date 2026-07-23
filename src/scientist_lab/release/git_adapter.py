@@ -199,3 +199,26 @@ class GitAdapter:
         if not patch_file.is_file():
             raise GitAdapterError(f"patch file missing: {patch_file}")
         return self._run(["apply", str(patch_file)], cwd=cwd, check=True)
+
+    def diff_name_only(self, *, cwd: Path) -> list[str]:
+        out = self._run(["diff", "--name-only"], cwd=cwd, check=True).stdout
+        return [line.strip().replace("\\", "/") for line in out.splitlines() if line.strip()]
+
+    def untracked_files(self, *, cwd: Path) -> list[str]:
+        result = self._run(
+            ["status", "--porcelain", "-u"],
+            cwd=cwd,
+            check=True,
+        )
+        paths: list[str] = []
+        for line in result.stdout.splitlines():
+            if len(line) < 4:
+                continue
+            code = line[:2]
+            path = line[3:].strip().replace("\\", "/")
+            if code.strip() == "??" or code.startswith("?"):
+                paths.append(path)
+            elif code[1] in {"M", "A", "D"} or code[0] in {"M", "A", "D"}:
+                # tracked modifications also appear in porcelain; name-only covers them
+                continue
+        return paths

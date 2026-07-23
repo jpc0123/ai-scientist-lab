@@ -13,6 +13,8 @@ from scientist_lab.api.schemas import (
     AuditExportBody,
     CandidateRejectBody,
     IterationFinalizeBody,
+    MergePrepareBody,
+    MergeTestBody,
     PatchApplySandboxBody,
     PatchDecideMergeBody,
     PatchRecordEvidenceBody,
@@ -577,6 +579,78 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         reason = body.reason if body else ""
         try:
             return service.discard_release(release_id, reason=reason)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    # --- merges (v1.9) ---------------------------------------------------
+    @router.get("/merges")
+    def list_merges(
+        project_id: str | None = None,
+        patch_id: str | None = None,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        items = service.list_merge_candidates(
+            project_id=project_id, patch_id=patch_id, limit=500
+        )
+        return page_response(
+            items, limit=clamp_limit(limit), offset=clamp_offset(offset)
+        )
+
+    @router.get("/merges/profiles")
+    def list_merge_profiles(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return {"items": service.list_merge_profiles()}
+
+    @router.get("/merges/{merge_candidate_id}")
+    def get_merge(
+        merge_candidate_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.merge_show(merge_candidate_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/merges/prepare")
+    def prepare_merge(
+        body: MergePrepareBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.merge_prepare(
+                body.patch_id, target_branch=body.target_branch
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/merges/{merge_candidate_id}/apply")
+    def apply_merge_workspace(
+        merge_candidate_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.merge_apply(merge_candidate_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/merges/{merge_candidate_id}/test")
+    def test_merge_workspace(
+        merge_candidate_id: str,
+        body: MergeTestBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        profile = body.profile if body else "smoke"
+        try:
+            return service.merge_test(merge_candidate_id, profile_id=profile)
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:

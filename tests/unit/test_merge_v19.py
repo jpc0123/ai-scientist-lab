@@ -90,3 +90,40 @@ def test_unapproved_cannot_prepare(tmp_path: Path):
     # verified but not approved / no evidence
     with pytest.raises(ValueError):
         service.merge_prepare(proposed["patch_id"])
+
+
+def test_merge_apply_and_syntax_test(tmp_path: Path):
+    service = _service(tmp_path)
+    root = Path(service.settings.project_root)
+    before = GitAdapter(root).status_porcelain()
+    patch_id = _evidenced_merge_ready(service)
+    prepared = service.merge_prepare(patch_id)
+    assert prepared["status"] == "created"
+    assert prepared["can_apply"] is True
+
+    applied = service.merge_apply(prepared["merge_candidate_id"])
+    assert applied["workspace_applied"] is True
+    assert applied["can_commit"] is False
+    assert applied["status"] == "preparing"
+    changed = (applied.get("metadata") or {}).get("changed_paths") or []
+    assert any("merge_v19_note.md" in p for p in changed)
+
+    tested = service.merge_test(prepared["merge_candidate_id"], profile_id="syntax")
+    assert tested["status"] == "waiting_approval"
+    assert tested["test_result"]["ok"] is True
+    assert tested["can_approve"] is False  # until v1.9.5
+
+    after = GitAdapter(root).status_porcelain()
+    assert before == after or ".scientist-worktrees" in after
+
+    listed = service.list_merge_candidates(patch_id=patch_id)
+    assert len(listed) >= 1
+
+
+def test_merge_test_rejects_unknown_profile(tmp_path: Path):
+    service = _service(tmp_path)
+    patch_id = _evidenced_merge_ready(service)
+    prepared = service.merge_prepare(patch_id)
+    service.merge_apply(prepared["merge_candidate_id"])
+    with pytest.raises(ValueError, match="unknown test profile"):
+        service.merge_test(prepared["merge_candidate_id"], profile_id="arbitrary_shell")

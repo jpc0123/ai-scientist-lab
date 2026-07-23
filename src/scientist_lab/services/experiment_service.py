@@ -2646,6 +2646,14 @@ class ExperimentService:
     def merge_show(self, merge_candidate_id: str) -> dict[str, Any]:
         return self.merges.show(merge_candidate_id)
 
+    def merge_apply(self, merge_candidate_id: str) -> dict[str, Any]:
+        return self.merges.apply_workspace(merge_candidate_id)
+
+    def merge_test(
+        self, merge_candidate_id: str, *, profile_id: str = "smoke"
+    ) -> dict[str, Any]:
+        return self.merges.run_tests(merge_candidate_id, profile_id=profile_id)
+
     def list_merge_candidates(
         self,
         *,
@@ -2656,6 +2664,9 @@ class ExperimentService:
         return self.merges.list_candidates(
             project_id=project_id, patch_id=patch_id, limit=limit
         )
+
+    def list_merge_profiles(self) -> list[dict[str, Any]]:
+        return self.merges.list_profiles()
 
     def tree_score(
         self, tree_id: str, *, tree_node_id: str | None = None

@@ -983,6 +983,31 @@ def build_parser() -> argparse.ArgumentParser:
     )
     merge_show.add_argument("merge_candidate_id")
 
+    merge_list = sub.add_parser(
+        "merge-list",
+        help="List MergeCandidates (v1.9.2)",
+    )
+    merge_list.add_argument("--project-id", default=None)
+    merge_list.add_argument("--patch-id", default=None)
+    merge_list.add_argument("--limit", type=int, default=50)
+
+    merge_apply = sub.add_parser(
+        "merge-apply",
+        help="Apply approved patch inside isolated worktree only (v1.9.3)",
+    )
+    merge_apply.add_argument("merge_candidate_id")
+
+    merge_test = sub.add_parser(
+        "merge-test",
+        help="Run registry TestProfile inside worktree (v1.9.4)",
+    )
+    merge_test.add_argument("merge_candidate_id")
+    merge_test.add_argument(
+        "--profile",
+        default="smoke",
+        choices=["syntax", "unit", "smoke", "full_regression", "acceptance"],
+    )
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2349,6 +2374,36 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-list":
+        data = service.list_merge_candidates(
+            project_id=getattr(args, "project_id", None),
+            patch_id=getattr(args, "patch_id", None),
+            limit=int(getattr(args, "limit", 50) or 50),
+        )
+        print(json.dumps({"items": data, "count": len(data)}, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "merge-apply":
+        try:
+            data = service.merge_apply(args.merge_candidate_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("workspace_applied") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-test":
+        try:
+            data = service.merge_test(
+                args.merge_candidate_id,
+                profile_id=str(getattr(args, "profile", "smoke") or "smoke"),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") == "waiting_approval" else 1
+        except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

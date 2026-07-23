@@ -82,3 +82,14 @@ class ReleaseFreezeBody(BaseModel):
 
 class ReleaseDiscardBody(BaseModel):
     reason: str = ""
+
+
+class MergePrepareBody(BaseModel):
+    patch_id: str
+    target_branch: str | None = None
+
+
+class MergeTestBody(BaseModel):
+    profile: Literal[
+        "syntax", "unit", "smoke", "full_regression", "acceptance"
+    ] = "smoke"
