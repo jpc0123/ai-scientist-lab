@@ -963,6 +963,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     patch_decide_merge.add_argument("--reason", default="")
 
+    merge_prepare = sub.add_parser(
+        "merge-prepare",
+        help=(
+            "Create isolated Git worktree + MergeCandidate for an evidenced patch "
+            "(v1.9.1; does not commit or merge)"
+        ),
+    )
+    merge_prepare.add_argument("patch_id")
+    merge_prepare.add_argument(
+        "--target-branch",
+        default=None,
+        help="Baseline branch (default: current HEAD branch)",
+    )
+
+    merge_show = sub.add_parser(
+        "merge-show",
+        help="Show one MergeCandidate (v1.9.1)",
+    )
+    merge_show.add_argument("merge_candidate_id")
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2308,6 +2328,27 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") in {"merged", "discarded"} else 1
         except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-prepare":
+        try:
+            data = service.merge_prepare(
+                args.patch_id,
+                target_branch=getattr(args, "target_branch", None),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("merge_candidate_id") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-show":
+        try:
+            data = service.merge_show(args.merge_candidate_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except KeyError as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

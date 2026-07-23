@@ -44,7 +44,7 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             docker_error = str(exc)
         return {
             "ok": True,
-            "version": "v1.8.1",
+            "version": "v1.9.1",
             "api": "v1",
             "docker_ok": docker_ok,
             "docker_error": docker_error,

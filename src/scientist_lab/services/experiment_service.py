@@ -87,6 +87,12 @@ class ExperimentService:
             outputs_root=Path(self.settings.outputs_dir),
             sandbox_root=Path(self.settings.outputs_dir) / "_patch_sandboxes",
         )
+        from scientist_lab.release.merge_service import MergeService
+
+        self.merges = MergeService(
+            self.session_factory,
+            project_root=Path(self.settings.project_root),
+        )
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),
@@ -2631,6 +2637,25 @@ class ExperimentService:
 
     def workspace_summary(self) -> dict[str, Any]:
         return self.releases.workspace_summary()
+
+    def merge_prepare(
+        self, patch_id: str, *, target_branch: str | None = None
+    ) -> dict[str, Any]:
+        return self.merges.prepare(patch_id, target_branch=target_branch)
+
+    def merge_show(self, merge_candidate_id: str) -> dict[str, Any]:
+        return self.merges.show(merge_candidate_id)
+
+    def list_merge_candidates(
+        self,
+        *,
+        project_id: str | None = None,
+        patch_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self.merges.list_candidates(
+            project_id=project_id, patch_id=patch_id, limit=limit
+        )
 
     def tree_score(
         self, tree_id: str, *, tree_node_id: str | None = None
