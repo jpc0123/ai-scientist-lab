@@ -251,14 +251,51 @@ export function IterationDetailPage() {
 }
 
 export function SettingsPage() {
-  const health = useQuery({ queryKey: ["health"], queryFn: api.health });
+  const health = useQuery({
+    queryKey: ["health"],
+    queryFn: api.health,
+    refetchInterval: 8000,
+    retry: 0,
+  });
+  const ok = health.isSuccess && health.data?.ok;
   return (
     <div className="page">
-      <h1>Settings</h1>
-      <p>本地单用户模式 · 无登录 · 无角色系统 · 无任意 Shell</p>
-      <pre className="code-block">
-        {JSON.stringify(health.data || health.error, null, 2)}
-      </pre>
+      <header className="page-header">
+        <div>
+          <p className="eyebrow">设置</p>
+          <h1>设置与启动</h1>
+          <p className="lede">本地单用户 · 无登录 · 无角色系统 · 无任意 Shell</p>
+        </div>
+        <span className={`pill ${ok ? "ok" : "bad"}`}>
+          {ok ? "后端已连接" : "后端未连接"}
+        </span>
+      </header>
+
+      <section className="panel">
+        <h2>第一次怎么开？</h2>
+        <p>需要两个终端窗口。</p>
+        <h3>终端 A：后端 API（8787）</h3>
+        <pre className="code-block">{`cd D:\\AI Scientist_tiao\\scientist-lab
+.\\.venv\\Scripts\\scientist-lab.exe serve --host 127.0.0.1 --port 8787`}</pre>
+        <h3>终端 B：前端（5173）</h3>
+        <pre className="code-block">{`cd D:\\AI Scientist_tiao\\scientist-lab\\web
+npm run dev`}</pre>
+        <p>
+          浏览器打开 <strong>http://127.0.0.1:5173</strong>
+          。也可以双击运行仓库里的{" "}
+          <code>scripts/start_web_console.ps1</code>（会尝试同时拉起两端）。
+        </p>
+        <p>
+          更完整的说明见 <Link to="/guide">使用指南</Link>。
+        </p>
+      </section>
+
+      <section className="panel">
+        <h2>当前 API 状态</h2>
+        <pre className="code-block">
+          {JSON.stringify(health.data || { error: String(health.error) }, null, 2)}
+        </pre>
+      </section>
     </div>
   );
 }

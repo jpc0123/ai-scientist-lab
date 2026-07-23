@@ -95,4 +95,10 @@ export const api = {
     apiPost(`/api/v1/patches/${id}/record-evidence`, body || {}),
   decidePatchMerge: (id: string, decision: "merge" | "discard", reason = "") =>
     apiPost(`/api/v1/patches/${id}/decide-merge`, { decision, reason }),
+  seedDemoPatch: () =>
+    apiPost<{
+      patch_id: string;
+      status: string;
+      title?: string;
+    }>("/api/v1/demo/seed-patch"),
 };

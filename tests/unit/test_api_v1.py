@@ -45,6 +45,18 @@ def test_health_and_summary(api_client):
     assert "pending_patches" in data
 
 
+def test_demo_seed_patch(api_client):
+    client, _ = api_client
+    seeded = client.post("/api/v1/demo/seed-patch")
+    assert seeded.status_code == 200
+    body = seeded.json()
+    assert body["status"] == "verified"
+    assert body["can_apply_main"] is False
+    assert body["patch_id"]
+    shown = client.get(f"/api/v1/patches/{body['patch_id']}")
+    assert shown.status_code == 200
+
+
 def test_list_endpoints_page_shape(api_client):
     client, _ = api_client
     for path in (

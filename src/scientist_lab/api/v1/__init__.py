@@ -66,6 +66,30 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             "note": "Frontend display only; enforcement remains server-side.",
         }
 
+    @router.post("/demo/seed-patch")
+    def seed_demo_patch(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        """Create a mock PatchProposal so first-time users can explore the UI."""
+        from datetime import datetime, timezone
+
+        from scientist_lab.patching.service import build_mock_unified_diff
+
+        stamp = datetime.now(timezone.utc).strftime("%H%M%S")
+        relative = (
+            "experiment_apps/rgbt_detection_real/adapters/"
+            f"console_demo_note_{stamp}.md"
+        )
+        return service.patches.propose_mock(
+            "project_demo_console",
+            title="演示补丁：记录融合消融证据缺口",
+            rationale=(
+                "Web Console 演示用 Mock 补丁。仅文档变更，"
+                "须人工审批后才能沙箱应用；不会修改主工作区。"
+            ),
+            unified_diff=build_mock_unified_diff(relative_path=relative),
+        )
+
     # --- projects --------------------------------------------------------
     @router.get("/projects")
     def list_projects(

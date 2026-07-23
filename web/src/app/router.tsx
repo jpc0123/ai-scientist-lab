@@ -20,6 +20,7 @@ import {
   PlansPage,
   SettingsPage,
 } from "../pages/ResourcePages";
+import { GuidePage } from "../pages/GuidePage";
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
 
 export function AppRouter() {
@@ -27,6 +28,7 @@ export function AppRouter() {
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="guide" element={<GuidePage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="projects" element={<ProjectsPage />} />

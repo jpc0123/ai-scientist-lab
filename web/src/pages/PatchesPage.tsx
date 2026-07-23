@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/endpoints";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmptyState } from "../components/EmptyState";
 import { Loading } from "../components/Loading";
 import { MetaGrid } from "../components/MetaGrid";
 
@@ -20,31 +21,65 @@ type PatchAction =
   | "discard";
 
 export function PatchesPage() {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
   const q = useQuery({ queryKey: ["patches"], queryFn: api.patches });
+  const seed = useMutation({
+    mutationFn: api.seedDemoPatch,
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: ["patches"] });
+      if (data.patch_id) navigate(`/patches/${data.patch_id}`);
+    },
+  });
   if (q.isLoading) return <Loading />;
   if (q.isError) return <div className="error-panel">{(q.error as Error).message}</div>;
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Sandbox</p>
-          <h1>Patches</h1>
-          <p className="lede">仅触发受控动作；无一键合并主分支 / commit / push。</p>
+          <p className="eyebrow">沙箱</p>
+          <h1>补丁</h1>
+          <p className="lede">
+            只触发受控动作；<strong>不会</strong>一键合并主分支 / commit / push。
+          </p>
         </div>
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={seed.isPending}
+          onClick={() => seed.mutate()}
+        >
+          {seed.isPending ? "生成中…" : "生成演示补丁"}
+        </button>
       </header>
-      <ul className="list">
-        {q.data!.items.map((p) => (
-          <li key={p.patch_id}>
-            <Link to={`/patches/${p.patch_id}`}>
-              <strong>{p.title}</strong>
-            </Link>
-            <span className="mono">{p.patch_id}</span>
-            <span className="badge">{p.status}</span>
-            <span className="muted">{p.provider || "mock"}</span>
-          </li>
-        ))}
-      </ul>
-      {q.data!.items.length === 0 && <p className="muted">暂无补丁</p>}
+      {seed.isError && (
+        <div className="error-panel">{(seed.error as Error).message}</div>
+      )}
+      {q.data!.items.length === 0 ? (
+        <EmptyState
+          title="还没有补丁"
+          description="点右上角「生成演示补丁」，或先去总览页生成。生成后点进详情，按按钮顺序操作即可。"
+          hints={["批准", "应用到沙箱", "沙箱测试", "记录证据", "合并意图（不会改主树）"]}
+          primaryAction={{
+            label: "生成演示补丁",
+            onClick: () => seed.mutate(),
+          }}
+          secondaryAction={{ label: "看使用指南", to: "/guide" }}
+        />
+      ) : (
+        <ul className="list">
+          {q.data!.items.map((p) => (
+            <li key={p.patch_id}>
+              <Link to={`/patches/${p.patch_id}`}>
+                <strong>{p.title}</strong>
+              </Link>
+              <span className="mono">{p.patch_id}</span>
+              <span className="badge">{p.status}</span>
+              <span className="muted">{p.provider || "mock"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
