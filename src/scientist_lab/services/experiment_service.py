@@ -2654,6 +2654,34 @@ class ExperimentService:
     ) -> dict[str, Any]:
         return self.merges.run_tests(merge_candidate_id, profile_id=profile_id)
 
+    def merge_approve(
+        self,
+        merge_candidate_id: str,
+        *,
+        reason: str = "",
+        approved_by: str = "human",
+    ) -> dict[str, Any]:
+        return self.merges.approve(
+            merge_candidate_id, reason=reason, approved_by=approved_by
+        )
+
+    def merge_reject(
+        self,
+        merge_candidate_id: str,
+        *,
+        reason: str = "",
+        approved_by: str = "human",
+    ) -> dict[str, Any]:
+        return self.merges.reject(
+            merge_candidate_id, reason=reason, approved_by=approved_by
+        )
+
+    def merge_commit(self, merge_candidate_id: str) -> dict[str, Any]:
+        return self.merges.commit_candidate(merge_candidate_id)
+
+    def merge_finalize(self, merge_candidate_id: str) -> dict[str, Any]:
+        return self.merges.finalize(merge_candidate_id)
+
     def list_merge_candidates(
         self,
         *,

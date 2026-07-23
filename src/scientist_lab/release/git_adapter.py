@@ -219,6 +219,42 @@ class GitAdapter:
             if code.strip() == "??" or code.startswith("?"):
                 paths.append(path)
             elif code[1] in {"M", "A", "D"} or code[0] in {"M", "A", "D"}:
-                # tracked modifications also appear in porcelain; name-only covers them
                 continue
         return paths
+
+    def add_paths(self, paths: Sequence[str], *, cwd: Path) -> GitResult:
+        cleaned: list[str] = []
+        for raw in paths:
+            path = str(raw).replace("\\", "/").strip()
+            if not path or path.startswith("-") or ".." in path.split("/"):
+                raise GitAdapterError(f"refusing git add path: {raw}")
+            cleaned.append(path)
+        if not cleaned:
+            raise GitAdapterError("git add requires at least one path")
+        return self._run(["add", "--", *cleaned], cwd=cwd, check=True)
+
+    def commit_message_file(self, message_file: Path, *, cwd: Path) -> str:
+        """Create a commit; returns new commit SHA. Message comes from a file."""
+        message_file = Path(message_file).resolve()
+        if not message_file.is_file():
+            raise GitAdapterError(f"commit message file missing: {message_file}")
+        self._run(["commit", "-F", str(message_file)], cwd=cwd, check=True)
+        return self._run(["rev-parse", "HEAD"], cwd=cwd, check=True).stdout
+
+    def merge_no_ff(self, commit_sha: str, message_file: Path) -> str:
+        """Merge commit into current HEAD with --no-ff. Returns merge commit SHA."""
+        if not commit_sha or commit_sha.startswith("-"):
+            raise GitAdapterError("invalid merge commit sha")
+        message_file = Path(message_file).resolve()
+        if not message_file.is_file():
+            raise GitAdapterError(f"merge message file missing: {message_file}")
+        result = self._run(
+            ["merge", "--no-ff", "-F", str(message_file), commit_sha],
+            check=False,
+        )
+        if not result.ok:
+            self._run(["merge", "--abort"], check=False)
+            raise GitAdapterError(
+                f"merge --no-ff failed: {result.stderr or result.stdout}"
+            )
+        return self.rev_parse("HEAD")

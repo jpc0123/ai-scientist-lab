@@ -93,3 +93,13 @@ class MergeTestBody(BaseModel):
     profile: Literal[
         "syntax", "unit", "smoke", "full_regression", "acceptance"
     ] = "smoke"
+
+
+class MergeApproveBody(BaseModel):
+    reason: str = ""
+    approved_by: str = "human"
+
+
+class MergeRejectBody(BaseModel):
+    reason: str = ""
+    approved_by: str = "human"

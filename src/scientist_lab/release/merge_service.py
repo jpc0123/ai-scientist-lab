@@ -13,14 +13,25 @@ from scientist_lab.patching.models import PatchProposal
 from scientist_lab.patching.path_policy import PathPolicy
 from scientist_lab.patching.repository import PatchRepository
 from scientist_lab.release.git_adapter import GitAdapter, GitAdapterError
-from scientist_lab.release.models import MergeCandidate
+from scientist_lab.release.models import MergeApproval, MergeCandidate
 from scientist_lab.release.repository import MergeCandidateRepository
 from scientist_lab.release.test_profiles import list_profile_ids, require_profile
 from scientist_lab.release.verifier import reverify_patch, sha256_text
 from scientist_lab.release.workspace_service import WorkspaceRegistry
 
 
-_IGNORE_WORKSPACE_FILES = frozenset({"PENDING_PATCH.diff"})
+_IGNORE_WORKSPACE_FILES = frozenset({"PENDING_PATCH.diff", "MERGE_COMMIT_MSG.txt"})
+
+
+def _main_status_relevant(porcelain: str) -> str:
+    """Drop worktree-registry dirt so prepare/apply don't false-fail."""
+    lines = []
+    for line in (porcelain or "").splitlines():
+        if ".scientist-worktrees" in line:
+            continue
+        if line.strip():
+            lines.append(line)
+    return "\n".join(lines)
 
 
 class MergeService:
@@ -113,7 +124,7 @@ class MergeService:
             error = detail or "git apply --check failed"
 
         main_after = self.git.status_porcelain()
-        if main_before != main_after:
+        if _main_status_relevant(main_before) != _main_status_relevant(main_after):
             try:
                 self.workspaces.remove(merge_candidate_id, force=True)
             except GitAdapterError:
@@ -204,7 +215,7 @@ class MergeService:
             raise ValueError(f"git apply failed: {exc}") from exc
 
         main_after = self.git.status_porcelain()
-        if main_before != main_after:
+        if _main_status_relevant(main_before) != _main_status_relevant(main_after):
             candidate.status = "failed"
             candidate.error = "main workspace changed during apply; aborted"
             self._repo.upsert(candidate)
@@ -319,7 +330,7 @@ class MergeService:
                 break
 
         main_after = self.git.status_porcelain()
-        if main_before != main_after:
+        if _main_status_relevant(main_before) != _main_status_relevant(main_after):
             candidate.status = "failed"
             candidate.error = "main workspace changed during merge-test; aborted"
             self._repo.upsert(candidate)
@@ -347,6 +358,245 @@ class MergeService:
         self._repo.upsert(candidate)
         view = self._view(candidate)
         view["test_result"] = test_payload
+        return view
+
+    def approve(
+        self,
+        merge_candidate_id: str,
+        *,
+        reason: str = "",
+        approved_by: str = "human",
+    ) -> dict[str, Any]:
+        """Human merge approval after successful registry tests (v1.9.5)."""
+        candidate = self._repo.require(merge_candidate_id)
+        if candidate.status != "waiting_approval":
+            raise ValueError(
+                f"approve requires waiting_approval; got {candidate.status!r}"
+            )
+        last_test = dict((candidate.metadata or {}).get("last_test") or {})
+        if last_test.get("ok") is not True:
+            raise ValueError("cannot approve: last registry test did not pass")
+        # Fingerprint must still match.
+        proposal = self._patches.require(candidate.patch_id)
+        reverify = reverify_patch(proposal)
+        if (
+            not reverify.get("ok")
+            or reverify.get("fingerprint_sha256") != candidate.patch_sha256
+        ):
+            candidate.status = "failed"
+            candidate.error = "patch fingerprint changed before approval"
+            self._repo.upsert(candidate)
+            raise ValueError(candidate.error)
+
+        approval = MergeApproval(
+            merge_candidate_id=merge_candidate_id,
+            decision="approve",
+            reason=reason or "human approved merge after registry tests",
+            approved_by=approved_by or "human",
+        )
+        candidate.status = "approved"
+        candidate.error = None
+        candidate.metadata = {
+            **dict(candidate.metadata or {}),
+            "merge_approval": approval.model_dump(mode="json"),
+            "v19_stage": "1.9.5-approved",
+            "main_workspace_modified": False,
+        }
+        self._repo.upsert(candidate)
+        return self._view(candidate)
+
+    def reject(
+        self,
+        merge_candidate_id: str,
+        *,
+        reason: str = "",
+        approved_by: str = "human",
+    ) -> dict[str, Any]:
+        candidate = self._repo.require(merge_candidate_id)
+        if candidate.status not in {
+            "waiting_approval",
+            "approved",
+            "preparing",
+            "created",
+            "failed",
+        }:
+            raise ValueError(f"reject not allowed from status={candidate.status!r}")
+        if candidate.status in {"merged", "rolled_back"}:
+            raise ValueError("cannot reject a merged/rolled_back candidate")
+        approval = MergeApproval(
+            merge_candidate_id=merge_candidate_id,
+            decision="reject",
+            reason=reason or "human rejected merge candidate",
+            approved_by=approved_by or "human",
+        )
+        candidate.status = "rejected"
+        candidate.metadata = {
+            **dict(candidate.metadata or {}),
+            "merge_approval": approval.model_dump(mode="json"),
+            "v19_stage": "1.9.5-rejected",
+            "main_workspace_modified": False,
+        }
+        self._repo.upsert(candidate)
+        return self._view(candidate)
+
+    def commit_candidate(self, merge_candidate_id: str) -> dict[str, Any]:
+        """Create a controlled commit inside the worktree only (v1.9.6)."""
+        candidate = self._repo.require(merge_candidate_id)
+        if candidate.status != "approved":
+            raise ValueError(
+                f"commit requires approved status; got {candidate.status!r}"
+            )
+        if not (candidate.metadata or {}).get("workspace_applied"):
+            raise ValueError("workspace patch not applied")
+        if candidate.commit_sha:
+            return self._view(candidate)
+
+        proposal = self._patches.require(candidate.patch_id)
+        reverify = reverify_patch(proposal)
+        if (
+            not reverify.get("ok")
+            or reverify.get("fingerprint_sha256") != candidate.patch_sha256
+        ):
+            candidate.status = "failed"
+            candidate.error = "patch fingerprint changed before commit"
+            self._repo.upsert(candidate)
+            raise ValueError(candidate.error)
+
+        workspace = Path(candidate.workspace_path)
+        changed = [
+            p
+            for p in (candidate.metadata or {}).get("changed_paths")
+            or self._collect_changed_paths(workspace)
+            if p not in _IGNORE_WORKSPACE_FILES
+        ]
+        if not changed:
+            raise ValueError("no changed paths to commit")
+
+        policy = PathPolicy()
+        for path in changed:
+            ok, reason = policy.is_allowed(path)
+            if not ok:
+                raise ValueError(f"refusing to commit denied path {path}: {reason}")
+
+        candidate.status = "committing"
+        self._repo.upsert(candidate)
+
+        main_before = self.git.status_porcelain()
+        msg = (
+            f"feat(patch): apply approved patch {candidate.patch_id}\n"
+            f"\n"
+            f"Patch: {candidate.patch_id}\n"
+            f"Evidence: {candidate.patch_evidence_id}\n"
+            f"Merge candidate: {candidate.merge_candidate_id}\n"
+            f"Source commit: {candidate.source_commit}\n"
+            f"Patch SHA256: {candidate.patch_sha256}\n"
+        )
+        msg_file = workspace / "MERGE_COMMIT_MSG.txt"
+        msg_file.write_text(msg, encoding="utf-8")
+        try:
+            self.git.add_paths(changed, cwd=workspace)
+            commit_sha = self.git.commit_message_file(msg_file, cwd=workspace)
+        except GitAdapterError as exc:
+            candidate.status = "failed"
+            candidate.error = f"controlled commit failed: {exc}"
+            self._repo.upsert(candidate)
+            raise ValueError(candidate.error) from exc
+
+        main_after = self.git.status_porcelain()
+        if _main_status_relevant(main_before) != _main_status_relevant(main_after):
+            candidate.status = "failed"
+            candidate.error = "main workspace changed during commit; aborted"
+            self._repo.upsert(candidate)
+            raise ValueError(candidate.error)
+
+        candidate.commit_sha = commit_sha
+        candidate.status = "committing"
+        candidate.error = None
+        candidate.metadata = {
+            **dict(candidate.metadata or {}),
+            "commit_message": msg,
+            "committed_at": utc_now_iso(),
+            "v19_stage": "1.9.6-committed",
+            "main_workspace_modified": False,
+            "can_finalize": True,
+        }
+        self._repo.upsert(candidate)
+        return self._view(candidate)
+
+    def finalize(self, merge_candidate_id: str) -> dict[str, Any]:
+        """Merge worktree commit into target_branch with --no-ff (v1.9.6). No push."""
+        candidate = self._repo.require(merge_candidate_id)
+        if candidate.status not in {"committing", "approved"}:
+            raise ValueError(
+                f"finalize requires committing (after merge-commit); "
+                f"got {candidate.status!r}"
+            )
+        if not candidate.commit_sha:
+            raise ValueError("run merge-commit before merge-finalize")
+        if candidate.status == "approved" and not candidate.commit_sha:
+            raise ValueError("run merge-commit before merge-finalize")
+
+        current = self.git.current_branch()
+        if current != candidate.target_branch:
+            raise ValueError(
+                f"check out target branch {candidate.target_branch!r} before "
+                f"finalize (currently on {current!r})"
+            )
+
+        main_before = self.git.status_porcelain()
+        # Allow only ignored / worktree registry dirt; refuse other main dirt.
+        dirty = [
+            line
+            for line in main_before.splitlines()
+            if line.strip() and ".scientist-worktrees" not in line
+        ]
+        if dirty:
+            raise ValueError(
+                "main working tree is dirty; refuse finalize: "
+                + "; ".join(dirty[:5])
+            )
+
+        msg = (
+            f"merge: integrate merge candidate {candidate.merge_candidate_id}\n"
+            f"\n"
+            f"Patch: {candidate.patch_id}\n"
+            f"Worktree commit: {candidate.commit_sha}\n"
+            f"Patch SHA256: {candidate.patch_sha256}\n"
+        )
+        msg_file = self.project_root / ".scientist-worktrees" / (
+            f"{candidate.merge_candidate_id}_MERGE_MSG.txt"
+        )
+        msg_file.parent.mkdir(parents=True, exist_ok=True)
+        msg_file.write_text(msg, encoding="utf-8")
+
+        head_before = self.git.rev_parse("HEAD")
+        try:
+            merge_sha = self.git.merge_no_ff(candidate.commit_sha, msg_file)
+        except GitAdapterError as exc:
+            candidate.status = "merge_conflict"
+            candidate.error = str(exc)
+            self._repo.upsert(candidate)
+            raise ValueError(f"finalize merge failed: {exc}") from exc
+
+        candidate.status = "merged"
+        candidate.error = None
+        candidate.metadata = {
+            **dict(candidate.metadata or {}),
+            "finalize": {
+                "head_before": head_before,
+                "merge_commit_sha": merge_sha,
+                "merged_at": utc_now_iso(),
+                "target_branch": candidate.target_branch,
+            },
+            "v19_stage": "1.9.6-merged",
+            # Main branch history intentionally advanced by controlled merge.
+            "main_branch_updated": True,
+            "main_workspace_modified": False,
+            "pushed": False,
+        }
+        self._repo.upsert(candidate)
+        view = self._view(candidate)
+        view["merge_commit_sha"] = merge_sha
         return view
 
     def _collect_changed_paths(self, workspace: Path) -> list[str]:
@@ -409,9 +659,25 @@ class MergeService:
             "failed",
             "waiting_approval",
         }
-        data["can_approve"] = False  # v1.9.5
-        data["can_commit"] = False
-        data["can_merge"] = False
+        data["can_approve"] = candidate.status == "waiting_approval" and (
+            dict(meta.get("last_test") or {}).get("ok") is True
+        )
+        data["can_reject"] = candidate.status in {
+            "waiting_approval",
+            "approved",
+            "preparing",
+            "created",
+            "failed",
+            "committing",
+        }
+        data["can_commit"] = (
+            candidate.status == "approved" and not candidate.commit_sha
+        )
+        data["can_finalize"] = bool(candidate.commit_sha) and candidate.status in {
+            "committing",
+            "approved",
+        }
+        data["can_merge"] = data["can_finalize"]
         data["main_workspace_modified"] = False
         data["workspace_exists"] = Path(candidate.workspace_path).exists()
         data["workspace_applied"] = applied

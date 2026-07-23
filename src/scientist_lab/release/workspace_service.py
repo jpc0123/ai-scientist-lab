@@ -78,7 +78,15 @@ class WorkspaceRegistry:
         before = self.git.status_porcelain()
         self.git.worktree_add(path, source_commit)
         after = self.git.status_porcelain()
-        if before != after:
+
+        def _relevant(text: str) -> str:
+            return "\n".join(
+                line
+                for line in text.splitlines()
+                if line.strip() and ".scientist-worktrees" not in line
+            )
+
+        if _relevant(before) != _relevant(after):
             # Best-effort cleanup
             try:
                 self.git.worktree_remove(path, force=True)

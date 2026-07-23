@@ -1008,6 +1008,32 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["syntax", "unit", "smoke", "full_regression", "acceptance"],
     )
 
+    merge_approve = sub.add_parser(
+        "merge-approve",
+        help="Human approve MergeCandidate after registry tests (v1.9.5)",
+    )
+    merge_approve.add_argument("merge_candidate_id")
+    merge_approve.add_argument("--reason", default="")
+
+    merge_reject = sub.add_parser(
+        "merge-reject",
+        help="Human reject MergeCandidate (v1.9.5)",
+    )
+    merge_reject.add_argument("merge_candidate_id")
+    merge_reject.add_argument("--reason", default="")
+
+    merge_commit = sub.add_parser(
+        "merge-commit",
+        help="Create controlled commit inside worktree only (v1.9.6; no push)",
+    )
+    merge_commit.add_argument("merge_candidate_id")
+
+    merge_finalize = sub.add_parser(
+        "merge-finalize",
+        help="Merge worktree commit into target branch with --no-ff (v1.9.6; no push)",
+    )
+    merge_finalize.add_argument("merge_candidate_id")
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2403,6 +2429,48 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") == "waiting_approval" else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-approve":
+        try:
+            data = service.merge_approve(
+                args.merge_candidate_id,
+                reason=getattr(args, "reason", "") or "",
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") == "approved" else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-reject":
+        try:
+            data = service.merge_reject(
+                args.merge_candidate_id,
+                reason=getattr(args, "reason", "") or "",
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") == "rejected" else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-commit":
+        try:
+            data = service.merge_commit(args.merge_candidate_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("commit_sha") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "merge-finalize":
+        try:
+            data = service.merge_finalize(args.merge_candidate_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") == "merged" else 1
         except (KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 1

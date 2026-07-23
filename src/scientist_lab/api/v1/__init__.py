@@ -13,7 +13,9 @@ from scientist_lab.api.schemas import (
     AuditExportBody,
     CandidateRejectBody,
     IterationFinalizeBody,
+    MergeApproveBody,
     MergePrepareBody,
+    MergeRejectBody,
     MergeTestBody,
     PatchApplySandboxBody,
     PatchDecideMergeBody,
@@ -651,6 +653,64 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         profile = body.profile if body else "smoke"
         try:
             return service.merge_test(merge_candidate_id, profile_id=profile)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/merges/{merge_candidate_id}/approve")
+    def approve_merge(
+        merge_candidate_id: str,
+        body: MergeApproveBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.merge_approve(
+                merge_candidate_id,
+                reason=(body.reason if body else "") or "",
+                approved_by=(body.approved_by if body else "human") or "human",
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/merges/{merge_candidate_id}/reject")
+    def reject_merge(
+        merge_candidate_id: str,
+        body: MergeRejectBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.merge_reject(
+                merge_candidate_id,
+                reason=(body.reason if body else "") or "",
+                approved_by=(body.approved_by if body else "human") or "human",
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/merges/{merge_candidate_id}/commit")
+    def commit_merge(
+        merge_candidate_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.merge_commit(merge_candidate_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/merges/{merge_candidate_id}/finalize")
+    def finalize_merge(
+        merge_candidate_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.merge_finalize(merge_candidate_id)
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:

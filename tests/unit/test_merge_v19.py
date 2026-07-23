@@ -111,13 +111,128 @@ def test_merge_apply_and_syntax_test(tmp_path: Path):
     tested = service.merge_test(prepared["merge_candidate_id"], profile_id="syntax")
     assert tested["status"] == "waiting_approval"
     assert tested["test_result"]["ok"] is True
-    assert tested["can_approve"] is False  # until v1.9.5
+    assert tested["can_approve"] is True
 
     after = GitAdapter(root).status_porcelain()
     assert before == after or ".scientist-worktrees" in after
 
     listed = service.list_merge_candidates(patch_id=patch_id)
     assert len(listed) >= 1
+
+
+def test_merge_approve_commit_keeps_main_head(tmp_path: Path):
+    service = _service(tmp_path)
+    root = Path(service.settings.project_root)
+    git = GitAdapter(root)
+    head_before = git.rev_parse("HEAD")
+    patch_id = _evidenced_merge_ready(service)
+    mc = service.merge_prepare(patch_id)["merge_candidate_id"]
+    service.merge_apply(mc)
+    service.merge_test(mc, profile_id="syntax")
+
+    with pytest.raises(ValueError, match="commit requires approved"):
+        # cannot commit before approve
+        service.merge_commit(mc)
+
+    approved = service.merge_approve(mc, reason="ok to commit in worktree")
+    assert approved["status"] == "approved"
+    assert approved["can_commit"] is True
+
+    committed = service.merge_commit(mc)
+    assert committed["commit_sha"]
+    assert committed["commit_sha"] != head_before
+    assert committed["status"] == "committing"
+    # Main branch HEAD must not move on commit (only worktree).
+    assert git.rev_parse("HEAD") == head_before
+
+    # Finalize would merge into current branch — refuse dirty/wrong context tests
+    # by only checking gate: finalize allowed flag is set.
+    assert committed["can_finalize"] is True
+
+
+def test_merge_reject_from_waiting_approval(tmp_path: Path):
+    service = _service(tmp_path)
+    patch_id = _evidenced_merge_ready(service)
+    mc = service.merge_prepare(patch_id)["merge_candidate_id"]
+    service.merge_apply(mc)
+    service.merge_test(mc, profile_id="syntax")
+    rejected = service.merge_reject(mc, reason="not now")
+    assert rejected["status"] == "rejected"
+    with pytest.raises(ValueError):
+        service.merge_approve(mc, reason="too late")
+
+
+def test_merge_finalize_on_disposable_repo(tmp_path: Path):
+    import subprocess
+
+    repo = tmp_path / "mini_repo"
+    adapters = repo / "experiment_apps" / "rgbt_detection_real" / "adapters"
+    adapters.mkdir(parents=True)
+    (adapters / ".gitkeep").write_text("", encoding="utf-8")
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "merge-test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Merge Test"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+    service = ExperimentService(
+        settings=Settings(
+            project_root=repo,
+            db_path=tmp_path / "mini.db",
+            runtime_dir=tmp_path / "runtime",
+            outputs_dir=tmp_path / "outputs",
+            experiment_app_dir=repo,
+        ).resolve()
+    )
+    proposed = service.patches.propose_mock(
+        "project_mini",
+        unified_diff=build_mock_unified_diff(
+            relative_path="experiment_apps/rgbt_detection_real/adapters/mini_note.md"
+        ),
+    )
+    patch_id = proposed["patch_id"]
+    service.patches.approve(patch_id, reason="mini")
+    service.patches.apply_sandbox(patch_id)
+    service.patches.test_sandbox(patch_id, profile="smoke")
+    service.patches.record_evidence(patch_id)
+    service.patches.decide_merge(patch_id, decision="merge", reason="intent")
+
+    mc = service.merge_prepare(patch_id, target_branch="main")["merge_candidate_id"]
+    service.merge_apply(mc)
+    # Inject passing test state (mini repo has no full source tree for syntax profile).
+    candidate = service.merges._repo.require(mc)
+    candidate.status = "waiting_approval"
+    candidate.metadata = {
+        **dict(candidate.metadata or {}),
+        "last_test": {"ok": True, "profile_id": "syntax"},
+        "workspace_applied": True,
+    }
+    service.merges._repo.upsert(candidate)
+
+    service.merge_approve(mc, reason="mini approve")
+    committed = service.merge_commit(mc)
+    assert committed["commit_sha"]
+    head_before = GitAdapter(repo).rev_parse("HEAD")
+    finalized = service.merge_finalize(mc)
+    assert finalized["status"] == "merged"
+    assert finalized["merge_commit_sha"]
+    assert GitAdapter(repo).rev_parse("HEAD") != head_before
+    assert GitAdapter(repo).rev_parse("HEAD") == finalized["merge_commit_sha"]
 
 
 def test_merge_test_rejects_unknown_profile(tmp_path: Path):
