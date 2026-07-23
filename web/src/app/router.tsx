@@ -21,13 +21,15 @@ import {
   SettingsPage,
 } from "../pages/ResourcePages";
 import { GuidePage } from "../pages/GuidePage";
+import { ChatWorkspacePage } from "../pages/ChatWorkspacePage";
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
 
 export function AppRouter() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<Navigate to="/assistant" replace />} />
+        <Route path="assistant" element={<ChatWorkspacePage />} />
         <Route path="guide" element={<GuidePage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="approvals" element={<ApprovalsPage />} />
@@ -49,7 +51,7 @@ export function AppRouter() {
         <Route path="audits" element={<AuditsPage />} />
         <Route path="audits/:id" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/assistant" replace />} />
       </Route>
     </Routes>
   );

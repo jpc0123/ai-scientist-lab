@@ -43,7 +43,7 @@ export function GuidePage() {
           <h1>使用指南</h1>
           <p className="lede">
             这是本地单用户科研工作台：用来<strong>查看状态</strong>和
-            <strong>做受控审批</strong>，不是云平台，也没有终端。
+            <strong>做受控审批</strong>，不是云平台，也没有终端。首页「对话工作台」可输入任务与快捷指令。
           </p>
         </div>
         <Link className="btn-primary" to="/dashboard">

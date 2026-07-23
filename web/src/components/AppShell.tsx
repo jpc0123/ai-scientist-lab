@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { ConnectionBar } from "./ConnectionBar";
 
 const links = [
+  { to: "/assistant", label: "对话工作台", hint: "任务输入与回显" },
   { to: "/guide", label: "使用指南", hint: "新手从这里看" },
   { to: "/dashboard", label: "总览", hint: "Dashboard" },
   { to: "/approvals", label: "审批中心", hint: "批准 / 拒绝" },
@@ -48,7 +49,7 @@ export function AppShell() {
       </aside>
       <div className="workspace">
         <ConnectionBar />
-        <main className="main">
+        <main className="main main-fill">
           <Outlet />
         </main>
       </div>
