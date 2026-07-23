@@ -79,6 +79,14 @@ class ExperimentService:
             sandbox_root=Path(self.settings.outputs_dir) / "_patch_sandboxes",
             outputs_root=Path(self.settings.outputs_dir),
         )
+        from scientist_lab.release.service import ReleaseService
+
+        self.releases = ReleaseService(
+            self.session_factory,
+            project_root=Path(self.settings.project_root),
+            outputs_root=Path(self.settings.outputs_dir),
+            sandbox_root=Path(self.settings.outputs_dir) / "_patch_sandboxes",
+        )
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),
@@ -2587,6 +2595,42 @@ class ExperimentService:
 
     def export_audit(self, bundle_id: str, output_dir: str | Path) -> dict[str, Any]:
         return self.reporting.export_audit(bundle_id, output_dir)
+
+    def list_releases(
+        self, *, project_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        return self.releases.list_releases(project_id=project_id, limit=limit)
+
+    def show_release(self, release_id: str) -> dict[str, Any]:
+        return self.releases.show(release_id)
+
+    def create_release(
+        self,
+        *,
+        project_id: str,
+        title: str = "",
+        tree_id: str | None = None,
+        report_id: str | None = None,
+        audit_bundle_id: str | None = None,
+        patch_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return self.releases.create(
+            project_id=project_id,
+            title=title,
+            tree_id=tree_id,
+            report_id=report_id,
+            audit_bundle_id=audit_bundle_id,
+            patch_ids=patch_ids,
+        )
+
+    def freeze_release(self, release_id: str, *, notes: str = "") -> dict[str, Any]:
+        return self.releases.freeze(release_id, notes=notes)
+
+    def discard_release(self, release_id: str, *, reason: str = "") -> dict[str, Any]:
+        return self.releases.discard(release_id, reason=reason)
+
+    def workspace_summary(self) -> dict[str, Any]:
+        return self.releases.workspace_summary()
 
     def tree_score(
         self, tree_id: str, *, tree_node_id: str | None = None

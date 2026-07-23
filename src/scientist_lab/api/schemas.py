@@ -47,3 +47,38 @@ class CompareExecutionsBody(BaseModel):
 class CompareNodesBody(BaseModel):
     node_id_a: str
     node_id_b: str
+
+
+class ReportBuildBody(BaseModel):
+    project_id: str
+    tree_id: str | None = None
+    protocol_id: str | None = None
+
+
+class AuditBuildBody(BaseModel):
+    project_id: str
+    tree_id: str | None = None
+    protocol_id: str | None = None
+    report_id: str | None = None
+
+
+class AuditExportBody(BaseModel):
+    output_dir: str
+    release_id: str | None = None
+
+
+class ReleaseCreateBody(BaseModel):
+    project_id: str
+    title: str = ""
+    tree_id: str | None = None
+    report_id: str | None = None
+    audit_bundle_id: str | None = None
+    patch_ids: list[str] = Field(default_factory=list)
+
+
+class ReleaseFreezeBody(BaseModel):
+    notes: str = ""
+
+
+class ReleaseDiscardBody(BaseModel):
+    reason: str = ""

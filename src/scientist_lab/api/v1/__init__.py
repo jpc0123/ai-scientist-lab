@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, Query
 from scientist_lab.api.errors import http_error
 from scientist_lab.api.pagination import clamp_limit, clamp_offset, page_response
 from scientist_lab.api.schemas import (
+    AuditBuildBody,
+    AuditExportBody,
     CandidateRejectBody,
     IterationFinalizeBody,
     PatchApplySandboxBody,
@@ -16,6 +18,10 @@ from scientist_lab.api.schemas import (
     PatchRecordEvidenceBody,
     PatchTestBody,
     ReasonBody,
+    ReleaseCreateBody,
+    ReleaseDiscardBody,
+    ReleaseFreezeBody,
+    ReportBuildBody,
 )
 from scientist_lab.services.experiment_service import ExperimentService
 
@@ -38,7 +44,7 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             docker_error = str(exc)
         return {
             "ok": True,
-            "version": "v1.7.1",
+            "version": "v1.8.1",
             "api": "v1",
             "docker_ok": docker_ok,
             "docker_error": docker_error,
@@ -403,6 +409,22 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             "has_markdown": bool(markdown),
         }
 
+    @router.post("/reports/build")
+    def build_report(
+        body: ReportBuildBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.build_report(
+                body.project_id,
+                tree_id=body.tree_id,
+                protocol_id=body.protocol_id,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
+
     @router.get("/audits")
     def list_audits(
         project_id: str | None = None,
@@ -425,6 +447,23 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
 
+    @router.post("/audits/build")
+    def build_audit(
+        body: AuditBuildBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.build_audit(
+                body.project_id,
+                tree_id=body.tree_id,
+                protocol_id=body.protocol_id,
+                report_id=body.report_id,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
+
     @router.post("/audits/{bundle_id}/verify")
     def verify_audit(
         bundle_id: str,
@@ -432,6 +471,112 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
     ) -> dict[str, Any]:
         try:
             return service.verify_audit(bundle_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/audits/{bundle_id}/export")
+    def export_audit(
+        bundle_id: str,
+        body: AuditExportBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from pathlib import Path
+
+        try:
+            result = service.export_audit(bundle_id, body.output_dir)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except FileNotFoundError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
+        if body.release_id:
+            try:
+                release = service.releases.mark_exported(
+                    body.release_id,
+                    export_path=str(result.get("exported_to") or body.output_dir),
+                )
+                result = {**result, "release": release}
+            except KeyError as exc:
+                raise http_error(404, code="not_found", message=str(exc)) from exc
+            except ValueError as exc:
+                raise http_error(409, code="conflict", message=str(exc)) from exc
+        # Safety: export must not write into project_root source tree accidentally
+        # beyond the caller-chosen output_dir.
+        _ = Path(body.output_dir)
+        return result
+
+    # --- releases / workspaces (v1.8) ------------------------------------
+    @router.get("/workspaces/summary")
+    def workspaces_summary(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.workspace_summary()
+
+    @router.get("/releases")
+    def list_releases(
+        project_id: str | None = None,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        items = service.list_releases(project_id=project_id, limit=500)
+        return page_response(
+            items, limit=clamp_limit(limit), offset=clamp_offset(offset)
+        )
+
+    @router.get("/releases/{release_id}")
+    def get_release(
+        release_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.show_release(release_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/releases")
+    def create_release(
+        body: ReleaseCreateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.create_release(
+                project_id=body.project_id,
+                title=body.title,
+                tree_id=body.tree_id,
+                report_id=body.report_id,
+                audit_bundle_id=body.audit_bundle_id,
+                patch_ids=body.patch_ids,
+            )
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
+
+    @router.post("/releases/{release_id}/freeze")
+    def freeze_release(
+        release_id: str,
+        body: ReleaseFreezeBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        notes = body.notes if body else ""
+        try:
+            return service.freeze_release(release_id, notes=notes)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/releases/{release_id}/discard")
+    def discard_release(
+        release_id: str,
+        body: ReleaseDiscardBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        reason = body.reason if body else ""
+        try:
+            return service.discard_release(release_id, reason=reason)
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:
