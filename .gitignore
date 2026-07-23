@@ -10,5 +10,6 @@ runtime/*
 !runtime/.gitkeep
 outputs/*
 !outputs/.gitkeep
+.scientist-worktrees/
 .env
 .DS_Store

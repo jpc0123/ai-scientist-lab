@@ -1,0 +1,47 @@
+{
+  "version": "v1.8.0",
+  "passed": 8,
+  "total": 8,
+  "results": [
+    {
+      "name": "api-health-v18",
+      "ok": true,
+      "detail": "version=v1.8.1"
+    },
+    {
+      "name": "workspace-main-readonly",
+      "ok": true,
+      "detail": "False"
+    },
+    {
+      "name": "release-create-freeze",
+      "ok": true,
+      "detail": "create=200 freeze=200"
+    },
+    {
+      "name": "report-audit-build-export",
+      "ok": true,
+      "detail": "report=200 audit=200 export=200"
+    },
+    {
+      "name": "openapi-v18-paths",
+      "ok": true,
+      "detail": "missing=[]"
+    },
+    {
+      "name": "frontend-chat-workspace",
+      "ok": true,
+      "detail": "D:\\AI Scientist_tiao\\scientist-lab\\web\\src\\pages\\ChatWorkspacePage.tsx"
+    },
+    {
+      "name": "release-discard-safe",
+      "ok": true,
+      "detail": "status=discarded"
+    },
+    {
+      "name": "releases-list-page",
+      "ok": true,
+      "detail": "total=2"
+    }
+  ]
+}
