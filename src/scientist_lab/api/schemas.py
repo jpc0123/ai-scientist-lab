@@ -115,3 +115,11 @@ class MergeFinalizeBody(BaseModel):
 class MergeRollbackBody(BaseModel):
     reason: str = ""
     trigger: str = "human"
+
+
+class ReleaseCandidateCreateBody(BaseModel):
+    version: str
+    project_id: str = ""
+    base_tag: str = ""
+    merge_candidate_ids: list[str] = Field(default_factory=list)
+    notes: str = ""

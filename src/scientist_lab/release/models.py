@@ -127,3 +127,37 @@ class RollbackRecord(BaseModel):
     reason: str = ""
     status: str = "pending"
     created_at: str = Field(default_factory=_now)
+
+
+ReleaseCandidateStatus = Literal[
+    "draft",
+    "verified",
+    "approved",
+    "released",
+    "rejected",
+]
+
+
+class ReleaseCandidate(BaseModel):
+    """Local-only release candidate (v1.9.8). Never auto-publishes remotely."""
+
+    release_candidate_id: str = Field(default_factory=lambda: new_id("rc"))
+    version: str
+    project_id: str = ""
+    base_tag: str = ""
+    commit_sha: str = ""
+    included_patch_ids: list[str] = Field(default_factory=list)
+    included_merge_candidate_ids: list[str] = Field(default_factory=list)
+    regression_test_summary: dict[str, Any] = Field(default_factory=dict)
+    acceptance_summary: dict[str, Any] = Field(default_factory=dict)
+    status: ReleaseCandidateStatus = "draft"
+    manifest_path: str | None = None
+    manifest: dict[str, Any] = Field(default_factory=dict)
+    verification: dict[str, Any] = Field(default_factory=dict)
+    created_at: str = Field(default_factory=_now)
+    updated_at: str = Field(default_factory=_now)
+    verified_at: str | None = None
+    notes: str = ""
+
+    def touch(self) -> None:
+        self.updated_at = _now()

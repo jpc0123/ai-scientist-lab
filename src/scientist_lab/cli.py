@@ -1052,6 +1052,34 @@ def build_parser() -> argparse.ArgumentParser:
     merge_rollback.add_argument("merge_candidate_id")
     merge_rollback.add_argument("--reason", default="")
 
+    rc_create = sub.add_parser(
+        "release-candidate-create",
+        help="Create a local Release Candidate + manifest (v1.9.8; no remote publish)",
+    )
+    rc_create.add_argument("--version", required=True)
+    rc_create.add_argument("--project-id", default="")
+    rc_create.add_argument("--base-tag", default="")
+    rc_create.add_argument(
+        "--merge-candidate-id",
+        action="append",
+        default=[],
+        dest="merge_candidate_ids",
+        help="Merged MergeCandidate id (repeatable)",
+    )
+    rc_create.add_argument("--notes", default="")
+
+    rc_show = sub.add_parser(
+        "release-candidate-show",
+        help="Show one Release Candidate (v1.9.8)",
+    )
+    rc_show.add_argument("release_candidate_id")
+
+    rc_verify = sub.add_parser(
+        "release-candidate-verify",
+        help="Verify Release Candidate manifest (v1.9.8)",
+    )
+    rc_verify.add_argument("release_candidate_id")
+
     cancel_parser = sub.add_parser("cancel-execution", help="Cancel a running execution")
     cancel_parser.add_argument("execution_id")
 
@@ -2510,6 +2538,41 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") == "rolled_back" else 1
         except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "release-candidate-create":
+        try:
+            data = service.create_release_candidate(
+                version=str(args.version),
+                project_id=getattr(args, "project_id", "") or "",
+                base_tag=getattr(args, "base_tag", "") or "",
+                merge_candidate_ids=list(
+                    getattr(args, "merge_candidate_ids", None) or []
+                ),
+                notes=getattr(args, "notes", "") or "",
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("release_candidate_id") else 1
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "release-candidate-show":
+        try:
+            data = service.show_release_candidate(args.release_candidate_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "release-candidate-verify":
+        try:
+            data = service.verify_release_candidate(args.release_candidate_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if (data.get("verification") or {}).get("valid") else 1
+        except KeyError as exc:
             print(str(exc), file=sys.stderr)
             return 1
 

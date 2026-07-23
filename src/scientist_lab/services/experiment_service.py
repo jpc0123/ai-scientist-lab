@@ -93,6 +93,13 @@ class ExperimentService:
             self.session_factory,
             project_root=Path(self.settings.project_root),
         )
+        from scientist_lab.release.release_candidate import ReleaseCandidateService
+
+        self.release_candidates = ReleaseCandidateService(
+            self.session_factory,
+            project_root=Path(self.settings.project_root),
+            outputs_root=Path(self.settings.outputs_dir),
+        )
         self._code_roots = {
             "local:experiment_app": Path(self.settings.experiment_app_dir),
             "local:rgbt_detector": Path(self.settings.rgbt_detector_dir),
@@ -2716,6 +2723,34 @@ class ExperimentService:
 
     def list_merge_profiles(self) -> list[dict[str, Any]]:
         return self.merges.list_profiles()
+
+    def create_release_candidate(
+        self,
+        *,
+        version: str,
+        project_id: str = "",
+        base_tag: str = "",
+        merge_candidate_ids: list[str] | None = None,
+        notes: str = "",
+    ) -> dict[str, Any]:
+        return self.release_candidates.create(
+            version=version,
+            project_id=project_id,
+            base_tag=base_tag,
+            merge_candidate_ids=merge_candidate_ids,
+            notes=notes,
+        )
+
+    def show_release_candidate(self, release_candidate_id: str) -> dict[str, Any]:
+        return self.release_candidates.show(release_candidate_id)
+
+    def verify_release_candidate(self, release_candidate_id: str) -> dict[str, Any]:
+        return self.release_candidates.verify(release_candidate_id)
+
+    def list_release_candidates(
+        self, *, project_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        return self.release_candidates.list_all(project_id=project_id, limit=limit)
 
     def tree_score(
         self, tree_id: str, *, tree_node_id: str | None = None

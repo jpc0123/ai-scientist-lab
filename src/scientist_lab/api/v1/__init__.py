@@ -20,6 +20,7 @@ from scientist_lab.api.schemas import (
     MergeRollbackBody,
     MergeTestBody,
     PatchApplySandboxBody,
+    ReleaseCandidateCreateBody,
     PatchDecideMergeBody,
     PatchRecordEvidenceBody,
     PatchTestBody,
@@ -737,6 +738,59 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
                 reason=(body.reason if body else "") or "",
                 trigger=(body.trigger if body else "human") or "human",
             )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    # --- release candidates (v1.9.8) -------------------------------------
+    @router.get("/release-candidates")
+    def list_release_candidates(
+        project_id: str | None = None,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        items = service.list_release_candidates(project_id=project_id, limit=500)
+        return page_response(
+            items, limit=clamp_limit(limit), offset=clamp_offset(offset)
+        )
+
+    @router.get("/release-candidates/{release_candidate_id}")
+    def get_release_candidate(
+        release_candidate_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.show_release_candidate(release_candidate_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/release-candidates")
+    def create_release_candidate(
+        body: ReleaseCandidateCreateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.create_release_candidate(
+                version=body.version,
+                project_id=body.project_id,
+                base_tag=body.base_tag,
+                merge_candidate_ids=body.merge_candidate_ids,
+                notes=body.notes,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/release-candidates/{release_candidate_id}/verify")
+    def verify_release_candidate(
+        release_candidate_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.verify_release_candidate(release_candidate_id)
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:
