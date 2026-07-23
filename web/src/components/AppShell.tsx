@@ -12,6 +12,9 @@ const links = [
   { to: "/plans", label: "规划方案", hint: "Plans" },
   { to: "/iterations", label: "迭代会话", hint: "Iterations" },
   { to: "/patches", label: "补丁", hint: "沙箱专用" },
+  { to: "/merges", label: "Merge Center", hint: "受控合并" },
+  { to: "/rollbacks", label: "回滚中心", hint: "revert only" },
+  { to: "/release-candidates", label: "Release Candidate", hint: "本地 Manifest" },
   { to: "/evidence", label: "证据与主张", hint: "Evidence" },
   { to: "/reports", label: "报告", hint: "Markdown" },
   { to: "/audits", label: "审计包", hint: "Audit" },
@@ -44,7 +47,7 @@ export function AppShell() {
         <p className="sidebar-note">
           无终端 · 无任意 Shell
           <br />
-          补丁仅沙箱 · 合并仅意图
+          合并仅 worktree · 无 push
         </p>
       </aside>
       <div className="workspace">

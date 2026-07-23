@@ -22,6 +22,13 @@ import {
 } from "../pages/ResourcePages";
 import { GuidePage } from "../pages/GuidePage";
 import { ChatWorkspacePage } from "../pages/ChatWorkspacePage";
+import {
+  MergeDetailPage,
+  MergesPage,
+  ReleaseCandidateDetailPage,
+  ReleaseCandidatesPage,
+  RollbacksPage,
+} from "../pages/MergeReleasePages";
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
 
 export function AppRouter() {
@@ -45,6 +52,14 @@ export function AppRouter() {
         <Route path="iterations/:id" element={<IterationDetailPage />} />
         <Route path="patches" element={<PatchesPage />} />
         <Route path="patches/:id" element={<PatchDetailPage />} />
+        <Route path="merges" element={<MergesPage />} />
+        <Route path="merges/:id" element={<MergeDetailPage />} />
+        <Route path="rollbacks" element={<RollbacksPage />} />
+        <Route path="release-candidates" element={<ReleaseCandidatesPage />} />
+        <Route
+          path="release-candidates/:id"
+          element={<ReleaseCandidateDetailPage />}
+        />
         <Route path="evidence" element={<EvidencePage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="reports/:id" element={<ReportDetailPage />} />

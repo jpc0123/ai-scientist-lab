@@ -23,6 +23,10 @@ const steps = [
     title: "5. 走一遍受控流程",
     body: "打开补丁详情 → 批准 → 应用到沙箱 → 沙箱测试 → 记录证据 → 记录合并意图。每一步都会弹出确认框；不会改主代码目录。",
   },
+  {
+    title: "6.（可选）受控合并与 RC",
+    body: "合并意图之后，可在 Merge Center 用 patch_id Prepare → Apply → Test → Approve → Commit → Finalize。危险步骤会二次确认。回滚用 Rollback Center（仅 revert）。本地 Release Candidate 在 RC 页创建与校验，不会远程发布。",
+  },
 ];
 
 const menus = [
@@ -31,6 +35,9 @@ const menus = [
   { name: "执行记录", to: "/executions", desc: "看实验跑得怎样、日志、指标" },
   { name: "实验树", to: "/trees", desc: "看搜索树结构（Mermaid 图）" },
   { name: "补丁", to: "/patches", desc: "看 Diff，只允许沙箱应用" },
+  { name: "Merge Center", to: "/merges", desc: "隔离 worktree 受控合并" },
+  { name: "回滚中心", to: "/rollbacks", desc: "仅 git revert，无 reset" },
+  { name: "Release Candidate", to: "/release-candidates", desc: "本地 Manifest，不远程发布" },
   { name: "报告 / 审计", to: "/reports", desc: "看 Markdown 报告与审计包" },
 ];
 
@@ -55,7 +62,7 @@ export function GuidePage() {
         <h2>请先记住</h2>
         <ul className="plain-list">
           <li>前端按钮隐藏 ≠ 安全；真正权限在后端。</li>
-          <li>补丁只能进沙箱，不能一键合并主分支 / commit / push。</li>
+          <li>补丁只能进沙箱；真正合并必须走 Merge Center（worktree），不能一键 push。</li>
           <li>没有任意 Shell、没有在线代码编辑器。</li>
         </ul>
       </section>
@@ -92,6 +99,11 @@ export function GuidePage() {
             <Link to="/patches">补丁</Link> → 打开刚生成的那条
           </li>
           <li>按按钮：批准 → 沙箱应用 → 测试 → 证据 → 合并意图</li>
+          <li>
+            （进阶）<Link to="/merges">Merge Center</Link> → Prepare → … → Finalize；需要时去{" "}
+            <Link to="/rollbacks">回滚</Link> 或{" "}
+            <Link to="/release-candidates">RC</Link>
+          </li>
           <li>
             再到 <Link to="/approvals">审批中心</Link> 看看队列长什么样
           </li>

@@ -101,4 +101,76 @@ export const api = {
       status: string;
       title?: string;
     }>("/api/v1/demo/seed-patch"),
+
+  // --- merges / release candidates (v1.9) --------------------------------
+  merges: (params?: { limit?: number; project_id?: string; patch_id?: string }) => {
+    const q = new URLSearchParams({
+      limit: String(params?.limit ?? 50),
+      offset: "0",
+    });
+    if (params?.project_id) q.set("project_id", params.project_id);
+    if (params?.patch_id) q.set("patch_id", params.patch_id);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/merges?${q}`);
+  },
+  merge: (id: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/merges/${id}`),
+  mergeProfiles: () =>
+    apiGet<{ items: Array<Record<string, unknown>> }>("/api/v1/merges/profiles"),
+  mergePrepare: (patchId: string, targetBranch = "") =>
+    apiPost<Record<string, unknown>>("/api/v1/merges/prepare", {
+      patch_id: patchId,
+      target_branch: targetBranch.trim() || null,
+    }),
+  mergeApply: (id: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/merges/${id}/apply`),
+  mergeTest: (id: string, profile = "smoke") =>
+    apiPost<Record<string, unknown>>(`/api/v1/merges/${id}/test`, { profile }),
+  mergeApprove: (id: string, reason = "", approvedBy = "human") =>
+    apiPost<Record<string, unknown>>(`/api/v1/merges/${id}/approve`, {
+      reason,
+      approved_by: approvedBy,
+    }),
+  mergeReject: (id: string, reason = "", approvedBy = "human") =>
+    apiPost<Record<string, unknown>>(`/api/v1/merges/${id}/reject`, {
+      reason,
+      approved_by: approvedBy,
+    }),
+  mergeCommit: (id: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/merges/${id}/commit`),
+  mergeFinalize: (
+    id: string,
+    body?: { post_merge_profile?: string; auto_rollback_on_failure?: boolean },
+  ) =>
+    apiPost<Record<string, unknown>>(`/api/v1/merges/${id}/finalize`, {
+      post_merge_profile: body?.post_merge_profile ?? "syntax",
+      auto_rollback_on_failure: body?.auto_rollback_on_failure ?? true,
+    }),
+  mergeRollback: (id: string, reason = "", trigger = "human") =>
+    apiPost<Record<string, unknown>>(`/api/v1/merges/${id}/rollback`, {
+      reason,
+      trigger,
+    }),
+  releaseCandidates: (params?: { limit?: number; project_id?: string }) => {
+    const q = new URLSearchParams({
+      limit: String(params?.limit ?? 50),
+      offset: "0",
+    });
+    if (params?.project_id) q.set("project_id", params.project_id);
+    return apiGet<Page<Record<string, unknown>>>(
+      `/api/v1/release-candidates?${q}`,
+    );
+  },
+  releaseCandidate: (id: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/release-candidates/${id}`),
+  createReleaseCandidate: (body: {
+    version: string;
+    project_id?: string;
+    base_tag?: string;
+    merge_candidate_ids?: string[];
+    notes?: string;
+  }) => apiPost<Record<string, unknown>>("/api/v1/release-candidates", body),
+  verifyReleaseCandidate: (id: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/release-candidates/${id}/verify`,
+    ),
 };
