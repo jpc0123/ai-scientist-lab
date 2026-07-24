@@ -399,4 +399,85 @@ export const api = {
     apiPost<Record<string, unknown>>(
       `/api/v1/release-candidates/${id}/verify`,
     ),
+  realLoops: (projectId?: string) => {
+    const q = new URLSearchParams({ limit: "50", offset: "0" });
+    if (projectId) q.set("project_id", projectId);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/real-loops?${q}`);
+  },
+  realLoop: (sessionId: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/real-loops/${sessionId}`),
+  createRealLoop: (body: {
+    project_id: string;
+    profile_id: string;
+    protocol_id: string;
+    rounds?: number;
+    baseline_node_ids?: string[];
+    tree_id?: string;
+  }) => apiPost<Record<string, unknown>>("/api/v1/real-loops", body),
+  realLoopCheck: (sessionId: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/real-loops/${sessionId}/check`),
+  realLoopPlan: (
+    sessionId: string,
+    body?: { round_number?: number; allow_network?: boolean; provider?: string },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/plan`,
+      body || {},
+    ),
+  realLoopReview: (
+    sessionId: string,
+    body?: { round_number?: number; allow_network?: boolean; provider?: string },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/review`,
+      body || {},
+    ),
+  realLoopApprove: (
+    sessionId: string,
+    body: { candidate_id: string; round_number?: number; seeds?: number[] },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/approve`,
+      body,
+    ),
+  realLoopReject: (
+    sessionId: string,
+    body?: { candidate_id?: string; round_number?: number; reason?: string },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/reject`,
+      body || {},
+    ),
+  realLoopExecute: (
+    sessionId: string,
+    body?: { round_number?: number; seeds?: number[]; wait?: boolean },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/execute`,
+      body || {},
+    ),
+  realLoopRecordExecutionFeedback: (sessionId: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/record-execution-feedback`,
+    ),
+  realLoopNextRound: (sessionId: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/next-round`,
+    ),
+  realLoopVerifyFeedback: (
+    sessionId: string,
+    body?: { round_number?: number; plan_id?: string; persist?: boolean },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/verify-feedback`,
+      body || {},
+    ),
+  realLoopExport: (
+    sessionId: string,
+    body?: { output_dir?: string; allow_incomplete?: boolean },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/real-loops/${sessionId}/export`,
+      body || {},
+    ),
 };

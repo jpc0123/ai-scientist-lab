@@ -60,11 +60,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start_workbench.ps1
 2. 再打开 http://127.0.0.1:8787/api/v1/health ，应看到类似：
 
 ```json
-{ "ok": true, "version": "v2.0.0", "docker_ok": true }
+{ "ok": true, "version": "v2.1.0", "docker_ok": true }
 ```
 
-- `version` 必须是 **`v2.0.x`**
-- 若仍是 `v1.7.1`：旧进程没停干净，再跑一遍上面的「先停再启」
+- `version` 必须是 **`v2.1.x`**
+- 若仍是 `v2.0.0` / `v1.7.1`：旧进程没停干净，再跑一遍上面的「先停再启」
 
 ### 只停止（不启动）
 

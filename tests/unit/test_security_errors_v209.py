@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from scientist_lab import API_VERSION
 from scientist_lab.api.app import create_app
 from scientist_lab.api.errors import error_body, sanitize_message
 from scientist_lab.services.experiment_service import ExperimentService
@@ -75,7 +76,7 @@ def test_api_validation_envelope(api_client):
 def test_health_version_v209(api_client):
     client, _ = api_client
     health = client.get("/api/v1/health")
-    assert health.json()["version"] == "v2.0.0"
+    assert health.json()["version"] == API_VERSION
 
 
 def test_security_posture_endpoint(api_client):
@@ -83,7 +84,7 @@ def test_security_posture_endpoint(api_client):
     resp = client.get("/api/v1/system/security")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["version"] == "v2.0.0"
+    assert data["version"] == API_VERSION
     assert data["overall"] in {"ok", "warning"}
     ids = {b["id"] for b in data["boundaries"]}
     assert "default_mock_llm" in ids

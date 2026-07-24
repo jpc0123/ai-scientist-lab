@@ -34,6 +34,7 @@ import {
   RollbacksPage,
 } from "../pages/MergeReleasePages";
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
+import { RealLoopDetailPage, RealLoopsPage } from "../pages/RealLoopsPage";
 
 export function AppRouter() {
   return (
@@ -47,11 +48,14 @@ export function AppRouter() {
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/new" element={<ProjectCreateWizardPage />} />
         <Route path="projects/:projectId" element={<ProjectDetailRoute />} />
+        <Route path="projects/:projectId/real-loops" element={<ProjectRealLoopsRoute />} />
         <Route path="executions" element={<ExecutionsPage />} />
         <Route path="executions/:id" element={<ExecutionDetailPage />} />
         <Route path="compare" element={<ComparePage />} />
         <Route path="trees" element={<TreesPage />} />
         <Route path="trees/:id" element={<TreeDetailPage />} />
+        <Route path="real-loops" element={<RealLoopsPage />} />
+        <Route path="real-loops/:sessionId" element={<RealLoopDetailPage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="plans/:id" element={<PlanDetailPage />} />
         <Route path="iterations" element={<IterationsPage />} />
@@ -83,4 +87,9 @@ export function AppRouter() {
 function ProjectDetailRoute() {
   const { projectId = "" } = useParams();
   return <ProjectDetailPage projectId={projectId} />;
+}
+
+function ProjectRealLoopsRoute() {
+  const { projectId = "" } = useParams();
+  return <Navigate to={`/real-loops?project_id=${encodeURIComponent(projectId)}`} replace />;
 }

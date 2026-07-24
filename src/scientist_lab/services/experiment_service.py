@@ -2719,6 +2719,235 @@ class ExperimentService:
             raise KeyError(f"llm profile not found: {profile_id}")
         return profile.safe_dict()
 
+    def _real_loop_service(self):
+        from scientist_lab.research_loop.service import RealResearchLoopService
+
+        return RealResearchLoopService(self)
+
+    def real_loop_create(
+        self,
+        project_id: str,
+        *,
+        profile_id: str,
+        protocol_id: str,
+        rounds: int = 2,
+        baseline_node_ids: list[str] | None = None,
+        tree_id: str | None = None,
+        fallback_allowed: bool = False,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().create(
+            project_id,
+            profile_id=profile_id,
+            protocol_id=protocol_id,
+            rounds=rounds,
+            baseline_node_ids=baseline_node_ids,
+            tree_id=tree_id,
+            fallback_allowed=fallback_allowed,
+        )
+
+    def real_loop_show(self, session_id: str) -> dict[str, Any]:
+        return self._real_loop_service().show(session_id)
+
+    def real_loop_check(self, session_id: str) -> dict[str, Any]:
+        return self._real_loop_service().check(session_id)
+
+    def real_loop_record_feedback(
+        self,
+        session_id: str,
+        *,
+        parent_node_id: str,
+        executed_node_id: str,
+        source_round: int = 1,
+        comparison: dict[str, Any] | None = None,
+        evidence_ids: list[str] | None = None,
+        claims_changed: list[str] | None = None,
+        previous_hypothesis: str | None = None,
+        failure: dict[str, Any] | None = None,
+        advance_status: bool = True,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().record_feedback(
+            session_id,
+            source_round=source_round,
+            parent_node_id=parent_node_id,
+            executed_node_id=executed_node_id,
+            comparison=comparison,
+            evidence_ids=evidence_ids,
+            claims_changed=claims_changed,
+            previous_hypothesis=previous_hypothesis,
+            failure=failure,
+            advance_status=advance_status,
+        )
+
+    def real_loop_record_execution_feedback(
+        self,
+        session_id: str,
+        *,
+        source_round: int = 1,
+        parent_node_id: str | None = None,
+        executed_node_id: str | None = None,
+        advance_status: bool = True,
+        include_round2_context: bool = True,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().record_execution_feedback(
+            session_id,
+            source_round=source_round,
+            parent_node_id=parent_node_id,
+            executed_node_id=executed_node_id,
+            advance_status=advance_status,
+            include_round2_context=include_round2_context,
+        )
+
+    def real_loop_next_round(self, session_id: str) -> dict[str, Any]:
+        return self._real_loop_service().prepare_next_round(session_id)
+
+    def real_loop_verify_feedback(
+        self,
+        session_id: str,
+        *,
+        round_number: int = 2,
+        plan_id: str | None = None,
+        persist: bool = True,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().verify_feedback_use(
+            session_id,
+            round_number=round_number,
+            plan_id=plan_id,
+            persist=persist,
+        )
+
+    def real_loop_export(
+        self,
+        session_id: str,
+        *,
+        output_dir: str | None = None,
+        allow_incomplete: bool = False,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().export_replay(
+            session_id,
+            output_dir=output_dir,
+            allow_incomplete=allow_incomplete,
+        )
+
+    def real_loop_build_context(
+        self,
+        session_id: str,
+        *,
+        round_number: int,
+        enforce_feedback_gate: bool = True,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().build_planning_context_for_round(
+            session_id,
+            round_number=round_number,
+            enforce_feedback_gate=enforce_feedback_gate,
+        )
+
+    def real_loop_check_profile(
+        self,
+        profile_id: str | None = None,
+        *,
+        session_id: str | None = None,
+        suite_version: str | None = "eval_suite_v1",
+        require_quality_gate: bool = True,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().check_profile(
+            profile_id,
+            session_id=session_id,
+            suite_version=suite_version,
+            require_quality_gate=require_quality_gate,
+        )
+
+    def real_loop_plan(
+        self,
+        session_id: str,
+        *,
+        round_number: int | None = None,
+        allow_network: bool = False,
+        transport: Any = None,
+        openai_config: Any = None,
+        provider: str = "openai-compatible",
+        suite_version: str | None = "eval_suite_v1",
+    ) -> dict[str, Any]:
+        return self._real_loop_service().plan_round(
+            session_id,
+            round_number=round_number,
+            allow_network=allow_network,
+            transport=transport,
+            openai_config=openai_config,
+            provider=provider,
+            suite_version=suite_version,
+        )
+
+    def real_loop_review(
+        self,
+        session_id: str,
+        *,
+        round_number: int | None = None,
+        allow_network: bool = False,
+        transport: Any = None,
+        openai_config: Any = None,
+        provider: str = "openai-compatible",
+    ) -> dict[str, Any]:
+        return self._real_loop_service().review_round(
+            session_id,
+            round_number=round_number,
+            allow_network=allow_network,
+            transport=transport,
+            openai_config=openai_config,
+            provider=provider,
+        )
+
+    def real_loop_approve(
+        self,
+        session_id: str,
+        *,
+        candidate_id: str,
+        round_number: int | None = None,
+        seeds: list[int] | None = None,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().approve_round(
+            session_id,
+            candidate_id=candidate_id,
+            round_number=round_number,
+            seeds=seeds,
+        )
+
+    def real_loop_reject(
+        self,
+        session_id: str,
+        *,
+        candidate_id: str | None = None,
+        round_number: int | None = None,
+        reason: str | None = None,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().reject_round(
+            session_id,
+            candidate_id=candidate_id,
+            round_number=round_number,
+            reason=reason,
+        )
+
+    def real_loop_execute(
+        self,
+        session_id: str,
+        *,
+        round_number: int | None = None,
+        seeds: list[int] | None = None,
+        wait: bool = True,
+    ) -> dict[str, Any]:
+        return self._real_loop_service().execute_round(
+            session_id,
+            round_number=round_number,
+            seeds=seeds,
+            wait=wait,
+        )
+
+    def real_loop_list(
+        self, *, project_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self._real_loop_service().list_sessions(
+            project_id=project_id, limit=limit
+        )
+
     def get_llm_evaluation(self, evaluation_id: str) -> dict[str, Any]:
         row = self.llm_evals.get_evaluation(evaluation_id)
         if row is None:

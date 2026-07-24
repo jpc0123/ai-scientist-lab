@@ -213,3 +213,53 @@ class ProjectExportBody(BaseModel):
 class ProjectImportBody(BaseModel):
     path: str
     force: bool = False
+
+
+class RealLoopCreateBody(BaseModel):
+    project_id: str
+    profile_id: str
+    protocol_id: str
+    rounds: int = 2
+    baseline_node_ids: list[str] = Field(default_factory=list)
+    tree_id: str | None = None
+
+
+class RealLoopPlanBody(BaseModel):
+    round_number: int | None = None
+    allow_network: bool = False
+    provider: str = "openai-compatible"
+
+
+class RealLoopReviewBody(BaseModel):
+    round_number: int | None = None
+    allow_network: bool = False
+    provider: str = "openai-compatible"
+
+
+class RealLoopApproveBody(BaseModel):
+    candidate_id: str
+    round_number: int | None = None
+    seeds: list[int] = Field(default_factory=list)
+
+
+class RealLoopRejectBody(BaseModel):
+    candidate_id: str | None = None
+    round_number: int | None = None
+    reason: str | None = None
+
+
+class RealLoopExecuteBody(BaseModel):
+    round_number: int | None = None
+    seeds: list[int] = Field(default_factory=list)
+    wait: bool = True
+
+
+class RealLoopExportBody(BaseModel):
+    output_dir: str | None = None
+    allow_incomplete: bool = False
+
+
+class RealLoopVerifyBody(BaseModel):
+    round_number: int = 2
+    plan_id: str | None = None
+    persist: bool = True

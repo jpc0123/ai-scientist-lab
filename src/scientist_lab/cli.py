@@ -1226,6 +1226,211 @@ def build_parser() -> argparse.ArgumentParser:
         help="Only print stop command",
     )
 
+    real_loop_create = sub.add_parser(
+        "real-loop-create",
+        help="Create a real research loop session (v2.1.1; offline)",
+    )
+    real_loop_create.add_argument("project_id")
+    real_loop_create.add_argument("--profile", required=True, dest="profile_id")
+    real_loop_create.add_argument("--protocol", required=True, dest="protocol_id")
+    real_loop_create.add_argument("--rounds", type=int, default=2)
+    real_loop_create.add_argument(
+        "--baseline-node",
+        action="append",
+        default=[],
+        dest="baseline_node_ids",
+        help="Baseline node id (repeatable)",
+    )
+    real_loop_create.add_argument("--tree-id", default=None)
+
+    real_loop_show = sub.add_parser(
+        "real-loop-show", help="Show one real research loop session (v2.1.1)"
+    )
+    real_loop_show.add_argument("session_id")
+
+    real_loop_check = sub.add_parser(
+        "real-loop-check",
+        help="Offline integrity check for a real research loop session (v2.1.1)",
+    )
+    real_loop_check.add_argument("session_id")
+
+    real_loop_list = sub.add_parser(
+        "real-loop-list", help="List real research loop sessions (v2.1.1)"
+    )
+    real_loop_list.add_argument("--project-id", default=None)
+    real_loop_list.add_argument("--limit", type=int, default=50)
+
+    real_loop_record = sub.add_parser(
+        "real-loop-record-feedback",
+        help="Record RoundFeedbackSummary for a completed round (v2.1.2; offline)",
+    )
+    real_loop_record.add_argument("session_id")
+    real_loop_record.add_argument("--parent-node", required=True, dest="parent_node_id")
+    real_loop_record.add_argument(
+        "--executed-node", required=True, dest="executed_node_id"
+    )
+    real_loop_record.add_argument("--source-round", type=int, default=1)
+    real_loop_record.add_argument(
+        "--comparison-json",
+        default=None,
+        help="Path to comparison JSON (optional)",
+    )
+    real_loop_record.add_argument("--hypothesis", default=None)
+    real_loop_record.add_argument(
+        "--evidence-id",
+        action="append",
+        default=[],
+        dest="evidence_ids",
+    )
+
+    real_loop_exec_fb = sub.add_parser(
+        "real-loop-record-execution-feedback",
+        help="Build Evidence/Claim from executed Digits node and advance (v2.1.5)",
+    )
+    real_loop_exec_fb.add_argument("session_id")
+    real_loop_exec_fb.add_argument("--source-round", type=int, default=1)
+    real_loop_exec_fb.add_argument("--parent-node", default=None, dest="parent_node_id")
+    real_loop_exec_fb.add_argument(
+        "--executed-node", default=None, dest="executed_node_id"
+    )
+    real_loop_exec_fb.add_argument(
+        "--no-round2-context",
+        action="store_true",
+        help="Skip building Round-2 PlanningContext",
+    )
+    real_loop_exec_fb.add_argument(
+        "--no-advance",
+        action="store_true",
+        help="Do not advance session to feedback_ready",
+    )
+
+    real_loop_next = sub.add_parser(
+        "real-loop-next-round",
+        help="Advance feedback_ready → round_2_planning with context (v2.1.5)",
+    )
+    real_loop_next.add_argument("session_id")
+
+    real_loop_verify = sub.add_parser(
+        "real-loop-verify-feedback",
+        help="Verify Round-2 plan used Round-1 feedback (v2.1.6; deterministic)",
+    )
+    real_loop_verify.add_argument("session_id")
+    real_loop_verify.add_argument("--round", type=int, default=2, dest="round_number")
+    real_loop_verify.add_argument("--plan-id", default=None, dest="plan_id")
+    real_loop_verify.add_argument(
+        "--no-persist",
+        action="store_true",
+        help="Do not write FeedbackUsageRecord",
+    )
+
+    real_loop_export = sub.add_parser(
+        "real-loop-export",
+        help="Export redacted Replay Bundle for offline CI (v2.1.7)",
+    )
+    real_loop_export.add_argument("session_id")
+    real_loop_export.add_argument(
+        "--output",
+        default=None,
+        dest="output_dir",
+        help="Bundle directory (default: outputs/<project>/real_loop/<session>)",
+    )
+    real_loop_export.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="Export even before round-1 feedback is ready",
+    )
+
+    real_loop_ctx = sub.add_parser(
+        "real-loop-build-context",
+        help="Build PlanningContext for a loop round (v2.1.2; offline gate)",
+    )
+    real_loop_ctx.add_argument("session_id")
+    real_loop_ctx.add_argument("--round", type=int, required=True, dest="round_number")
+    real_loop_ctx.add_argument(
+        "--allow-missing-feedback",
+        action="store_true",
+        help="Disable round>=2 feedback gate (debug only)",
+    )
+
+    real_loop_check_profile = sub.add_parser(
+        "real-loop-check-profile",
+        help="Offline Model Profile qualification for real loops (v2.1.3)",
+    )
+    real_loop_check_profile.add_argument(
+        "profile_id", nargs="?", default=None, help="Profile id (or use --session)"
+    )
+    real_loop_check_profile.add_argument("--session", dest="session_id", default=None)
+    real_loop_check_profile.add_argument("--suite", default="eval_suite_v1")
+    real_loop_check_profile.add_argument(
+        "--skip-quality-gate",
+        action="store_true",
+        help="Only check profile shape (not for formal real-loop)",
+    )
+
+    real_loop_plan = sub.add_parser(
+        "real-loop-plan",
+        help="Real-only Planner for a loop round (v2.1.3; no mock fallback)",
+    )
+    real_loop_plan.add_argument("session_id")
+    real_loop_plan.add_argument("--round", type=int, default=None, dest="round_number")
+    real_loop_plan.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Permit live HTTP (also requires LLM_ALLOW_NETWORK=true)",
+    )
+    real_loop_plan.add_argument(
+        "--provider",
+        default="openai-compatible",
+        help="Must be real / openai-compatible",
+    )
+
+    real_loop_review = sub.add_parser(
+        "real-loop-review",
+        help="Real-only Critic review for a loop round (v2.1.3)",
+    )
+    real_loop_review.add_argument("session_id")
+    real_loop_review.add_argument("--round", type=int, default=None, dest="round_number")
+    real_loop_review.add_argument("--allow-network", action="store_true")
+    real_loop_review.add_argument("--provider", default="openai-compatible")
+
+    real_loop_approve = sub.add_parser(
+        "real-loop-approve",
+        help="Approve one candidate and create Digits iteration (v2.1.4; no run yet)",
+    )
+    real_loop_approve.add_argument("session_id")
+    real_loop_approve.add_argument(
+        "--candidate", required=True, dest="candidate_id", help="Candidate id to approve"
+    )
+    real_loop_approve.add_argument("--round", type=int, default=None, dest="round_number")
+    real_loop_approve.add_argument(
+        "--seeds",
+        default=None,
+        help="Comma-separated seeds (default: fast_eval seeds)",
+    )
+
+    real_loop_reject = sub.add_parser(
+        "real-loop-reject",
+        help="Reject the waiting candidate without executing (v2.1.4)",
+    )
+    real_loop_reject.add_argument("session_id")
+    real_loop_reject.add_argument("--candidate", default=None, dest="candidate_id")
+    real_loop_reject.add_argument("--round", type=int, default=None, dest="round_number")
+    real_loop_reject.add_argument("--reason", default=None)
+
+    real_loop_execute = sub.add_parser(
+        "real-loop-execute",
+        help="Execute approved Digits iteration (v2.1.4; bans mock entrypoint)",
+    )
+    real_loop_execute.add_argument("session_id")
+    real_loop_execute.add_argument("--round", type=int, default=None, dest="round_number")
+    real_loop_execute.add_argument("--seeds", default=None)
+    real_loop_execute.add_argument(
+        "--async",
+        dest="async_run",
+        action="store_true",
+        help="Submit without waiting for seed completion",
+    )
+
     return parser
 
 
@@ -1271,6 +1476,316 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         except Exception as exc:  # noqa: BLE001
             print(f"demo-create 失败: {exc}", file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-create":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_create(
+                str(args.project_id),
+                profile_id=str(args.profile_id),
+                protocol_id=str(args.protocol_id),
+                rounds=int(getattr(args, "rounds", 2) or 2),
+                baseline_node_ids=list(getattr(args, "baseline_node_ids", None) or []),
+                tree_id=getattr(args, "tree_id", None),
+                fallback_allowed=False,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (RealLoopValidationError, RealLoopError, KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-show":
+        from scientist_lab.research_loop.errors import RealLoopNotFoundError
+
+        try:
+            print(
+                json.dumps(
+                    service.real_loop_show(str(args.session_id)),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except RealLoopNotFoundError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-check":
+        from scientist_lab.research_loop.errors import RealLoopNotFoundError
+
+        try:
+            data = service.real_loop_check(str(args.session_id))
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("overall") == "ok" else 1
+        except RealLoopNotFoundError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-list":
+        print(
+            json.dumps(
+                service.real_loop_list(
+                    project_id=getattr(args, "project_id", None),
+                    limit=int(getattr(args, "limit", 50) or 50),
+                ),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "real-loop-record-feedback":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            comparison = None
+            cmp_path = getattr(args, "comparison_json", None)
+            if cmp_path:
+                comparison = json.loads(Path(cmp_path).read_text(encoding="utf-8"))
+            data = service.real_loop_record_feedback(
+                str(args.session_id),
+                parent_node_id=str(args.parent_node_id),
+                executed_node_id=str(args.executed_node_id),
+                source_round=int(getattr(args, "source_round", 1) or 1),
+                comparison=comparison,
+                evidence_ids=list(getattr(args, "evidence_ids", None) or []),
+                previous_hypothesis=getattr(args, "hypothesis", None),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-record-execution-feedback":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_record_execution_feedback(
+                str(args.session_id),
+                source_round=int(getattr(args, "source_round", 1) or 1),
+                parent_node_id=getattr(args, "parent_node_id", None),
+                executed_node_id=getattr(args, "executed_node_id", None),
+                advance_status=not bool(getattr(args, "no_advance", False)),
+                include_round2_context=not bool(
+                    getattr(args, "no_round2_context", False)
+                ),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+            return 0 if data.get("ok", True) is not False else 1
+        except (
+            RealLoopValidationError,
+            RealLoopNotFoundError,
+            RealLoopError,
+            KeyError,
+            ValueError,
+        ) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-next-round":
+        from scientist_lab.research_loop.errors import (
+            InvalidRealLoopTransition,
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_next_round(str(args.session_id))
+            print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+            return 0 if data.get("ok", True) is not False else 1
+        except (
+            RealLoopValidationError,
+            RealLoopNotFoundError,
+            RealLoopError,
+            InvalidRealLoopTransition,
+        ) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-verify-feedback":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_verify_feedback(
+                str(args.session_id),
+                round_number=int(getattr(args, "round_number", 2) or 2),
+                plan_id=getattr(args, "plan_id", None),
+                persist=not bool(getattr(args, "no_persist", False)),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+            return 0 if data.get("pass_status") else 1
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-export":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_export(
+                str(args.session_id),
+                output_dir=getattr(args, "output_dir", None),
+                allow_incomplete=bool(getattr(args, "allow_incomplete", False)),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+            return 0 if data.get("ok", True) is not False else 1
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-build-context":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_build_context(
+                str(args.session_id),
+                round_number=int(args.round_number),
+                enforce_feedback_gate=not bool(
+                    getattr(args, "allow_missing_feedback", False)
+                ),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-check-profile":
+        data = service.real_loop_check_profile(
+            getattr(args, "profile_id", None),
+            session_id=getattr(args, "session_id", None),
+            suite_version=str(getattr(args, "suite", "eval_suite_v1") or "eval_suite_v1"),
+            require_quality_gate=not bool(getattr(args, "skip_quality_gate", False)),
+        )
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0 if data.get("overall") == "ok" else 1
+
+    if args.command == "real-loop-plan":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_plan(
+                str(args.session_id),
+                round_number=getattr(args, "round_number", None),
+                allow_network=bool(getattr(args, "allow_network", False)),
+                provider=str(getattr(args, "provider", "openai-compatible")),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok", True) is not False else 1
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-review":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_review(
+                str(args.session_id),
+                round_number=getattr(args, "round_number", None),
+                allow_network=bool(getattr(args, "allow_network", False)),
+                provider=str(getattr(args, "provider", "openai-compatible")),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok", True) is not False else 1
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-approve":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_approve(
+                str(args.session_id),
+                candidate_id=str(args.candidate_id),
+                round_number=getattr(args, "round_number", None),
+                seeds=_parse_seeds(getattr(args, "seeds", None)),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok", True) is not False else 1
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError, KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-reject":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_reject(
+                str(args.session_id),
+                candidate_id=getattr(args, "candidate_id", None),
+                round_number=getattr(args, "round_number", None),
+                reason=getattr(args, "reason", None),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok", True) is not False else 1
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "real-loop-execute":
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            data = service.real_loop_execute(
+                str(args.session_id),
+                round_number=getattr(args, "round_number", None),
+                seeds=_parse_seeds(getattr(args, "seeds", None)),
+                wait=not bool(getattr(args, "async_run", False)),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok", True) is not False else 1
+        except (RealLoopValidationError, RealLoopNotFoundError, RealLoopError, KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
             return 1
 
     if args.command == "workbench":

@@ -3,7 +3,7 @@
   "info": {
     "title": "Scientist Lab Web Console API",
     "description": "Local single-user research workbench API. All mutations go through ExperimentService state machines.",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "paths": {
     "/api/v1/health": {

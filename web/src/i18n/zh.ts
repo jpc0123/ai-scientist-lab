@@ -46,6 +46,8 @@ const zh: MessageTree = {
     compareHint: "文字结论",
     trees: "实验树",
     treesHint: "规划与推进",
+    realLoops: "真实闭环",
+    realLoopsHint: "REAL / MOCK / REPLAY",
     planning: "规划与审批",
     approvals: "审批中心",
     approvalsHint: "批准 / 拒绝",
@@ -109,7 +111,7 @@ const zh: MessageTree = {
     seedFail: "生成演示补丁失败",
   },
   projects: {
-    eyebrow: "2.0.0",
+    eyebrow: "2.1.0",
     title: "项目",
     lede: "科研项目生命周期入口。新建走六步向导，或一键创建内置演示。",
     new: "新建项目",

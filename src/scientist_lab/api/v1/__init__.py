@@ -30,6 +30,14 @@ from scientist_lab.api.schemas import (
     ProjectCreateBody,
     ProjectExportBody,
     ProjectImportBody,
+    RealLoopApproveBody,
+    RealLoopCreateBody,
+    RealLoopExecuteBody,
+    RealLoopExportBody,
+    RealLoopPlanBody,
+    RealLoopRejectBody,
+    RealLoopReviewBody,
+    RealLoopVerifyBody,
     ReleaseCandidateCreateBody,
     PatchDecideMergeBody,
     PatchRecordEvidenceBody,
@@ -1358,6 +1366,282 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    # --- real research loops (v2.1.8) ------------------------------------
+    @router.get("/real-loops")
+    def list_real_loops(
+        project_id: str | None = None,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        items = service.real_loop_list(project_id=project_id, limit=500)
+        return page_response(
+            items, limit=clamp_limit(limit), offset=clamp_offset(offset)
+        )
+
+    @router.get("/real-loops/{session_id}")
+    def get_real_loop(
+        session_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import RealLoopNotFoundError
+
+        try:
+            return service.real_loop_show(session_id)
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/real-loops")
+    def create_real_loop(
+        body: RealLoopCreateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopValidationError,
+        )
+
+        try:
+            return service.real_loop_create(
+                body.project_id,
+                profile_id=body.profile_id,
+                protocol_id=body.protocol_id,
+                rounds=body.rounds,
+                baseline_node_ids=list(body.baseline_node_ids or []),
+                tree_id=body.tree_id,
+            )
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/check")
+    def check_real_loop(
+        session_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import RealLoopNotFoundError
+
+        try:
+            return service.real_loop_check(session_id)
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/plan")
+    def plan_real_loop(
+        session_id: str,
+        body: RealLoopPlanBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        payload = body or RealLoopPlanBody()
+        try:
+            return service.real_loop_plan(
+                session_id,
+                round_number=payload.round_number,
+                allow_network=payload.allow_network,
+                provider=payload.provider,
+            )
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/review")
+    def review_real_loop(
+        session_id: str,
+        body: RealLoopReviewBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        payload = body or RealLoopReviewBody()
+        try:
+            return service.real_loop_review(
+                session_id,
+                round_number=payload.round_number,
+                allow_network=payload.allow_network,
+                provider=payload.provider,
+            )
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/approve")
+    def approve_real_loop(
+        session_id: str,
+        body: RealLoopApproveBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            return service.real_loop_approve(
+                session_id,
+                candidate_id=body.candidate_id,
+                round_number=body.round_number,
+                seeds=list(body.seeds or []) or None,
+            )
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/reject")
+    def reject_real_loop(
+        session_id: str,
+        body: RealLoopRejectBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        payload = body or RealLoopRejectBody()
+        try:
+            return service.real_loop_reject(
+                session_id,
+                candidate_id=payload.candidate_id,
+                round_number=payload.round_number,
+                reason=payload.reason,
+            )
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/execute")
+    def execute_real_loop(
+        session_id: str,
+        body: RealLoopExecuteBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        payload = body or RealLoopExecuteBody()
+        try:
+            return service.real_loop_execute(
+                session_id,
+                round_number=payload.round_number,
+                seeds=list(payload.seeds or []) or None,
+                wait=payload.wait,
+            )
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/record-execution-feedback")
+    def record_execution_feedback_real_loop(
+        session_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            return service.real_loop_record_execution_feedback(session_id)
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/next-round")
+    def next_round_real_loop(
+        session_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            InvalidRealLoopTransition,
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        try:
+            return service.real_loop_next_round(session_id)
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (
+            RealLoopValidationError,
+            RealLoopError,
+            InvalidRealLoopTransition,
+            ValueError,
+        ) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/verify-feedback")
+    def verify_feedback_real_loop(
+        session_id: str,
+        body: RealLoopVerifyBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        payload = body or RealLoopVerifyBody()
+        try:
+            return service.real_loop_verify_feedback(
+                session_id,
+                round_number=payload.round_number,
+                plan_id=payload.plan_id,
+                persist=payload.persist,
+            )
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/real-loops/{session_id}/export")
+    def export_real_loop(
+        session_id: str,
+        body: RealLoopExportBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.research_loop.errors import (
+            RealLoopError,
+            RealLoopNotFoundError,
+            RealLoopValidationError,
+        )
+
+        payload = body or RealLoopExportBody()
+        try:
+            return service.real_loop_export(
+                session_id,
+                output_dir=payload.output_dir,
+                allow_incomplete=payload.allow_incomplete,
+            )
+        except (RealLoopNotFoundError, KeyError) as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (RealLoopValidationError, RealLoopError, ValueError) as exc:
             raise http_error(409, code="conflict", message=str(exc)) from exc
 
     return router

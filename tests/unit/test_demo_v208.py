@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from scientist_lab import API_VERSION
 from scientist_lab.api.app import create_app
 from scientist_lab.services.experiment_service import ExperimentService
 from scientist_lab.settings import Settings
@@ -53,7 +54,7 @@ def test_demo_catalog_and_create_digits(api_client):
     assert again.json()["status"] == "exists"
 
     health = client.get("/api/v1/health")
-    assert health.json()["version"] == "v2.0.0"
+    assert health.json()["version"] == API_VERSION
 
     listed = service.list_projects()
     assert any(p["project_id"] == "demo_digits_v20" for p in listed)

@@ -70,5 +70,14 @@ def sanitize_planning_context(context: PlanningContext) -> PlanningContext:
         }
         for item in (data.get("evidence_records") or [])[:20]
     ]
+    # Keep round feedback (v2.1.2) but scrub nested strings/paths.
+    if data.get("round_feedback_summary"):
+        data["round_feedback_summary"] = _scrub_obj(data["round_feedback_summary"])
+    if data.get("recent_execution_summary"):
+        data["recent_execution_summary"] = _scrub_obj(data["recent_execution_summary"])
+    if data.get("previous_parameter_changes"):
+        data["previous_parameter_changes"] = _scrub_obj(
+            data["previous_parameter_changes"]
+        )
     cleaned = _scrub_obj(data)
     return PlanningContext.model_validate(cleaned)

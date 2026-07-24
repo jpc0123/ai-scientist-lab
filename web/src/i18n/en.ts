@@ -46,6 +46,8 @@ const en: MessageTree = {
     compareHint: "Text conclusions",
     trees: "Experiment Tree",
     treesHint: "Plan & advance",
+    realLoops: "Real Loops",
+    realLoopsHint: "REAL / MOCK / REPLAY",
     planning: "Planning & Approvals",
     approvals: "Approvals",
     approvalsHint: "Approve / reject",
@@ -109,7 +111,7 @@ const en: MessageTree = {
     seedFail: "Failed to create demo patch",
   },
   projects: {
-    eyebrow: "2.0.0",
+    eyebrow: "2.1.0",
     title: "Projects",
     lede: "Research project lifecycle. Use the six-step wizard or one-click demos.",
     new: "New project",

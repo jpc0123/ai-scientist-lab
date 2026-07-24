@@ -159,6 +159,7 @@ def init_db(db_path: str) -> sessionmaker:
     from scientist_lab.patching.repository import ensure_patching_schema
     from scientist_lab.protocols.repository import ensure_protocol_schema
     from scientist_lab.release.repository import ensure_release_schema
+    from scientist_lab.research_loop.repository import ensure_research_loop_schema
     from scientist_lab.runners.profile_repository import ensure_runner_profile_schema
     from scientist_lab.search.repository import ensure_search_tree_schema
     from scientist_lab.storage.project_schema import ensure_project_schema
@@ -178,4 +179,5 @@ def init_db(db_path: str) -> sessionmaker:
     ensure_llm_eval_schema(engine)
     ensure_patching_schema(engine)
     ensure_release_schema(engine)
+    ensure_research_loop_schema(engine)
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)

@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.1.0] - 2026-07-24
+
+Real-LLM multi-round research closed loop on top of the v2.0 workbench.
+
+### Added
+- `research_loop/` session model, state machine, repository, and service
+- Real-only Planner/Critic provider gate (`fallback_allowed=false`; no silent mock/replay)
+- Human approve → Digits execute (ban mock entrypoint); Evidence/Claim feedback backfill
+- Round-2 PlanningContext + `FeedbackUseVerifier` (six deterministic dimensions)
+- Replay Bundle export (scrubbed) + offline `scripts/accept_v21.py` (17/17)
+- Gated live acceptance `scripts/accept_v21_real.py` (default SKIP / zero network)
+- Web Console Real Loops (`/real-loops`) with REAL / MOCK / REPLAY display mode
+- CLI: `real-loop-create|show|check|plan|review|approve|reject|execute|record-feedback|next-round|verify-feedback|export|…`
+- API: `/api/v1/real-loops*`
+
+### Changed
+- Package / CLI / Web / API health versions aligned to **2.1.0** (`API_VERSION=v2.1.0`)
+
+### Notes
+- Default LLM remains **mock**; live closed-loop needs explicit gates
+- Human approval preserved; no auto-approve / auto-push / auto Diff
+- Tag target: `v2.1.0` (baseline `v2.0.0`)
+- Deferred: real-provider Diff (v2.2); CUDA + Vendor DFINE (v2.3)
+
 ## [2.0.0] - 2026-07-24
 
 Scientist Lab AI Scientist Workbench — unified local product surface on top of the v1.x controlled research stack.

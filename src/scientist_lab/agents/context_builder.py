@@ -8,6 +8,7 @@ from typing import Any, Callable
 from scientist_lab.agents.models import (
     DEFAULT_BLOCKED_ACTIONS,
     PlanningContext,
+    RoundFeedbackSummary,
 )
 from scientist_lab.planning.candidate_verifier import context_sha256, parameter_fingerprint
 
@@ -98,6 +99,12 @@ def build_planning_context(
     current_best_node_id: str | None = None,
     remaining_budget: dict[str, Any] | None = None,
     extra_blocked_actions: list[str] | None = None,
+    loop_session_id: str | None = None,
+    loop_round_number: int | None = None,
+    round_feedback_summary: RoundFeedbackSummary | dict[str, Any] | None = None,
+    recent_execution_summary: dict[str, Any] | None = None,
+    previous_planner_hypothesis: str | None = None,
+    previous_parameter_changes: dict[str, Any] | None = None,
 ) -> PlanningContext:
     protocol_payload = _scrub(dict(protocol or {}))
     node_payloads = [_scrub(_node_summary(node)) for node in nodes]
@@ -132,6 +139,15 @@ def build_planning_context(
         if best is None and node_payloads:
             best = str(node_payloads[0].get("node_id"))
 
+    feedback: RoundFeedbackSummary | None = None
+    if round_feedback_summary is not None:
+        if isinstance(round_feedback_summary, RoundFeedbackSummary):
+            feedback = round_feedback_summary
+        else:
+            feedback = RoundFeedbackSummary.model_validate(
+                _scrub(dict(round_feedback_summary))
+            )
+
     context = PlanningContext(
         project_id=project_id,
         research_goal=research_goal or "Improve RGB-T detection under a fixed protocol.",
@@ -146,6 +162,12 @@ def build_planning_context(
         allowed_parameter_changes=allowed,
         blocked_actions=blocked,
         protocol_id=protocol_payload.get("protocol_id"),
+        loop_session_id=loop_session_id,
+        loop_round_number=loop_round_number,
+        round_feedback_summary=feedback,
+        recent_execution_summary=_scrub(dict(recent_execution_summary or {})),
+        previous_planner_hypothesis=previous_planner_hypothesis,
+        previous_parameter_changes=_scrub(dict(previous_parameter_changes or {})),
     )
     digest = context_sha256(context)
     return context.model_copy(update={"context_sha256": digest})

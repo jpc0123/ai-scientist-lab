@@ -8,6 +8,7 @@ from scientist_lab.agents.models import (
     CandidateVerification,
     PlanningContext,
     PlannerOutput,
+    RoundFeedbackSummary,
 )
 from scientist_lab.agents.planner import MockPlanner, Planner
 from scientist_lab.agents.service import AgentPlanningService
@@ -24,6 +25,7 @@ __all__ = [
     "PlannerOutput",
     "ProviderCritic",
     "ProviderPlanner",
+    "RoundFeedbackSummary",
     "build_planner_critic",
 ]
 

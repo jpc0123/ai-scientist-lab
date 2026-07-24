@@ -84,6 +84,59 @@ class PlannerOutput(BaseModel):
     stop_reason: str | None = None
 
 
+class RoundFeedbackSummary(BaseModel):
+    """Deterministic summary of a completed research-loop round (v2.1.2).
+
+    Round 2+ PlanningContext must include this object; without it, real Planner
+    calls for subsequent rounds are blocked.
+    """
+
+    source_round: int
+
+    parent_node_id: str
+    executed_node_id: str
+
+    metric_deltas: dict[str, float | None] = Field(default_factory=dict)
+    stability_deltas: dict[str, float | None] = Field(default_factory=dict)
+    resource_deltas: dict[str, float | None] = Field(default_factory=dict)
+
+    evidence_added: list[str] = Field(default_factory=list)
+    claims_changed: list[str] = Field(default_factory=list)
+    comparison_ids: list[str] = Field(default_factory=list)
+
+    success_criteria_met: list[str] = Field(default_factory=list)
+    failure_criteria_met: list[str] = Field(default_factory=list)
+
+    unresolved_gaps: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+    outcome_label: Literal[
+        "improved",
+        "degraded",
+        "comparable",
+        "unstable",
+        "costlier",
+        "uncertain",
+        "failed",
+    ] = "uncertain"
+
+    failure_category: str | None = None
+    error_summary: str | None = None
+    failed_stage: str | None = None
+    recoverability: str | None = None
+
+    previous_hypothesis: str | None = None
+    executed_parameters: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("parent_node_id", "executed_node_id")
+    @classmethod
+    def _non_empty_ids(cls, value: str) -> str:
+        text = (value or "").strip()
+        if not text:
+            raise ValueError("node id must be non-empty")
+        return text
+
+
 class PlanningContext(BaseModel):
     project_id: str
     research_goal: str
@@ -101,6 +154,14 @@ class PlanningContext(BaseModel):
 
     allowed_parameter_changes: list[str] = Field(default_factory=list)
     blocked_actions: list[str] = Field(default_factory=list)
+
+    # --- v2.1.2: multi-round feedback fields ---
+    loop_session_id: str | None = None
+    loop_round_number: int | None = None
+    round_feedback_summary: RoundFeedbackSummary | None = None
+    recent_execution_summary: dict[str, Any] = Field(default_factory=dict)
+    previous_planner_hypothesis: str | None = None
+    previous_parameter_changes: dict[str, Any] = Field(default_factory=dict)
 
     # Audit helpers (not for LLM reasoning)
     context_sha256: str | None = None
