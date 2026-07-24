@@ -10,17 +10,20 @@ import { ProjectCreateWizardPage, ProjectDetailPage, ProjectsPage } from "../pag
 import {
   AuditDetailPage,
   AuditsPage,
-  EvidencePage,
   ReportDetailPage,
   ReportsPage,
 } from "../pages/ReportsAuditsPages";
 import {
+  ClaimsPage,
+  EvidenceDetailPage,
+  EvidencePage,
+} from "../pages/EvidenceClaimsPages";
+import { PlanDetailPage, PlansPage } from "../pages/PlanningPages";
+import {
   IterationDetailPage,
   IterationsPage,
-  PlanDetailPage,
-  PlansPage,
-  SettingsPage,
 } from "../pages/ResourcePages";
+import { SettingsPage } from "../pages/SystemPage";
 import { GuidePage } from "../pages/GuidePage";
 import { ChatWorkspacePage } from "../pages/ChatWorkspacePage";
 import {
@@ -64,6 +67,8 @@ export function AppRouter() {
           element={<ReleaseCandidateDetailPage />}
         />
         <Route path="evidence" element={<EvidencePage />} />
+        <Route path="evidence/:id" element={<EvidenceDetailPage />} />
+        <Route path="claims" element={<ClaimsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="reports/:id" element={<ReportDetailPage />} />
         <Route path="audits" element={<AuditsPage />} />

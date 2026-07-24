@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api/endpoints";
+import { useT } from "../i18n";
 
 const START_CMD = `cd D:\\AI Scientist_tiao\\scientist-lab
-.\\.venv\\Scripts\\scientist-lab.exe serve --host 127.0.0.1 --port 8787`;
+.\\scripts\\start_workbench.ps1`;
 
 export function ConnectionBar() {
+  const t = useT();
   const health = useQuery({
     queryKey: ["health"],
     queryFn: api.health,
@@ -22,29 +24,28 @@ export function ConnectionBar() {
         <span className="conn-dot" aria-hidden />
         {ok ? (
           <span>
-            后端已连接 · API 正常
-            {health.data?.version ? `（${health.data.version}）` : ""}
+            {t("conn.ok")}
+            {health.data?.version ? ` (${health.data.version})` : ""}
           </span>
         ) : checking && !health.isError ? (
-          <span>正在检查后端连接…</span>
+          <span>{t("conn.checking")}</span>
         ) : (
-          <span>
-            后端未启动。请先在 PowerShell 运行服务，再刷新本页。
-          </span>
+          <span>{t("conn.bad")}</span>
         )}
       </div>
       <div className="conn-right">
         {!ok && (
           <details className="conn-help">
-            <summary>如何启动？</summary>
+            <summary>{t("conn.howToStart")}</summary>
+            <p className="muted">{t("conn.preferOneClick")}</p>
             <pre className="code-block">{START_CMD}</pre>
-            <p className="muted">
-              另开一个终端：<code>cd web</code> → <code>npm run dev</code>，然后打开
-              http://127.0.0.1:5173
-            </p>
+            <p className="muted">{t("conn.howToStartBody")}</p>
+            <Link className="btn-ghost-link" to="/settings">
+              {t("nav.settings")}
+            </Link>
           </details>
         )}
-        <Link to="/guide">使用指南</Link>
+        <Link to="/guide">{t("common.guide")}</Link>
       </div>
     </div>
   );

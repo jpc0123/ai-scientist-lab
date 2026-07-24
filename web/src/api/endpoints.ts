@@ -95,12 +95,70 @@ export const api = {
       "/api/v1/comparisons/fast-eval-triad",
       body || {},
     ),
-  trees: () => apiGet<Page<Record<string, unknown>>>("/api/v1/trees?limit=50&offset=0"),
+  trees: (projectId?: string) => {
+    const q = new URLSearchParams({ limit: "50", offset: "0" });
+    if (projectId) q.set("project_id", projectId);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/trees?${q}`);
+  },
   tree: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/trees/${id}`),
   treeMermaid: (id: string) =>
     apiGet<{ tree_id: string; mermaid: string }>(`/api/v1/trees/${id}/mermaid`),
-  plans: () => apiGet<Page<Record<string, unknown>>>("/api/v1/plans?limit=50&offset=0"),
+  treeEvidence: (id: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/trees/${id}/evidence`),
+  createTree: (body: {
+    project_id: string;
+    root_node_id: string;
+    protocol_id: string;
+    max_depth?: number;
+    max_nodes?: number;
+    max_children?: number;
+  }) => apiPost<Record<string, unknown>>("/api/v1/trees", body),
+  treePlanNext: (
+    treeId: string,
+    body?: { rescore?: boolean; max_gpu_hours?: number; provider?: string },
+  ) =>
+    apiPost<Record<string, unknown>>(`/api/v1/trees/${treeId}/plan-next`, body || {}),
+  treeApprove: (treeId: string, candidateId: string, seeds?: number[]) =>
+    apiPost<Record<string, unknown>>(`/api/v1/trees/${treeId}/approve`, {
+      candidate_id: candidateId,
+      seeds: seeds || [],
+    }),
+  treeAdvance: (treeId: string, treeNodeId?: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/trees/${treeId}/advance`, {
+      tree_node_id: treeNodeId || null,
+    }),
+  treeStop: (treeId: string, reason: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/trees/${treeId}/stop`, { reason }),
+  plans: (projectId?: string) => {
+    const q = new URLSearchParams({ limit: "50", offset: "0" });
+    if (projectId) q.set("project_id", projectId);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/plans?${q}`);
+  },
   plan: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/plans/${id}`),
+  planNext: (
+    projectId: string,
+    body?: {
+      protocol_id?: string;
+      current_best_node_id?: string;
+      max_new_nodes?: number;
+      max_gpu_hours?: number;
+      provider?: string;
+    },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/projects/${projectId}/plan-next`,
+      body || {},
+    ),
+  reviewPlan: (planId: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/plans/${planId}/review`),
+  rankPlan: (planId: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/plans/${planId}/rank`),
+  generateContract: (planId: string, candidateId: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/plans/${planId}/candidates/${candidateId}/generate-contract`,
+    ),
+  projectBudget: (projectId: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/projects/${projectId}/budget`),
   approveCandidate: (planId: string, candidateId: string) =>
     apiPost(`/api/v1/plans/${planId}/candidates/${candidateId}/approve`),
   rejectCandidate: (planId: string, candidateId: string, reason = "") =>
@@ -126,11 +184,40 @@ export const api = {
   ) => apiPost(`/api/v1/iterations/${id}/finalize`, body),
   patches: () => apiGet<Page<PatchProposal>>("/api/v1/patches?limit=50&offset=0"),
   patch: (id: string) => apiGet<PatchProposal & Record<string, unknown>>(`/api/v1/patches/${id}`),
-  evidence: () =>
-    apiGet<Page<Record<string, unknown>>>("/api/v1/evidence?limit=50&offset=0"),
-  claims: () => apiGet<Page<Record<string, unknown>>>("/api/v1/claims?limit=50&offset=0"),
-  reports: () =>
-    apiGet<Page<Record<string, unknown>>>("/api/v1/reports?limit=50&offset=0"),
+  evidence: (params?: {
+    limit?: number;
+    project_id?: string;
+    evidence_type?: string;
+  }) => {
+    const q = new URLSearchParams({
+      limit: String(params?.limit ?? 50),
+      offset: "0",
+    });
+    if (params?.project_id) q.set("project_id", params.project_id);
+    if (params?.evidence_type) q.set("evidence_type", params.evidence_type);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/evidence?${q}`);
+  },
+  evidenceItem: (id: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/evidence/${id}`),
+  claims: (projectId?: string) => {
+    const q = new URLSearchParams({ limit: "50", offset: "0" });
+    if (projectId) q.set("project_id", projectId);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/claims?${q}`);
+  },
+  claimMatrix: (projectId: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/claims/matrix?project_id=${encodeURIComponent(projectId)}`,
+    ),
+  buildClaimMatrix: (projectId: string, protocolId?: string) =>
+    apiPost<Record<string, unknown>>("/api/v1/claims/matrix/build", {
+      project_id: projectId,
+      protocol_id: protocolId || null,
+    }),
+  reports: (projectId?: string) => {
+    const q = new URLSearchParams({ limit: "50", offset: "0" });
+    if (projectId) q.set("project_id", projectId);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/reports?${q}`);
+  },
   report: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/reports/${id}`),
   reportMarkdown: (id: string) =>
     apiGet<{
@@ -140,10 +227,33 @@ export const api = {
       has_markdown: boolean;
       markdown_path?: string | null;
     }>(`/api/v1/reports/${id}/markdown`),
-  audits: () => apiGet<Page<Record<string, unknown>>>("/api/v1/audits?limit=50&offset=0"),
+  buildReport: (body: {
+    project_id: string;
+    tree_id?: string;
+    protocol_id?: string;
+  }) => apiPost<Record<string, unknown>>("/api/v1/reports/build", body),
+  verifyReport: (id: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/reports/${id}/verify`),
+  exportReportJson: (id: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/reports/${id}/export.json`),
+  audits: (projectId?: string) => {
+    const q = new URLSearchParams({ limit: "50", offset: "0" });
+    if (projectId) q.set("project_id", projectId);
+    return apiGet<Page<Record<string, unknown>>>(`/api/v1/audits?${q}`);
+  },
   audit: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/audits/${id}`),
   verifyAudit: (id: string) =>
     apiPost<Record<string, unknown>>(`/api/v1/audits/${id}/verify`),
+  buildAudit: (body: {
+    project_id: string;
+    tree_id?: string;
+    protocol_id?: string;
+    report_id?: string;
+  }) => apiPost<Record<string, unknown>>("/api/v1/audits/build", body),
+  exportAudit: (id: string, outputDir: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/audits/${id}/export`, {
+      output_dir: outputDir,
+    }),
   pathPolicy: () =>
     apiGet<{
       allowed_prefixes: string[];
@@ -153,6 +263,32 @@ export const api = {
       denied_substrings: string[];
       extra_denied_paths: string[];
     }>("/api/v1/system/path-policy"),
+  systemDoctor: () =>
+    apiGet<{
+      overall: string;
+      summary: { ok: number; warning: number; error: number };
+      checks: Array<Record<string, unknown>>;
+      components: Record<string, unknown>;
+      version?: string;
+    }>("/api/v1/system/doctor"),
+  systemRecover: (dryRun = true) =>
+    apiPost<Record<string, unknown>>("/api/v1/system/recover", {
+      dry_run: dryRun,
+    }),
+  systemSecurity: () =>
+    apiGet<{
+      version: string;
+      overall: string;
+      boundaries: Array<{
+        id: string;
+        label: string;
+        enforced: boolean;
+        detail?: string;
+      }>;
+      ui_forbidden: string[];
+      config_snapshot?: Record<string, unknown>;
+      note?: string;
+    }>("/api/v1/system/security"),
   approvePatch: (id: string, reason = "") =>
     apiPost(`/api/v1/patches/${id}/approve`, { reason }),
   rejectPatch: (id: string, reason = "") =>
@@ -171,6 +307,26 @@ export const api = {
       status: string;
       title?: string;
     }>("/api/v1/demo/seed-patch"),
+  demoCatalog: () =>
+    apiGet<{
+      items: Array<{
+        kind: string;
+        title: string;
+        description: string;
+        requires_cuda: boolean;
+        requires_docker: boolean;
+        task_type: string;
+      }>;
+    }>("/api/v1/demo/catalog"),
+  demoCreate: (kind: "digits" | "rgbt-debug", force = false) =>
+    apiPost<{
+      status: string;
+      kind: string;
+      project?: { project_id: string; title?: string };
+      message?: string;
+      next_steps?: string[];
+      auto_ran_experiments?: boolean;
+    }>("/api/v1/demo/create", { kind, force }),
 
   // --- merges / release candidates (v1.9) --------------------------------
   merges: (params?: { limit?: number; project_id?: string; patch_id?: string }) => {

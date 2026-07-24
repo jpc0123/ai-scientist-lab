@@ -55,7 +55,7 @@ export function ComparePage() {
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">v2.0.3</p>
+          <p className="eyebrow">2.0.0</p>
           <h1>比较工作台</h1>
           <p className="lede">
             支持两个 Execution、两个 Node、Node Group，以及 RGB / Thermal / Fusion

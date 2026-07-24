@@ -6,15 +6,18 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Query
 
+from scientist_lab import API_VERSION
 from scientist_lab.api.errors import http_error
 from scientist_lab.api.pagination import clamp_limit, clamp_offset, page_response
 from scientist_lab.api.schemas import (
     AuditBuildBody,
     AuditExportBody,
     CandidateRejectBody,
+    ClaimMatrixBuildBody,
     CompareExecutionsBody,
     CompareNodesBody,
     CompareTriadBody,
+    DemoCreateBody,
     IterationFinalizeBody,
     MergeApproveBody,
     MergeFinalizeBody,
@@ -23,16 +26,25 @@ from scientist_lab.api.schemas import (
     MergeRollbackBody,
     MergeTestBody,
     PatchApplySandboxBody,
+    PlanNextBody,
     ProjectCreateBody,
+    ProjectExportBody,
+    ProjectImportBody,
     ReleaseCandidateCreateBody,
     PatchDecideMergeBody,
     PatchRecordEvidenceBody,
     PatchTestBody,
     ReasonBody,
+    RecoverBody,
     ReleaseCreateBody,
     ReleaseDiscardBody,
     ReleaseFreezeBody,
     ReportBuildBody,
+    TreeAdvanceBody,
+    TreeApproveBody,
+    TreeCreateBody,
+    TreePlanNextBody,
+    TreeStopBody,
 )
 from scientist_lab.services.experiment_service import ExperimentService
 
@@ -55,7 +67,7 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             docker_error = str(exc)
         return {
             "ok": True,
-            "version": "v2.0.3",
+            "version": API_VERSION,
             "api": "v1",
             "docker_ok": docker_ok,
             "docker_error": docker_error,
@@ -83,6 +95,26 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             "note": "Frontend display only; enforcement remains server-side.",
         }
 
+    @router.get("/system/security")
+    def system_security(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.security_posture()
+
+    @router.get("/system/doctor")
+    def system_doctor(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.system_doctor()
+
+    @router.post("/system/recover")
+    def system_recover(
+        body: RecoverBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        payload = body or RecoverBody()
+        return service.recover(dry_run=payload.dry_run)
+
     @router.post("/demo/seed-patch")
     def seed_demo_patch(
         service: ExperimentService = Depends(service_dep),
@@ -106,6 +138,24 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             ),
             unified_diff=build_mock_unified_diff(relative_path=relative),
         )
+
+    @router.get("/demo/catalog")
+    def demo_catalog(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return {"items": service.demos.list_demos()}
+
+    @router.post("/demo/create")
+    def demo_create(
+        body: DemoCreateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.demos.create(body.kind, force=body.force)
+        except ValueError as exc:
+            raise http_error(400, code="invalid_request", message=str(exc)) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise http_error(500, code="demo_create_failed", message=str(exc)) from exc
 
     # --- projects --------------------------------------------------------
     @router.get("/projects")
@@ -161,6 +211,65 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
     ) -> dict[str, Any]:
         try:
             return service.archive_project(project_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/projects/{project_id}/export")
+    def export_project(
+        project_id: str,
+        body: ProjectExportBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.export_project(project_id, output_dir=body.output_dir)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
+
+    @router.post("/projects/import")
+    def import_project(
+        body: ProjectImportBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.import_project(body.path, force=body.force)
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.get("/projects/{project_id}/budget")
+    def get_project_budget(
+        project_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.show_budget(project_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/projects/{project_id}/plan-next")
+    def project_plan_next(
+        project_id: str,
+        body: PlanNextBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        payload = body or PlanNextBody()
+        try:
+            return service.plan_next(
+                project_id,
+                protocol_id=payload.protocol_id,
+                current_best_node_id=payload.current_best_node_id,
+                max_new_nodes=payload.max_new_nodes,
+                max_gpu_hours=payload.max_gpu_hours,
+                provider=payload.provider,
+                allow_network=payload.allow_network,
+                model_profile=payload.model_profile,
+                require_quality_gate=payload.require_quality_gate,
+            )
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:
@@ -335,6 +444,102 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
 
+    @router.post("/trees")
+    def create_tree(
+        body: TreeCreateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.tree_create(
+                body.project_id,
+                root_node_id=body.root_node_id,
+                protocol_id=body.protocol_id,
+                max_depth=body.max_depth,
+                max_nodes=body.max_nodes,
+                max_children=body.max_children,
+                tree_id=body.tree_id,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/trees/{tree_id}/plan-next")
+    def tree_plan_next(
+        tree_id: str,
+        body: TreePlanNextBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        payload = body or TreePlanNextBody()
+        try:
+            return service.tree_plan_next(
+                tree_id,
+                rescore=payload.rescore,
+                max_gpu_hours=payload.max_gpu_hours,
+                provider=payload.provider,
+                allow_network=payload.allow_network,
+                model_profile=payload.model_profile,
+                require_quality_gate=payload.require_quality_gate,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/trees/{tree_id}/approve")
+    def tree_approve(
+        tree_id: str,
+        body: TreeApproveBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.tree_approve(
+                tree_id,
+                body.candidate_id,
+                seeds=body.seeds or None,
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/trees/{tree_id}/advance")
+    def tree_advance(
+        tree_id: str,
+        body: TreeAdvanceBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        payload = body or TreeAdvanceBody()
+        try:
+            return service.tree_advance(tree_id, tree_node_id=payload.tree_node_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/trees/{tree_id}/stop")
+    def tree_stop(
+        tree_id: str,
+        body: TreeStopBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.tree_stop(tree_id, reason=body.reason)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.get("/trees/{tree_id}/evidence")
+    def tree_evidence(
+        tree_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.tree_evidence(tree_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
     @router.get("/trees/{tree_id}/nodes")
     def get_tree_nodes(
         tree_id: str,
@@ -384,6 +589,44 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             return service.show_plan(plan_id)
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.post("/plans/{plan_id}/review")
+    def review_plan(
+        plan_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.review_plan(plan_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/plans/{plan_id}/rank")
+    def rank_plan(
+        plan_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            ranked = service.rank_candidates(plan_id)
+            return service.show_plan(plan_id) | {"rank_result": ranked}
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/plans/{plan_id}/candidates/{candidate_id}/generate-contract")
+    def generate_contract_from_plan(
+        plan_id: str,
+        candidate_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.generate_contract_from_plan(plan_id, candidate_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
 
     @router.post("/plans/{plan_id}/candidates/{candidate_id}/approve")
     def approve_candidate(
@@ -498,6 +741,16 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             items, limit=clamp_limit(limit), offset=clamp_offset(offset)
         )
 
+    @router.get("/evidence/{evidence_id}")
+    def get_evidence(
+        evidence_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.show_evidence(evidence_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
     @router.get("/claims")
     def list_claims(
         project_id: str | None = None,
@@ -509,6 +762,32 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         return page_response(
             items, limit=clamp_limit(limit), offset=clamp_offset(offset)
         )
+
+    @router.get("/claims/matrix")
+    def get_claim_matrix(
+        project_id: str = Query(...),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.show_claim_matrix(project_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
+
+    @router.post("/claims/matrix/build")
+    def build_claim_matrix(
+        body: ClaimMatrixBuildBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.build_claim_matrix(
+                body.project_id, protocol_id=body.protocol_id
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(400, code="bad_request", message=str(exc)) from exc
 
     # --- reports / audits ------------------------------------------------
     @router.get("/reports")
@@ -560,6 +839,33 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             "markdown": markdown,
             "summary": summary,
             "has_markdown": bool(markdown),
+        }
+
+    @router.post("/reports/{report_id}/verify")
+    def verify_report(
+        report_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.verify_report(report_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except ValueError as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.get("/reports/{report_id}/export.json")
+    def export_report_json(
+        report_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            report = service.show_report(report_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        return {
+            "report_id": report_id,
+            "format": "json",
+            "report": report,
         }
 
     @router.post("/reports/build")

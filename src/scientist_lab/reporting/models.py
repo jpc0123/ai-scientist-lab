@@ -15,6 +15,7 @@ ReportStatus = Literal[
     "verified",
     "exported",
     "failed",
+    "build_interrupted",
 ]
 
 ClaimSupportStatus = Literal[

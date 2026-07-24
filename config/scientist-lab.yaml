@@ -1,0 +1,29 @@
+# Scientist Lab local workbench config (v2.0.7)
+# API keys must NOT be stored here — use environment variables.
+
+app:
+  name: Scientist Lab
+  environment: local
+  host: 127.0.0.1
+  port: 8787
+
+database:
+  path: ./scientist_lab.db
+
+artifacts:
+  root: ./outputs
+
+web:
+  enabled: true
+  host: 127.0.0.1
+  port: 5173
+  open_browser: true
+
+llm:
+  default_provider: mock
+  require_quality_gate: true
+
+security:
+  allow_network_by_default: false
+  allow_real_llm_by_default: false
+  allow_main_tree_patch: false

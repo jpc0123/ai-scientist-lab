@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scientist-lab"
-version = "1.5.0"
-description = "Trackable and reproducible experiment execution base for AI Scientist"
+version = "2.0.0"
+description = "Local-first, human-approval AI Scientist workbench"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -16,6 +16,7 @@ dependencies = [
   "fastapi>=0.110.0",
   "uvicorn[standard]>=0.27.0",
   "httpx>=0.27.0",
+  "PyYAML>=6.0.0",
 ]
 
 [project.optional-dependencies]

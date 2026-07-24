@@ -52,7 +52,7 @@ export function ApprovalsPage() {
     reason: "",
   });
 
-  const plans = useQuery({ queryKey: ["plans"], queryFn: api.plans });
+  const plans = useQuery({ queryKey: ["plans"], queryFn: () => api.plans() });
   const planDetails = useQuery({
     queryKey: ["plans-details", plans.data?.items?.map((p) => p.plan_id)],
     enabled: Boolean(plans.data?.items?.length),

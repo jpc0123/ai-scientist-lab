@@ -1,0 +1,25 @@
+{
+  "protocol_id": "protocol_digits_demo_001",
+  "project_id": "demo_digits_v20",
+  "title": "Digits MLP exploratory protocol",
+  "task_type": "general_ml",
+  "dataset_reference": "sklearn:digits",
+  "dataset_version": "builtin",
+  "split_reference": "split:digits_holdout_v1",
+  "environment_key": "digits-mlp-v1",
+  "code_reference": "local:experiment_app",
+  "code_version": "v0.1.0",
+  "execution_mode": "fast_eval",
+  "seeds": [42, 43, 44],
+  "primary_metric": "accuracy",
+  "secondary_metrics": ["f1_macro"],
+  "fixed_parameters": {
+    "learning_rate": 0.001,
+    "epochs": 30,
+    "batch_size": 64,
+    "test_size": 0.2
+  },
+  "allowed_variables": ["hidden_units"],
+  "resource_metrics": ["duration_seconds"],
+  "claim_level": "exploratory_comparison"
+}

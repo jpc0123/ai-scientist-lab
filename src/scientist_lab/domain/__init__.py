@@ -51,6 +51,7 @@ class JobStatus(StrEnum):
     FAILED = "failed"
     CANCELLED = "cancelled"
     TIMED_OUT = "timed_out"
+    INTERRUPTED = "interrupted"
 
 
 class ErrorType(StrEnum):

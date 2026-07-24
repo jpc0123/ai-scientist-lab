@@ -2,9 +2,12 @@
 
 export type ApiError = {
   error: {
+    type?: string;
     code: string;
     message: string;
+    retryable?: boolean;
     details?: unknown;
+    suggested_action?: string;
   };
 };
 

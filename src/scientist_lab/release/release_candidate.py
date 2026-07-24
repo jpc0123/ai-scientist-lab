@@ -33,7 +33,13 @@ class ReleaseCandidateService:
         self.outputs_root = Path(outputs_root).resolve()
         self._repo = ReleaseCandidateRepository(session_factory)
         self._merges = MergeCandidateRepository(session_factory)
-        self.git = GitAdapter(self.project_root)
+        self._git: GitAdapter | None = None
+
+    @property
+    def git(self) -> GitAdapter:
+        if self._git is None:
+            self._git = GitAdapter(self.project_root)
+        return self._git
 
     def show(self, release_candidate_id: str) -> dict[str, Any]:
         return self._view(self._repo.require(release_candidate_id))

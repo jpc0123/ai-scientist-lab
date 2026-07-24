@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from scientist_lab import __version__
 from scientist_lab.iteration.service import IterationService
 from scientist_lab.iteration.workflow import InvalidIterationTransition
 from scientist_lab.protocols.verifier import ProtocolViolationError
@@ -14,7 +15,13 @@ from scientist_lab.services.experiment_service import ExperimentService, load_co
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scientist-lab",
-        description="Local Docker experiment execution base",
+        description="Local-first AI Scientist workbench",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"scientist-lab {__version__}",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -349,6 +356,26 @@ def build_parser() -> argparse.ArgumentParser:
         "project-archive", help="Archive a research project"
     )
     project_archive.add_argument("project_id")
+
+    project_export = sub.add_parser(
+        "project-export", help="Export a project JSON bundle (v2.0.10)"
+    )
+    project_export.add_argument("project_id")
+    project_export.add_argument(
+        "--output-dir",
+        required=True,
+        help="Directory to write <project_id>_bundle.json",
+    )
+
+    project_import = sub.add_parser(
+        "project-import", help="Import a project JSON bundle (v2.0.10)"
+    )
+    project_import.add_argument("path", help="Path to *_bundle.json")
+    project_import.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite project metadata if it already exists",
+    )
 
     register_runner = sub.add_parser(
         "register-runner-profile", help="Register a local/remote runner profile"
@@ -1136,8 +1163,68 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser.add_argument("--host", default="127.0.0.1")
     serve_parser.add_argument("--port", type=int, default=8787)
 
-    doctor = sub.add_parser("doctor", help="Check Docker connectivity")
+    doctor = sub.add_parser(
+        "doctor", help="Alias of system-doctor (Docker + environment checks)"
+    )
     _ = doctor
+
+    system_doctor = sub.add_parser(
+        "system-doctor", help="Full System Doctor diagnostics (v2.0.6)"
+    )
+    _ = system_doctor
+
+    recover = sub.add_parser(
+        "recover",
+        help="Recover interrupted work after restart (never auto-reruns experiments)",
+    )
+    recover.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Preview actions without applying (default)",
+    )
+    recover.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply recovery actions (mark interrupted / refresh remote)",
+    )
+
+    demo_create = sub.add_parser(
+        "demo-create",
+        help="Create a built-in demo project (digits | rgbt-debug) (v2.0.8)",
+    )
+    demo_create.add_argument(
+        "kind",
+        choices=["digits", "rgbt-debug"],
+        help="Demo kind",
+    )
+    demo_create.add_argument(
+        "--force",
+        action="store_true",
+        help="Refresh project metadata even if demo already exists",
+    )
+
+    workbench = sub.add_parser(
+        "workbench", help="Local workbench start/status/stop helpers (v2.0.7)"
+    )
+    workbench_sub = workbench.add_subparsers(dest="workbench_command")
+    wb_start = workbench_sub.add_parser(
+        "start", help="Print start instructions / launch via PowerShell script"
+    )
+    wb_start.add_argument(
+        "--print-only",
+        action="store_true",
+        help="Only print commands; do not invoke PowerShell",
+    )
+    workbench_sub.add_parser("status", help="Show API/Web listening status")
+    wb_stop = workbench_sub.add_parser(
+        "stop", help="Stop workbench via PowerShell script"
+    )
+    wb_stop.add_argument(
+        "--print-only",
+        action="store_true",
+        help="Only print stop command",
+    )
 
     return parser
 
@@ -1152,17 +1239,108 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.command == "doctor":
+    if args.command in {"doctor", "system-doctor"}:
         try:
             service = ExperimentService()
-            service.runner.client.ping()
-            print("Docker OK")
-            print(f"DB: {service.settings.db_path}")
-            print(f"Images: {service.settings.image_registry}")
+            report = service.system_doctor()
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            overall = str(report.get("overall") or "ok")
+            return 0 if overall != "error" else 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"System Doctor 失败: {exc}", file=sys.stderr)
+            return 1
+
+    if args.command == "recover":
+        try:
+            service = ExperimentService()
+            dry_run = not bool(getattr(args, "apply", False))
+            report = service.recover(dry_run=dry_run)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
             return 0
         except Exception as exc:  # noqa: BLE001
-            print(f"Docker 检查失败: {exc}", file=sys.stderr)
+            print(f"Recover 失败: {exc}", file=sys.stderr)
             return 1
+
+    if args.command == "demo-create":
+        try:
+            service = ExperimentService()
+            result = service.demos.create(
+                args.kind, force=bool(getattr(args, "force", False))
+            )
+            print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+            return 0
+        except Exception as exc:  # noqa: BLE001
+            print(f"demo-create 失败: {exc}", file=sys.stderr)
+            return 1
+
+    if args.command == "workbench":
+        from pathlib import Path
+        import subprocess
+
+        from scientist_lab.workbench.config import (
+            load_workbench_config,
+            workbench_endpoints,
+        )
+        from scientist_lab.workbench.status import workbench_status
+
+        root = Path(__file__).resolve().parents[2]
+        cmd = getattr(args, "workbench_command", None)
+        if not cmd:
+            print("usage: scientist-lab workbench {start|status|stop}", file=sys.stderr)
+            return 2
+        if cmd == "status":
+            print(json.dumps(workbench_status(root), ensure_ascii=False, indent=2))
+            return 0
+
+        ends = workbench_endpoints(load_workbench_config(project_root=root))
+        if cmd == "start":
+            script = root / "scripts" / "start_workbench.ps1"
+            print("Workbench architecture:")
+            print("  Backend API = FastAPI  ->", ends["api_url"])
+            print("  Frontend UI = React/Vite ->", ends["web_url"])
+            print("  Open the Web URL in your browser (Vite proxies /api).")
+            ps = (
+                f'powershell -ExecutionPolicy Bypass -File "{script}"'
+            )
+            print("Start command:")
+            print(" ", ps)
+            if getattr(args, "print_only", False):
+                return 0
+            if not script.is_file():
+                print(f"missing script: {script}", file=sys.stderr)
+                return 1
+            completed = subprocess.run(
+                [
+                    "powershell",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(script),
+                ],
+                cwd=str(root),
+                check=False,
+            )
+            return int(completed.returncode)
+        if cmd == "stop":
+            script = root / "scripts" / "stop_workbench.ps1"
+            ps = f'powershell -ExecutionPolicy Bypass -File "{script}"'
+            print(ps)
+            if getattr(args, "print_only", False):
+                return 0
+            completed = subprocess.run(
+                [
+                    "powershell",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(script),
+                ],
+                cwd=str(root),
+                check=False,
+            )
+            return int(completed.returncode)
+        print(f"unknown workbench command: {cmd}", file=sys.stderr)
+        return 2
 
     if args.command == "serve":
         import uvicorn
@@ -1573,6 +1751,38 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 json.dumps(
                     service.archive_project(args.project_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "project-export":
+        try:
+            print(
+                json.dumps(
+                    service.export_project(
+                        args.project_id, output_dir=args.output_dir
+                    ),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "project-import":
+        try:
+            print(
+                json.dumps(
+                    service.import_project(
+                        args.path, force=bool(getattr(args, "force", False))
+                    ),
                     ensure_ascii=False,
                     indent=2,
                 )

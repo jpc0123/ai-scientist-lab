@@ -1,56 +1,61 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useI18n } from "../i18n";
 import { ConnectionBar } from "./ConnectionBar";
+import { LanguageSwitch } from "./LanguageSwitch";
 
-type NavItem = { to: string; label: string; hint: string };
+type NavItem = { to: string; labelKey: string; hintKey: string };
 
-const groups: Array<{ title: string; items: NavItem[] }> = [
+const groupDefs: Array<{ titleKey: string; items: NavItem[] }> = [
   {
-    title: "概览",
+    titleKey: "nav.overview",
     items: [
-      { to: "/dashboard", label: "总览", hint: "Dashboard" },
-      { to: "/assistant", label: "对话工作台", hint: "快捷指令" },
-      { to: "/guide", label: "使用指南", hint: "新手" },
+      { to: "/dashboard", labelKey: "nav.dashboard", hintKey: "nav.dashboardHint" },
+      { to: "/assistant", labelKey: "nav.assistant", hintKey: "nav.assistantHint" },
+      { to: "/guide", labelKey: "nav.guide", hintKey: "nav.guideHint" },
     ],
   },
   {
-    title: "项目",
-    items: [{ to: "/projects", label: "项目", hint: "生命周期" }],
+    titleKey: "nav.projectsGroup",
+    items: [{ to: "/projects", labelKey: "nav.projects", hintKey: "nav.projectsHint" }],
   },
   {
-    title: "实验",
+    titleKey: "nav.experiments",
     items: [
-      { to: "/executions", label: "实验中心", hint: "执行与筛选" },
-      { to: "/compare", label: "比较工作台", hint: "文字结论" },
-      { to: "/trees", label: "实验树", hint: "Mermaid" },
+      { to: "/executions", labelKey: "nav.executions", hintKey: "nav.executionsHint" },
+      { to: "/compare", labelKey: "nav.compare", hintKey: "nav.compareHint" },
+      { to: "/trees", labelKey: "nav.trees", hintKey: "nav.treesHint" },
     ],
   },
   {
-    title: "规划与审批",
+    titleKey: "nav.planning",
     items: [
-      { to: "/approvals", label: "审批中心", hint: "批准 / 拒绝" },
-      { to: "/plans", label: "规划方案", hint: "Plans" },
-      { to: "/iterations", label: "迭代会话", hint: "Iterations" },
-      { to: "/patches", label: "补丁", hint: "沙箱" },
-      { to: "/merges", label: "Merge Center", hint: "受控合并" },
-      { to: "/rollbacks", label: "回滚中心", hint: "revert" },
+      { to: "/approvals", labelKey: "nav.approvals", hintKey: "nav.approvalsHint" },
+      { to: "/plans", labelKey: "nav.plans", hintKey: "nav.plansHint" },
+      { to: "/iterations", labelKey: "nav.iterations", hintKey: "nav.iterationsHint" },
+      { to: "/patches", labelKey: "nav.patches", hintKey: "nav.patchesHint" },
+      { to: "/merges", labelKey: "nav.merges", hintKey: "nav.mergesHint" },
+      { to: "/rollbacks", labelKey: "nav.rollbacks", hintKey: "nav.rollbacksHint" },
     ],
   },
   {
-    title: "证据与报告",
+    titleKey: "nav.evidenceGroup",
     items: [
-      { to: "/evidence", label: "证据与主张", hint: "Evidence" },
-      { to: "/reports", label: "报告", hint: "Markdown" },
-      { to: "/audits", label: "审计包", hint: "Audit" },
-      { to: "/release-candidates", label: "Release Candidate", hint: "本地 Manifest" },
+      { to: "/evidence", labelKey: "nav.evidence", hintKey: "nav.evidenceHint" },
+      { to: "/claims", labelKey: "nav.claims", hintKey: "nav.claimsHint" },
+      { to: "/reports", labelKey: "nav.reports", hintKey: "nav.reportsHint" },
+      { to: "/audits", labelKey: "nav.audits", hintKey: "nav.auditsHint" },
+      { to: "/release-candidates", labelKey: "nav.rc", hintKey: "nav.rcHint" },
     ],
   },
   {
-    title: "系统",
-    items: [{ to: "/settings", label: "设置与启动", hint: "命令说明" }],
+    titleKey: "nav.systemGroup",
+    items: [{ to: "/settings", labelKey: "nav.settings", hintKey: "nav.settingsHint" }],
   },
 ];
 
 export function AppShell() {
+  const { t } = useI18n();
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -58,13 +63,13 @@ export function AppShell() {
           <span className="brand-mark">SL</span>
           <div>
             <strong>Scientist Lab</strong>
-            <small>本地科研工作台</small>
+            <small>{t("brand.subtitle")}</small>
           </div>
         </div>
-        <nav aria-label="主导航">
-          {groups.map((group) => (
-            <div key={group.title} className="nav-group">
-              <p className="nav-group-title">{group.title}</p>
+        <nav className="sidebar-nav" aria-label={t("nav.overview")}>
+          {groupDefs.map((group) => (
+            <div key={group.titleKey} className="nav-group">
+              <p className="nav-group-title">{t(group.titleKey)}</p>
               {group.items.map((link) => (
                 <NavLink
                   key={link.to}
@@ -73,18 +78,26 @@ export function AppShell() {
                     isActive ? "nav-link active" : "nav-link"
                   }
                 >
-                  <span className="nav-label">{link.label}</span>
-                  <span className="nav-hint">{link.hint}</span>
+                  <span className="nav-label">{t(link.labelKey)}</span>
+                  <span className="nav-hint">{t(link.hintKey)}</span>
                 </NavLink>
               ))}
             </div>
           ))}
         </nav>
-        <p className="sidebar-note">
-          无终端 · 无任意 Shell
-          <br />
-          默认 Mock · 人工审批
-        </p>
+        <div className="sidebar-footer">
+          <LanguageSwitch compact />
+          <p className="sidebar-note">
+            {t("brand.note")
+              .split("\n")
+              .map((line) => (
+                <span key={line}>
+                  {line}
+                  <br />
+                </span>
+              ))}
+          </p>
+        </div>
       </aside>
       <div className="workspace">
         <ConnectionBar />

@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from scientist_lab import API_VERSION, __version__
 from scientist_lab.api.errors import install_exception_handlers
 from scientist_lab.api.schemas import CompareExecutionsBody, CompareNodesBody
 from scientist_lab.api.v1 import build_v1_router
@@ -45,9 +46,9 @@ def create_app(
 
     app = FastAPI(
         title="Scientist Lab Web Console API",
-        version="1.7.1",
+        version=__version__,
         description=(
-            "Local single-user research workbench API. "
+            f"Local single-user research workbench API ({API_VERSION}). "
             "All mutations go through ExperimentService state machines."
         ),
     )
@@ -293,7 +294,19 @@ def create_app(
     def spa_fallback(spa_path: str) -> FileResponse:
         """Serve SPA index for client-side routes when dist is built."""
         if spa_path.startswith(("api/", "legacy", "assets/", "docs", "openapi")):
-            raise HTTPException(status_code=404, detail="not found")
+            from scientist_lab.api.errors import http_error
+
+            raise http_error(
+                404,
+                code="not_found",
+                message=f"API route not found: /{spa_path}",
+                suggested_action=(
+                    "当前后端可能是旧进程（缺少该路由）。"
+                    "请停止后重新启动：scripts/stop_workbench.ps1 再 start_workbench.ps1，"
+                    "或重新运行 scientist-lab serve。然后确认 /api/v1/health 的 version 为 v2.0.x。"
+                ),
+                details={"path": f"/{spa_path}"},
+            )
         spa = WEB_DIST / "index.html"
         if spa.exists():
             candidate = WEB_DIST / spa_path

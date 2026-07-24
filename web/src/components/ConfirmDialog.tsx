@@ -1,3 +1,5 @@
+import { useT } from "../i18n";
+
 type Props = {
   open: boolean;
   title: string;
@@ -14,10 +16,11 @@ export function ConfirmDialog({
   title,
   summary,
   consequences = [],
-  confirmLabel = "确认执行",
+  confirmLabel,
   onConfirm,
   onCancel,
 }: Props) {
+  const t = useT();
   if (!open) return null;
   return (
     <div className="modal-backdrop" role="presentation" onClick={onCancel}>
@@ -39,10 +42,10 @@ export function ConfirmDialog({
         )}
         <div className="modal-actions">
           <button type="button" className="btn-ghost" onClick={onCancel}>
-            取消
+            {t("common.cancel")}
           </button>
           <button type="button" className="btn-danger" onClick={onConfirm}>
-            {confirmLabel}
+            {confirmLabel || t("common.confirm")}
           </button>
         </div>
       </div>

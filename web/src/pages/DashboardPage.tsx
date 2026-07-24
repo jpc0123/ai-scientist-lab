@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/endpoints";
-import { ApiClientError } from "../api/client";
+import { ApiErrorView } from "../components/ApiErrorView";
 import { EmptyState } from "../components/EmptyState";
 import { Loading } from "../components/Loading";
+import { useT } from "../i18n";
 import type { SystemSummary, TodoItem } from "../types/api";
 
 function Stat({
@@ -46,6 +47,7 @@ function todoLabel(kind: string): string {
 }
 
 export function DashboardPage() {
+  const t = useT();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const health = useQuery({ queryKey: ["health"], queryFn: api.health });
@@ -64,28 +66,22 @@ export function DashboardPage() {
   });
 
   if (summary.isLoading || health.isLoading) {
-    return <Loading label="正在加载总览…" />;
+    return <Loading label={t("common.loading")} />;
   }
 
   if (summary.isError) {
-    const err = summary.error;
-    const msg =
-      err instanceof ApiClientError
-        ? `${err.code}: ${err.message}`
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
     return (
       <div className="page">
-        <h1>总览</h1>
-        <div className="error-panel">
-          <p>
-            <strong>还连不上后端。</strong>
-            请先按顶部提示启动 <code>scientist-lab serve</code>，或打开
-            <Link to="/guide"> 使用指南</Link>。
-          </p>
-          <p className="mono">{msg}</p>
-        </div>
+        <h1>{t("dashboard.title")}</h1>
+        <p>
+          {t("dashboard.offlineHint")}
+          <Link to="/guide"> {t("common.guide")}</Link>.
+        </p>
+        <ApiErrorView
+          error={summary.error}
+          title={t("dashboard.loadFail")}
+          onRetry={() => void summary.refetch()}
+        />
       </div>
     );
   }
@@ -113,16 +109,16 @@ export function DashboardPage() {
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">v2.0.2 Dashboard</p>
-          <h1>工作台总览</h1>
-          <p className="lede">
-            回答六件事：系统在跑什么、我该批什么、哪里失败了、预算还剩多少、最佳节点是谁、Claim
-            支持到哪。
-          </p>
+          <p className="eyebrow">{t("dashboard.eyebrow")}</p>
+          <h1>{t("dashboard.title")}</h1>
+          <p className="lede">{t("dashboard.lede")}</p>
         </div>
         <div className="action-row">
+          <Link className="btn-ghost-link" to="/projects">
+            {t("dashboard.demos")}
+          </Link>
           <Link className="btn-ghost-link" to="/projects/new">
-            新建项目
+            {t("dashboard.newProject")}
           </Link>
           <button
             type="button"
@@ -130,27 +126,31 @@ export function DashboardPage() {
             disabled={seed.isPending}
             onClick={() => seed.mutate()}
           >
-            {seed.isPending ? "生成中…" : "生成演示补丁"}
+            {seed.isPending ? t("dashboard.seeding") : t("dashboard.seedPatch")}
           </button>
         </div>
       </header>
 
       {seed.isError && (
-        <div className="error-panel">{(seed.error as Error).message}</div>
+        <ApiErrorView error={seed.error} title={t("dashboard.seedFail")} />
       )}
 
       {isEmpty && (
         <EmptyState
-          title="工作区还是空的（正常）"
-          description="可先新建科研项目，或生成演示补丁走受控流程。"
-          hints={["新建项目向导", "生成演示补丁", "到审批中心处理待办"]}
-          primaryAction={{ label: "新建项目", to: "/projects/new" }}
-          secondaryAction={{ label: "使用指南", to: "/guide" }}
+          title={t("dashboard.emptyTitle")}
+          description={t("dashboard.emptyDesc")}
+          hints={[
+            t("dashboard.emptyHint1"),
+            t("dashboard.emptyHint2"),
+            t("dashboard.emptyHint3"),
+          ]}
+          primaryAction={{ label: t("dashboard.openProjects"), to: "/projects" }}
+          secondaryAction={{ label: t("common.guide"), to: "/guide" }}
         />
       )}
 
       <section className="panel">
-        <h2>此刻状态</h2>
+        <h2>{t("dashboard.now")}</h2>
         <ul className="plain-list">
           <li>
             运行中实验：<strong>{answers.what_is_running ?? data.running_executions}</strong>

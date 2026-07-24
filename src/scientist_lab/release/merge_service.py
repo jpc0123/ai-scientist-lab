@@ -45,13 +45,31 @@ class MergeService:
         self.project_root = Path(project_root).resolve()
         self._patches = PatchRepository(session_factory)
         self._repo = MergeCandidateRepository(session_factory)
-        self.git = GitAdapter(self.project_root)
-        self.workspaces = WorkspaceRegistry(self.project_root, git=self.git)
-        self.rollbacks = RollbackService(
-            project_root=self.project_root,
-            git=self.git,
-            candidates=self._repo,
-        )
+        self._git: GitAdapter | None = None
+        self._workspaces: WorkspaceRegistry | None = None
+        self._rollbacks: RollbackService | None = None
+
+    @property
+    def git(self) -> GitAdapter:
+        if self._git is None:
+            self._git = GitAdapter(self.project_root)
+        return self._git
+
+    @property
+    def workspaces(self) -> WorkspaceRegistry:
+        if self._workspaces is None:
+            self._workspaces = WorkspaceRegistry(self.project_root, git=self.git)
+        return self._workspaces
+
+    @property
+    def rollbacks(self) -> RollbackService:
+        if self._rollbacks is None:
+            self._rollbacks = RollbackService(
+                project_root=self.project_root,
+                git=self.git,
+                candidates=self._repo,
+            )
+        return self._rollbacks
 
     def show(self, merge_candidate_id: str) -> dict[str, Any]:
         return self._view(self._repo.require(merge_candidate_id))

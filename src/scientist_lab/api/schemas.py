@@ -147,3 +147,69 @@ class ProjectCreateBody(BaseModel):
     protocol_draft: dict[str, Any] = Field(default_factory=dict)
     project_id: str | None = None
     mark_ready: bool = True
+
+
+class PlanNextBody(BaseModel):
+    protocol_id: str | None = None
+    current_best_node_id: str | None = None
+    max_new_nodes: int = 3
+    max_gpu_hours: float = 12.0
+    provider: str = "mock"
+    allow_network: bool = False
+    model_profile: str | None = None
+    require_quality_gate: bool = False
+
+
+class TreeCreateBody(BaseModel):
+    project_id: str
+    root_node_id: str
+    protocol_id: str
+    max_depth: int = 3
+    max_nodes: int = 8
+    max_children: int = 3
+    tree_id: str | None = None
+
+
+class TreePlanNextBody(BaseModel):
+    rescore: bool = True
+    max_gpu_hours: float = 12.0
+    provider: str = "mock"
+    allow_network: bool = False
+    model_profile: str | None = None
+    require_quality_gate: bool = False
+
+
+class TreeApproveBody(BaseModel):
+    candidate_id: str
+    seeds: list[int] = Field(default_factory=list)
+
+
+class TreeAdvanceBody(BaseModel):
+    tree_node_id: str | None = None
+
+
+class TreeStopBody(BaseModel):
+    reason: str
+
+
+class ClaimMatrixBuildBody(BaseModel):
+    project_id: str
+    protocol_id: str | None = None
+
+
+class RecoverBody(BaseModel):
+    dry_run: bool = True
+
+
+class DemoCreateBody(BaseModel):
+    kind: Literal["digits", "rgbt-debug"]
+    force: bool = False
+
+
+class ProjectExportBody(BaseModel):
+    output_dir: str
+
+
+class ProjectImportBody(BaseModel):
+    path: str
+    force: bool = False

@@ -1,0 +1,27 @@
+{
+  "version": "v2.0.0",
+  "tag_target": "v2.0.0",
+  "branch": "feat/v2.0-scientist-workbench",
+  "baseline_tag": "v1.9.0",
+  "title": "Scientist Lab v2.0 AI Scientist Workbench",
+  "principles": [
+    "Local single-user workbench",
+    "Default Mock LLM / no network",
+    "Human approval for Plan / Patch / Merge",
+    "No arbitrary Shell / no auto Git push",
+    "Claim Gate; recover never auto-reruns expensive experiments"
+  ],
+  "completed_subversions": [
+    "v2.0.1",
+    "v2.0.2",
+    "v2.0.3",
+    "v2.0.4",
+    "v2.0.5",
+    "v2.0.6",
+    "v2.0.7",
+    "v2.0.8",
+    "v2.0.9",
+    "v2.0.10"
+  ],
+  "acceptance_script": "scripts/accept_v20.py"
+}

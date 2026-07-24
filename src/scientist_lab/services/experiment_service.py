@@ -5,6 +5,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from scientist_lab import API_VERSION
 from scientist_lab.ablations.service import AblationService
 from scientist_lab.agents.service import AgentPlanningService
 from scientist_lab.budget.service import BudgetService
@@ -75,6 +76,9 @@ class ExperimentService:
         from scientist_lab.patching.service import PatchingService
 
         self.llm_evals = LLMEvalRepository(self.session_factory)
+        from scientist_lab.demos.service import DemoService
+
+        self.demos = DemoService(self)
         self.patches = PatchingService(
             self.session_factory,
             project_root=Path(self.settings.project_root),
@@ -889,7 +893,7 @@ class ExperimentService:
 
         health = {
             "api": "ok",
-            "version": "v2.0.2",
+            "version": API_VERSION,
             "default_llm": "mock",
             "network_default": False,
             "shell_available": False,
@@ -939,6 +943,35 @@ class ExperimentService:
                 "claims_supported": claim_counts.get("supported", 0),
             },
         }
+
+    def system_doctor(self) -> dict[str, Any]:
+        from scientist_lab.system.doctor import SystemDoctor
+
+        return SystemDoctor(self).run()
+
+    def security_posture(self) -> dict[str, Any]:
+        from scientist_lab.system.security_posture import build_security_posture
+
+        return build_security_posture(project_root=Path(self.settings.project_root))
+
+    def export_project(
+        self, project_id: str, *, output_dir: str | Path
+    ) -> dict[str, Any]:
+        from scientist_lab.projects.bundle import export_project_bundle
+
+        return export_project_bundle(self, project_id, output_dir=output_dir)
+
+    def import_project(
+        self, path: str | Path, *, force: bool = False
+    ) -> dict[str, Any]:
+        from scientist_lab.projects.bundle import import_project_bundle
+
+        return import_project_bundle(self, path, force=force)
+
+    def recover(self, *, dry_run: bool = True) -> dict[str, Any]:
+        from scientist_lab.system.recovery import RecoveryService
+
+        return RecoveryService(self).recover(dry_run=dry_run)
 
     def list_trees(
         self, *, project_id: str | None = None, limit: int = 50
@@ -1014,12 +1047,17 @@ class ExperimentService:
     def list_claims(
         self, *, project_id: str | None = None
     ) -> list[dict[str, Any]]:
+        from scientist_lab.services.evidence_view import enrich_claim
+
         if project_id:
-            matrix = self.show_claim_matrix(project_id)
+            try:
+                matrix = self.show_claim_matrix(project_id)
+            except KeyError:
+                return []
             claims = list(matrix.get("claims") or [])
             for claim in claims:
                 claim["project_id"] = project_id
-            return claims
+            return [enrich_claim(dict(claim)) for claim in claims]
         items: list[dict[str, Any]] = []
         for project in self.list_projects():
             try:
@@ -1029,7 +1067,7 @@ class ExperimentService:
             for claim in matrix.get("claims") or []:
                 claim = dict(claim)
                 claim["project_id"] = project["project_id"]
-                items.append(claim)
+                items.append(enrich_claim(claim))
         return items
 
     def list_executions(
@@ -2240,8 +2278,10 @@ class ExperimentService:
         protocol_id: str | None = None,
         evidence_type: str | None = None,
     ) -> list[dict[str, Any]]:
+        from scientist_lab.services.evidence_view import enrich_evidence
+
         return [
-            item.model_dump(mode="json")
+            enrich_evidence(item.model_dump(mode="json"))
             for item in self.evidence.list_evidence(
                 project_id=project_id,
                 protocol_id=protocol_id,
@@ -2250,11 +2290,13 @@ class ExperimentService:
         ]
 
     def show_evidence(self, evidence_id: str) -> dict[str, Any]:
+        from scientist_lab.services.evidence_view import enrich_evidence
+
         record = self.evidence.require(evidence_id)
         payload = record.model_dump(mode="json")
         path = self.evidence.evidence_path(evidence_id)
         payload["evidence_path"] = str(path) if path.exists() else None
-        return payload
+        return enrich_evidence(payload)
 
     def build_claim_matrix(
         self,
@@ -2262,12 +2304,18 @@ class ExperimentService:
         *,
         protocol_id: str | None = None,
     ) -> dict[str, Any]:
-        return self.evidence.build_claim_matrix(
-            project_id, protocol_id=protocol_id
+        from scientist_lab.services.evidence_view import enrich_claim_matrix
+
+        return enrich_claim_matrix(
+            self.evidence.build_claim_matrix(
+                project_id, protocol_id=protocol_id
+            )
         )
 
     def show_claim_matrix(self, project_id: str) -> dict[str, Any]:
-        return self.evidence.show_claim_matrix(project_id)
+        from scientist_lab.services.evidence_view import enrich_claim_matrix
+
+        return enrich_claim_matrix(self.evidence.show_claim_matrix(project_id))
 
     def plan_next(
         self,
@@ -2438,7 +2486,17 @@ class ExperimentService:
         return self.agents.list_plans(project_id=project_id)
 
     def show_plan(self, plan_id: str) -> dict[str, Any]:
-        return self.agents.get_plan(plan_id)
+        from scientist_lab.services.plan_view import enrich_plan
+
+        plan = self.agents.get_plan(plan_id)
+        project_id = str(plan.get("project_id") or "")
+        budget_remaining: dict[str, Any] | None = None
+        if project_id:
+            try:
+                budget_remaining = self.show_budget(project_id).get("remaining") or {}
+            except Exception:  # noqa: BLE001
+                budget_remaining = {}
+        return enrich_plan(plan, budget_remaining=budget_remaining)
 
     def evaluate_llm_quality(
         self,
@@ -2904,7 +2962,17 @@ class ExperimentService:
         return self.trees.tree_status(tree_id)
 
     def tree_show(self, tree_id: str) -> dict[str, Any]:
-        return self.trees.show_tree(tree_id)
+        from scientist_lab.services.plan_view import enrich_tree
+
+        payload = self.trees.show_tree(tree_id)
+        project_id = str(payload.get("project_id") or "")
+        budget_remaining: dict[str, Any] | None = None
+        if project_id:
+            try:
+                budget_remaining = self.show_budget(project_id).get("remaining") or {}
+            except Exception:  # noqa: BLE001
+                budget_remaining = {}
+        return enrich_tree(payload, budget_remaining=budget_remaining)
 
     def tree_nodes(self, tree_id: str) -> list[dict[str, Any]]:
         return self.trees.list_nodes(tree_id)
@@ -2936,7 +3004,9 @@ class ExperimentService:
         )
 
     def show_report(self, report_id: str) -> dict[str, Any]:
-        return self.reporting.show_report(report_id)
+        from scientist_lab.services.evidence_view import enrich_report
+
+        return enrich_report(self.reporting.show_report(report_id))
 
     def verify_report(self, report_id: str) -> dict[str, Any]:
         return self.reporting.verify_report(report_id)

@@ -2,10 +2,12 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/endpoints";
+import { ApiErrorView } from "../components/ApiErrorView";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { Loading } from "../components/Loading";
 import { MetaGrid } from "../components/MetaGrid";
+import { useT } from "../i18n";
 
 const TASK_TYPES = [
   { id: "general_ml", label: "通用机器学习 (general_ml)" },
@@ -46,29 +48,77 @@ function toggleKey(list: string[], key: string): string[] {
 }
 
 export function ProjectsPage() {
+  const t = useT();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const q = useQuery({ queryKey: ["projects"], queryFn: () => api.projects() });
+  const demos = useQuery({ queryKey: ["demo-catalog"], queryFn: api.demoCatalog });
+  const createDemo = useMutation({
+    mutationFn: (kind: "digits" | "rgbt-debug") => api.demoCreate(kind),
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: ["projects"] });
+      await qc.invalidateQueries({ queryKey: ["summary"] });
+      const pid = data.project?.project_id;
+      if (pid) navigate(`/projects/${pid}`);
+    },
+  });
+
   if (q.isLoading) return <Loading />;
-  if (q.isError) return <div className="error-panel">{(q.error as Error).message}</div>;
+  if (q.isError) return <ApiErrorView error={q.error} title={t("projects.loadFail")} />;
   const items = q.data?.items || [];
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">v2.0.1</p>
-          <h1>项目</h1>
-          <p className="lede">科研项目生命周期入口。新建走六步向导，确认后进入 ready。</p>
+          <p className="eyebrow">{t("projects.eyebrow")}</p>
+          <h1>{t("projects.title")}</h1>
+          <p className="lede">{t("projects.lede")}</p>
         </div>
         <Link className="btn-primary" to="/projects/new">
-          新建项目
+          {t("projects.new")}
         </Link>
       </header>
+
+      <section className="panel">
+        <h2>{t("projects.demosTitle")}</h2>
+        <p className="muted">{t("projects.demosDesc")}</p>
+        <div className="action-row">
+          {(demos.data?.items || [
+            { kind: "digits", title: "Digits" },
+            { kind: "rgbt-debug", title: "RGB-T Debug" },
+          ]).map((d) => (
+            <button
+              key={d.kind}
+              type="button"
+              className="btn-secondary"
+              disabled={createDemo.isPending}
+              onClick={() =>
+                createDemo.mutate(d.kind as "digits" | "rgbt-debug")
+              }
+            >
+              {createDemo.isPending ? t("projects.creating") : d.title}
+            </button>
+          ))}
+        </div>
+        {createDemo.isError ? (
+          <ApiErrorView error={createDemo.error} title={t("projects.createDemoFail")} />
+        ) : null}
+        {createDemo.isSuccess && createDemo.data?.message ? (
+          <p className="muted">{createDemo.data.message}</p>
+        ) : null}
+      </section>
+
       {items.length === 0 ? (
         <EmptyState
-          title="还没有项目"
-          description="用六步向导创建第一个科研项目。"
-          hints={["科研问题", "任务类型", "数据集", "运行环境", "协议", "确认"]}
-          primaryAction={{ label: "新建项目", to: "/projects/new" }}
-          secondaryAction={{ label: "使用指南", to: "/guide" }}
+          title={t("projects.emptyTitle")}
+          description={t("projects.emptyDesc")}
+          hints={[
+            t("projects.emptyHint1"),
+            t("projects.emptyHint2"),
+            t("projects.emptyHint3"),
+          ]}
+          primaryAction={{ label: t("projects.new"), to: "/projects/new" }}
+          secondaryAction={{ label: t("common.guide"), to: "/guide" }}
         />
       ) : (
         <ul className="list">
@@ -79,7 +129,9 @@ export function ProjectsPage() {
               </Link>
               <span className="mono">{p.project_id}</span>
               <span className="badge">{p.status}</span>
-              <span className="muted">节点 {p.node_count ?? 0}</span>
+              <span className="muted">
+                {t("projects.nodes")} {p.node_count ?? 0}
+              </span>
             </li>
           ))}
         </ul>
@@ -146,14 +198,18 @@ export function ProjectCreateWizardPage() {
         </Link>
       </header>
 
-      <ol className="plain-list" style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        {["科研问题", "任务类型", "数据集", "运行环境", "实验协议", "确认"].map((label, i) => (
-          <li key={label}>
-            <span className={step === i + 1 ? "badge" : "muted"}>
-              {i + 1}. {label}
-            </span>
-          </li>
-        ))}
+      <ol className="wizard-steps" aria-label="向导步骤">
+        {["科研问题", "任务类型", "数据集", "运行环境", "实验协议", "确认"].map(
+          (label, i) => (
+            <li
+              key={label}
+              className={step === i + 1 ? "wizard-step active" : "wizard-step"}
+            >
+              <span className="wizard-step-index">{i + 1}</span>
+              <span className="wizard-step-label">{label}</span>
+            </li>
+          ),
+        )}
       </ol>
 
       {step === 1 && (
@@ -373,7 +429,7 @@ export function ProjectCreateWizardPage() {
       )}
 
       {create.isError && (
-        <div className="error-panel">{(create.error as Error).message}</div>
+        <ApiErrorView error={create.error} title="创建项目失败" />
       )}
 
       <div className="action-row">
@@ -441,7 +497,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   });
 
   if (q.isLoading) return <Loading />;
-  if (q.isError) return <div className="error-panel">{(q.error as Error).message}</div>;
+  if (q.isError) return <ApiErrorView error={q.error} title="无法加载项目列表" />;
   const p = q.data!;
 
   return (
@@ -487,7 +543,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
         </button>
       </div>
       {archive.isError && (
-        <div className="error-panel">{(archive.error as Error).message}</div>
+        <ApiErrorView error={archive.error} title="归档失败" />
       )}
       <section className="panel">
         <h2>完整记录</h2>

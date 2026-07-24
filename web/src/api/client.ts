@@ -3,18 +3,30 @@ import type { ApiError } from "../types/api";
 export class ApiClientError extends Error {
   status: number;
   code: string;
+  type: string;
   details?: unknown;
+  retryable: boolean;
+  suggestedAction: string;
 
   constructor(status: number, payload: ApiError | string) {
     if (typeof payload === "string") {
       super(payload);
       this.status = status;
       this.code = "http_error";
+      this.type = "http_error";
+      this.retryable = status >= 500;
+      this.suggestedAction = status >= 500
+        ? "可稍后重试；若持续失败，打开系统页运行诊断。"
+        : "检查请求后重试。";
     } else {
-      super(payload.error?.message || "API request failed");
+      const err = payload.error || { code: "http_error", message: "API request failed" };
+      super(err.message || "API request failed");
       this.status = status;
-      this.code = payload.error?.code || "http_error";
-      this.details = payload.error?.details;
+      this.code = err.code || err.type || "http_error";
+      this.type = err.type || err.code || "http_error";
+      this.details = err.details;
+      this.retryable = Boolean(err.retryable);
+      this.suggestedAction = err.suggested_action || "";
     }
     this.name = "ApiClientError";
   }
