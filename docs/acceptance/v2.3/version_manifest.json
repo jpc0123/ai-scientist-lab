@@ -1,4 +1,6 @@
 {
+  "freeze_commit": "0befdd77c45972507e3f9191ccf8dd656681a229",
+  "tag": "v2.3.0",
   "version": "v2.3.0",
   "tag_target": "v2.3.0",
   "package_version": "2.3.0",

@@ -17,7 +17,7 @@ Guide: [`docs/dfine-cuda-runthrough.md`](../../dfine-cuda-runthrough.md).
 |----|-----|
 | Package | `2.3.0` |
 | API_VERSION | `v2.3.0` |
-| Git tag（待授权） | `v2.3.0` |
+| Git tag | **`v2.3.0`** @ **`0befdd7`** |
 | Baseline freeze | `v2.1.0` @ `bb47db0`（不移动） |
 
 ## Honest claims
