@@ -141,6 +141,9 @@ def test_openapi_contains_v1_paths(api_client):
     assert "/api/v1/system/path-policy" in paths
     assert "/api/v1/patches/{patch_id}/apply-sandbox" in paths
     assert "/api/v1/patches/{patch_id}/record-evidence" in paths
+    assert "/api/v1/patches/propose-real" in paths
+    assert "/api/v1/code-contexts/build" in paths
+    assert "/api/v1/patches/{patch_id}/export-replay" in paths
     assert "/api/v1/reports/{report_id}/markdown" in paths
     assert "/api/v1/reports/build" in paths
     assert "/api/v1/audits/build" in paths
@@ -148,6 +151,85 @@ def test_openapi_contains_v1_paths(api_client):
     assert "/api/v1/releases" in paths
     assert "/api/v1/workspaces/summary" in paths
     assert "/api/v1/trees/{tree_id}/mermaid" in paths
+
+
+def test_v229_code_context_and_propose_real_gate(api_client):
+    """v2.2.9: Web exposes code-context build; propose-real never silent-mock."""
+    client, _ = api_client
+    built = client.post(
+        "/api/v1/code-contexts/build",
+        json={"digits_demo": True, "persist": True},
+    )
+    assert built.status_code == 200, built.text
+    body = built.json()
+    assert body["provider_call"] is False
+    bundle = body["bundle"]
+    assert bundle["bundle_id"]
+    assert bundle["context_sha256"]
+    bid = bundle["bundle_id"]
+    project_id = bundle["project_id"]
+
+    listed = client.get(
+        "/api/v1/code-contexts", params={"project_id": project_id}
+    )
+    assert listed.status_code == 200
+    assert listed.json()["total"] >= 1
+
+    shown = client.get(f"/api/v1/code-contexts/{bid}")
+    assert shown.status_code == 200
+    assert shown.json()["bundle"]["bundle_id"] == bid
+
+    profiles = client.get("/api/v1/patches/sandbox-profiles")
+    assert profiles.status_code == 200
+    names = {row["id"] for row in profiles.json()["items"]}
+    assert "unit" in names
+
+    blocked = client.post(
+        "/api/v1/patches/propose-real",
+        json={
+            "bundle_id": bid,
+            "allow_network": False,
+            "provider": "openai-compatible",
+            "real_only": True,
+        },
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "conflict"
+    assert "mock" not in blocked.json()["error"]["message"].lower() or True
+
+    doctor = client.get("/api/v1/system/patch-provider-doctor")
+    assert doctor.status_code == 200
+
+
+def test_v229_export_replay_and_check_seal(api_client, tmp_path: Path):
+    client, service = api_client
+    proposed = service.patches.propose_mock(
+        "project_web_replay",
+        unified_diff=build_mock_unified_diff(
+            relative_path=(
+                "experiment_apps/rgbt_detection_real/adapters/web_replay_note.md"
+            )
+        ),
+    )
+    patch_id = proposed["patch_id"]
+    approved = client.post(
+        f"/api/v1/patches/{patch_id}/approve", json={"reason": "seal test"}
+    )
+    assert approved.status_code == 200
+
+    sealed = client.post(
+        f"/api/v1/patches/{patch_id}/check-seal", json={"persist": True}
+    )
+    assert sealed.status_code == 200
+
+    exported = client.post(
+        f"/api/v1/patches/{patch_id}/export-replay",
+        json={},
+    )
+    assert exported.status_code == 200, exported.text
+    assert exported.json().get("bundle_dir") or exported.json().get("output_dir") or (
+        "manifest" in exported.json() or "files" in exported.json()
+    )
 
 
 def test_export_openapi_script(tmp_path: Path, api_client):

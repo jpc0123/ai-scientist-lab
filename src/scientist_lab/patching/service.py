@@ -9,6 +9,25 @@ from typing import Any
 from sqlalchemy.orm import sessionmaker
 
 from scientist_lab.domain.models import new_id
+from scientist_lab.patching.approval_seal import (
+    ApprovalSealError,
+    attach_approval_seal,
+    compare_approval_seal,
+    invalidate_approval,
+)
+from scientist_lab.patching.context_bundle import (
+    build_code_context_bundle,
+    digits_improvement_patch_request,
+)
+from scientist_lab.patching.context_models import (
+    CodeContextBundle,
+    ContextSizeBudget,
+    PatchRequest,
+)
+from scientist_lab.patching.context_store import (
+    CodeContextRepository,
+    export_code_context_bundle,
+)
 from scientist_lab.patching.fingerprint import fingerprint_diff
 from scientist_lab.patching.evidence import (
     PatchMergeDecision,
@@ -16,6 +35,18 @@ from scientist_lab.patching.evidence import (
 )
 from scientist_lab.patching.models import PatchApproval, PatchProposal
 from scientist_lab.patching.path_policy import PathPolicy
+from scientist_lab.patching.real_patch_planner import (
+    RealPatchPlanner,
+    RealPatchPlannerError,
+)
+from scientist_lab.patching.real_mode import (
+    DEFAULT_PATCH_PROVIDER_BUDGET,
+    PatchBudgetStore,
+    PatchProviderBudget,
+    PatchRealModeError,
+    PatchRealModePolicy,
+    patch_provider_doctor,
+)
 from scientist_lab.patching.repository import PatchRepository
 from scientist_lab.patching.sandbox_checks import (
     SandboxTestProfile,
@@ -23,6 +54,7 @@ from scientist_lab.patching.sandbox_checks import (
 )
 from scientist_lab.patching.verifier import PatchVerifier
 from scientist_lab.patching.workspace import PatchSandbox
+from scientist_lab.storage.artifact_store import write_json
 
 
 def build_mock_unified_diff(
@@ -62,7 +94,9 @@ class PatchingService:
         policy: PathPolicy | None = None,
     ) -> None:
         self._repo = PatchRepository(session_factory)
+        self._contexts = CodeContextRepository(session_factory)
         self.policy = policy or PathPolicy()
+        self.context_policy = PathPolicy.for_code_context()
         self.verifier = PatchVerifier(self.policy)
         root = Path(project_root) if project_root else Path.cwd()
         self.project_root = root.resolve()
@@ -79,9 +113,71 @@ class PatchingService:
         self.sandbox = PatchSandbox(
             project_root=self.project_root,
             sandbox_root=self.sandbox_root,
-            policy=self.policy,
+            policy=self.context_policy,
         )
-        self.sandbox_tests = SandboxTestRunner(policy=self.policy)
+        self.sandbox_tests = SandboxTestRunner(policy=self.context_policy)
+        self.real_mode = PatchRealModePolicy()
+        self.budget_store = PatchBudgetStore(
+            self.outputs_root / "_patch_budgets"
+        )
+
+    def build_code_context(
+        self,
+        request: PatchRequest | None = None,
+        *,
+        persist: bool = True,
+        budget: ContextSizeBudget | None = None,
+        bundle_id: str | None = None,
+        digits_demo: bool = False,
+    ) -> dict[str, Any]:
+        """Build a restricted CodeContextBundle (v2.2.1; no provider call)."""
+        req = request
+        if req is None:
+            if not digits_demo:
+                raise ValueError("PatchRequest required unless digits_demo=True")
+            req = digits_improvement_patch_request()
+        bundle = build_code_context_bundle(
+            req,
+            project_root=self.project_root,
+            policy=self.context_policy,
+            budget=budget,
+            bundle_id=bundle_id,
+        )
+        if persist:
+            self._contexts.upsert(bundle)
+        return {
+            "bundle": bundle.model_dump(mode="json"),
+            "persisted": persist,
+            "provider_call": False,
+        }
+
+    def show_code_context(self, bundle_id: str) -> dict[str, Any]:
+        bundle = self._contexts.require(bundle_id)
+        return {"bundle": bundle.model_dump(mode="json")}
+
+    def export_code_context(
+        self,
+        bundle_id: str,
+        *,
+        output_path: Path | str | None = None,
+    ) -> dict[str, Any]:
+        bundle = self._contexts.require(bundle_id)
+        out = (
+            Path(output_path)
+            if output_path
+            else (
+                self.outputs_root
+                / "_code_contexts"
+                / f"{bundle.bundle_id}_{bundle.context_sha256[:12]}.json"
+            )
+        )
+        meta = export_code_context_bundle(bundle, output_path=out)
+        return {"export": meta, "bundle_id": bundle.bundle_id}
+
+    def list_code_contexts(
+        self, project_id: str, *, limit: int = 50
+    ) -> list[CodeContextBundle]:
+        return self._contexts.list_for_project(project_id, limit=limit)
 
     def propose_mock(
         self,
@@ -134,6 +230,168 @@ class PatchingService:
         self._repo.upsert(proposal)
         return self._view(proposal)
 
+    def propose_real(
+        self,
+        bundle_id: str | CodeContextBundle,
+        *,
+        provider: Any | None = None,
+        requested_provider: str = "openai-compatible",
+        allow_network: bool = False,
+        transport: Any | None = None,
+        openai_config: Any | None = None,
+        real_only: bool = True,
+        auto_verify: bool = True,
+        environ: dict[str, str] | None = None,
+        budget: PatchProviderBudget | None = None,
+        apply_project_budget: bool = True,
+    ) -> dict[str, Any]:
+        """Build PatchProposal from CodeContextBundle via real provider (v2.2.2/4).
+
+        Never silently falls back to ``propose_mock`` when ``real_only=True``.
+        Offline tests may pass ``transport=MockTransport`` with ``allow_network=False``.
+        v2.2.4 wraps the provider with call/token/cost budget limits.
+        """
+        from scientist_lab.agents.provider_bridge import load_openai_config_for_runtime
+        from scientist_lab.llm.factory import create_llm_provider
+        from scientist_lab.llm.limits import ProviderLimitExceeded
+
+        if isinstance(bundle_id, CodeContextBundle):
+            bundle = bundle_id
+        else:
+            bundle = self._contexts.require(str(bundle_id))
+
+        requested = self.real_mode.assert_mode(
+            requested_provider=requested_provider,
+            real_only=real_only,
+            allow_network=bool(allow_network),
+            transport=transport,
+            provider=provider,
+        )
+
+        caps = budget or self.real_mode.budget()
+        session_caps = caps
+        if apply_project_budget:
+            status = self.budget_store.status(bundle.project_id, budget=caps)
+            if status["exhausted"]:
+                raise PatchRealModeError(
+                    f"patch provider budget exhausted for project "
+                    f"{bundle.project_id}: {status['used']}"
+                )
+            rem = status["remaining"]
+            session_caps = PatchProviderBudget(
+                max_calls=max(1, int(rem["calls"])),
+                max_total_tokens=max(1, int(rem["total_tokens"])),
+                max_cost_usd=max(0.0001, float(rem["cost_usd"])),
+                max_latency_ms=caps.max_latency_ms,
+            )
+
+        llm = provider
+        if llm is None:
+            cfg = openai_config
+            if cfg is None and (allow_network or transport is not None):
+                cfg = load_openai_config_for_runtime(
+                    allow_network=bool(allow_network),
+                    environ=environ,
+                    openai_config=None,
+                )
+            try:
+                llm = create_llm_provider(
+                    requested,
+                    allow_network=bool(allow_network),
+                    environ=environ,
+                    openai_config=cfg,
+                    transport=transport,
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise RealPatchPlannerError(
+                    f"cannot construct real patch provider: {exc}"
+                ) from exc
+
+        llm, ledger, applied_budget = self.real_mode.wrap_with_budget(
+            llm, budget=session_caps
+        )
+
+        planner = RealPatchPlanner(
+            llm,
+            requested_provider=requested,
+            real_only=real_only,
+            policy=self.context_policy,
+        )
+        try:
+            proposal, audit = planner.propose(bundle, auto_verify=False)
+        except ProviderLimitExceeded as exc:
+            raise PatchRealModeError(f"patch provider budget exceeded: {exc}") from exc
+        except Exception:
+            # Explicit: do NOT call propose_mock here.
+            raise
+
+        project_usage = None
+        if apply_project_budget and ledger.call_count > 0:
+            project_usage = self.budget_store.add_usage(bundle.project_id, ledger)
+
+        if auto_verify:
+            context_verifier = PatchVerifier(self.context_policy)
+            found = self._repo.find_by_fingerprint(
+                proposal.fingerprint_sha256, exclude_patch_id=proposal.patch_id
+            )
+            duplicate_id = found.patch_id if found else None
+            if duplicate_id:
+                proposal.metadata["duplicate_of"] = duplicate_id
+            verification = context_verifier.verify(
+                proposal.unified_diff, duplicate_of=duplicate_id
+            )
+            proposal.verification = verification
+            proposal.files_touched = list(verification.files_touched)
+            proposal.fingerprint_sha256 = verification.fingerprint_sha256
+            proposal.status = (
+                "verified" if verification.ok else "rejected_by_verifier"
+            )
+            audit["verification_ok"] = verification.ok
+
+        proposal.metadata["provider_budget"] = applied_budget.model_dump()
+        proposal.metadata["provider_usage"] = ledger.as_dict()
+        proposal.metadata["force_real_only"] = True
+
+        self._repo.upsert(proposal)
+        view = self._view(proposal)
+        view["provider_audit"] = audit
+        view["fallback_used"] = False
+        view["bundle_id"] = bundle.bundle_id
+        view["context_sha256"] = bundle.context_sha256
+        view["provider_budget"] = applied_budget.model_dump()
+        view["provider_usage"] = ledger.as_dict()
+        if project_usage is not None:
+            view["project_provider_usage"] = project_usage
+        return view
+
+    def show_patch_budget(
+        self,
+        project_id: str,
+        *,
+        budget: PatchProviderBudget | None = None,
+    ) -> dict[str, Any]:
+        return self.budget_store.status(project_id, budget=budget)
+
+    def patch_provider_doctor(
+        self,
+        *,
+        requested_provider: str = "openai-compatible",
+        allow_network: bool = False,
+        environ: dict[str, str] | None = None,
+        transport_injected: bool = False,
+    ) -> dict[str, Any]:
+        import os
+
+        env = environ if environ is not None else dict(os.environ)
+        return patch_provider_doctor(
+            requested_provider=requested_provider,
+            allow_network=bool(allow_network),
+            has_api_key=bool(str(env.get("LLM_API_KEY") or "").strip()),
+            has_base_url=bool(str(env.get("LLM_BASE_URL") or "").strip()),
+            has_model=bool(str(env.get("LLM_MODEL") or "").strip()),
+            transport_injected=transport_injected,
+        )
+
     def show(self, patch_id: str) -> dict[str, Any]:
         return self._view(self._repo.require(patch_id))
 
@@ -175,11 +433,15 @@ class PatchingService:
             proposal = self._repo.require(patch_id)
             if proposal.verification is None or not proposal.verification.ok:
                 raise ValueError("patch must pass verification before approval")
-        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-        proposal.approval = PatchApproval(
+        # Ensure patch fingerprint is current before sealing.
+        proposal.fingerprint_sha256 = (
+            proposal.fingerprint_sha256
+            or fingerprint_diff(proposal.unified_diff)
+        )
+        proposal.approval = attach_approval_seal(
+            proposal,
             decision="approved",
             reason=reason or "human approved for sandbox apply",
-            decided_at=now,
             decided_by="human",
         )
         proposal.status = "approved"
@@ -188,17 +450,17 @@ class PatchingService:
             "applied_main": False,
             "apply_main_available": False,
             "sandbox_apply_available": True,
+            "approval_invalidated": False,
         }
         self._repo.upsert(proposal)
         return self._view(proposal)
 
     def reject(self, patch_id: str, *, reason: str = "") -> dict[str, Any]:
         proposal = self._repo.require(patch_id)
-        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-        proposal.approval = PatchApproval(
+        proposal.approval = attach_approval_seal(
+            proposal,
             decision="rejected",
             reason=reason or "human rejected",
-            decided_at=now,
             decided_by="human",
         )
         proposal.status = "rejected"
@@ -212,6 +474,20 @@ class PatchingService:
         self._repo.upsert(proposal)
         return self._view(proposal)
 
+    def check_approval_seal(self, patch_id: str, *, persist: bool = True) -> dict[str, Any]:
+        """Validate approval fingerprints against current proposal content."""
+        proposal = self._repo.require(patch_id)
+        report = compare_approval_seal(proposal)
+        if proposal.status == "approved" and not report["ok"]:
+            proposal = invalidate_approval(
+                proposal, reason=str(report.get("message") or "seal mismatch")
+            )
+            if persist:
+                self._repo.upsert(proposal)
+        view = self._view(proposal)
+        view["seal_report"] = report
+        return view
+
     def apply_sandbox(
         self, patch_id: str, *, force: bool = False
     ) -> dict[str, Any]:
@@ -224,6 +500,24 @@ class PatchingService:
             )
         if proposal.verification is None or not proposal.verification.ok:
             raise ValueError("patch verification must be ok before sandbox apply")
+
+        # v2.2.5: refuse sandbox apply if sealed content was tampered with.
+        if (
+            proposal.approval is not None
+            and proposal.approval.decision == "approved"
+            and not proposal.approval.invalidated
+        ):
+            seal_report = compare_approval_seal(proposal)
+            if not seal_report["ok"]:
+                proposal = invalidate_approval(
+                    proposal,
+                    reason=str(seal_report.get("message") or "seal mismatch"),
+                )
+                self._repo.upsert(proposal)
+                raise ApprovalSealError(
+                    "approval invalidated — content changed after approval; "
+                    f"re-approve required ({seal_report.get('message')})"
+                )
 
         result = self.sandbox.apply(
             proposal.patch_id,
@@ -254,8 +548,20 @@ class PatchingService:
             "error": result.error,
             "manifest_path": result.manifest_path,
             "main_workspace_modified": False,
+            "policy": "for_code_context",
         }
         return view
+
+    def list_sandbox_test_profiles(self) -> dict[str, Any]:
+        from scientist_lab.patching.sandbox_registry import list_sandbox_test_profiles
+
+        items = list_sandbox_test_profiles()
+        return {
+            "items": items,
+            "total": len(items),
+            "runs_shell": False,
+            "arbitrary_commands_forbidden": True,
+        }
 
     def test_sandbox(
         self,
@@ -298,8 +604,11 @@ class PatchingService:
         patch_id: str,
         *,
         require_tests: bool = False,
+        build_feedback: bool = True,
     ) -> dict[str, Any]:
         """Persist PatchEvidence from an applied (and preferably tested) sandbox."""
+        from scientist_lab.patching.feedback import build_patch_feedback_package
+
         proposal = self._repo.require(patch_id)
         if proposal.status not in {"applied_sandbox", "evidence_recorded"}:
             raise ValueError(
@@ -312,10 +621,24 @@ class PatchingService:
                 "(run patch-test-sandbox first, or omit --require-tests)"
             )
         evidence = build_patch_evidence(proposal, outputs_root=self.outputs_root)
+        feedback: dict[str, Any] | None = None
+        if build_feedback:
+            feedback = build_patch_feedback_package(
+                evidence, proposal, outputs_root=self.outputs_root
+            )
+            evidence.feedback_package_path = str(feedback.get("artifact_path") or "")
+            # Rewrite artifact with feedback path.
+            if evidence.artifact_path:
+                write_json(
+                    Path(evidence.artifact_path),
+                    evidence.model_dump(mode="json"),
+                )
         proposal.metadata = {
             **meta,
             "patch_evidence": evidence.model_dump(mode="json"),
             "patch_evidence_id": evidence.evidence_id,
+            "patch_feedback": feedback,
+            "patch_verdict": evidence.verdict,
             "applied_main": False,
             "apply_main_available": False,
         }
@@ -323,6 +646,151 @@ class PatchingService:
         self._repo.upsert(proposal)
         view = self._view(proposal)
         view["patch_evidence"] = evidence.model_dump(mode="json")
+        if feedback is not None:
+            view["patch_feedback"] = feedback
+        return view
+
+    def export_patch_replay(
+        self,
+        patch_id: str,
+        *,
+        output_dir: Path | str,
+        provider_response: dict[str, Any] | None = None,
+        label: str = "patch_replay",
+    ) -> dict[str, Any]:
+        """Export a redacted Patch Replay Bundle for offline CI (v2.2.8)."""
+        from scientist_lab.patching.replay_bundle import build_patch_replay_bundle
+
+        proposal = self._repo.require(patch_id)
+        meta = dict(proposal.metadata or {})
+        context_payload = None
+        bundle_id = meta.get("bundle_id")
+        if bundle_id:
+            ctx = self._contexts.get(str(bundle_id))
+            if ctx is not None:
+                context_payload = ctx.model_dump(mode="json")
+        if context_payload is None:
+            context_payload = {
+                "bundle_id": bundle_id or "",
+                "request_id": meta.get("request_id") or "",
+                "project_id": proposal.project_id,
+                "source_commit": meta.get("source_commit") or "",
+                "context_sha256": meta.get("context_sha256") or "",
+                "goal": proposal.title,
+                "snapshots": [],
+                "metadata": {"provider_call": True, "exported_from_patch": True},
+            }
+
+        response = provider_response or {
+            "title": proposal.title,
+            "rationale": proposal.rationale,
+            "unified_diff": proposal.unified_diff,
+            "risks": list(meta.get("risks") or []),
+            "expected_tests": list(meta.get("expected_tests") or []),
+            "evidence_gap_ids": list(proposal.evidence_gap_ids or []),
+        }
+        verification = (
+            proposal.verification.model_dump(mode="json")
+            if proposal.verification is not None
+            else None
+        )
+        return build_patch_replay_bundle(
+            output_dir=output_dir,
+            bundle=context_payload,
+            provider_response=response,
+            proposal=proposal.model_dump(mode="json"),
+            verification=verification,
+            feedback=meta.get("patch_feedback"),
+            provider_audit={
+                "requested_provider": "openai-compatible",
+                "actual_provider": proposal.provider,
+                "fallback_used": False,
+            },
+            label=label,
+        )
+
+    def replay_patch_from_bundle(
+        self,
+        bundle_dir: Path | str,
+        *,
+        persist_context: bool = True,
+        auto_verify: bool = True,
+    ) -> dict[str, Any]:
+        """Replay a recorded provider response via MockTransport (zero network)."""
+        import json as _json
+
+        from pydantic import SecretStr
+
+        from scientist_lab.llm.http_transport import HttpResponse, MockTransport
+        from scientist_lab.llm.openai_config import OpenAICompatibleConfig
+        from scientist_lab.patching.context_models import CodeContextBundle
+        from scientist_lab.patching.replay_bundle import (
+            load_patch_replay_bundle,
+            replay_patch_static_checks,
+        )
+        from scientist_lab.patching.real_mode import PatchProviderBudget
+
+        loaded = load_patch_replay_bundle(bundle_dir)
+        static = replay_patch_static_checks(bundle_dir, policy=self.context_policy)
+        if not static["ok"]:
+            raise ValueError(
+                "static replay checks failed: "
+                + _json.dumps(static.get("verification"), ensure_ascii=False)
+            )
+
+        context_payload = loaded.get("code_context_bundle") or {}
+        context = CodeContextBundle.model_validate(context_payload)
+        if persist_context:
+            self._contexts.upsert(context)
+
+        response_body = {
+            "id": "chatcmpl-patch-replay",
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": _json.dumps(
+                            loaded.get("provider_response") or {},
+                            ensure_ascii=False,
+                        ),
+                    }
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 20,
+                "total_tokens": 30,
+            },
+        }
+        transport = MockTransport(
+            default_response=HttpResponse(
+                status_code=200, body=_json.dumps(response_body)
+            )
+        )
+        cfg = OpenAICompatibleConfig(
+            base_url="https://replay.local/v1",
+            api_key=SecretStr("sk-replay-offline-not-a-real-key"),
+            model="replay-patch",
+            allow_network=False,
+            api_mode="chat_completions",
+        )
+        view = self.propose_real(
+            context,
+            openai_config=cfg,
+            transport=transport,
+            allow_network=False,
+            real_only=True,
+            auto_verify=auto_verify,
+            budget=PatchProviderBudget(max_calls=2, max_total_tokens=20_000),
+            apply_project_budget=False,
+        )
+        view["replay"] = {
+            "bundle_dir": loaded["bundle_dir"],
+            "static_checks": static,
+            "network_used": False,
+            "fallback_used": False,
+            "secrets_redacted": True,
+        }
         return view
 
     def decide_merge(
@@ -398,10 +866,20 @@ class PatchingService:
         meta = dict(proposal.metadata or {})
         data["can_apply_main"] = False
         data["applied_main"] = bool(meta.get("applied_main"))
-        data["can_apply_sandbox"] = proposal.status in {
-            "approved",
-            "failed_sandbox",
-        }
+        seal_ok = True
+        if (
+            proposal.approval is not None
+            and proposal.approval.decision == "approved"
+            and proposal.status in {"approved", "failed_sandbox"}
+        ):
+            if proposal.approval.invalidated:
+                seal_ok = False
+            elif proposal.approval.content_seal is not None:
+                seal_ok = bool(compare_approval_seal(proposal).get("ok"))
+        data["can_apply_sandbox"] = (
+            proposal.status in {"approved", "failed_sandbox"} and seal_ok
+        )
+        data["approval_seal_ok"] = seal_ok
         data["applied_sandbox"] = bool(meta.get("applied_sandbox"))
         data["can_test_sandbox"] = proposal.status == "applied_sandbox"
         data["sandbox_tests_ok"] = meta.get("sandbox_tests_ok")

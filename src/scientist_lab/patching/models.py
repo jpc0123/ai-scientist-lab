@@ -70,11 +70,26 @@ class PatchVerification(BaseModel):
     checked_at: str = ""
 
 
+class ApprovalContentSeal(BaseModel):
+    """Fingerprints captured at human approval time (v2.2.5)."""
+
+    source_commit: str = ""
+    context_sha256: str = ""
+    patch_sha256: str = ""
+    proposal_sha256: str = ""
+    sealed_at: str = ""
+    seal_version: str = "v2.2.5"
+
+
 class PatchApproval(BaseModel):
     decision: Literal["approved", "rejected"]
     reason: str = ""
     decided_at: str = ""
     decided_by: str = "human"
+    content_seal: ApprovalContentSeal | None = None
+    seal_valid: bool | None = None
+    invalidated: bool = False
+    invalidate_reason: str = ""
 
 
 class PatchProposal(BaseModel):

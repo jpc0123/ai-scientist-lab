@@ -1,29 +1,29 @@
-"""Static PatchVerifier — path policy + diff safety (v1.6.3)."""
+"""Static PatchVerifier — path policy + diff safety (v1.6.3 / v2.2.3)."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
 from scientist_lab.patching.diff_parser import DiffParseError, parse_unified_diff
+from scientist_lab.patching.diff_safety import (
+    DEFAULT_DIFF_SAFETY_LIMITS,
+    DiffSafetyLimits,
+    scan_parsed_diff,
+)
 from scientist_lab.patching.fingerprint import fingerprint_diff
 from scientist_lab.patching.models import PatchVerification, VerificationIssue
 from scientist_lab.patching.path_policy import PathPolicy
 
 
-_SHELLISH = (
-    "os.system(",
-    "subprocess.",
-    "bash -c",
-    "powershell",
-    "/bin/sh",
-    "eval(",
-    "__import__('os')",
-)
-
-
 class PatchVerifier:
-    def __init__(self, policy: PathPolicy | None = None) -> None:
+    def __init__(
+        self,
+        policy: PathPolicy | None = None,
+        *,
+        limits: DiffSafetyLimits | None = None,
+    ) -> None:
         self.policy = policy or PathPolicy()
+        self.limits = limits or DEFAULT_DIFF_SAFETY_LIMITS
 
     def verify(
         self,
@@ -89,24 +89,14 @@ class PatchVerifier:
                     )
                 )
 
-            # Scan added lines for obvious shell/exec payloads.
-            for hunk in diff_file.hunks:
-                for line in hunk.lines:
-                    if not line.startswith("+") or line.startswith("+++"):
-                        continue
-                    body = line[1:]
-                    low = body.lower()
-                    for token in _SHELLISH:
-                        if token.lower() in low:
-                            issues.append(
-                                VerificationIssue(
-                                    code="dangerous_content",
-                                    message=f"forbidden pattern in added line: {token}",
-                                    path=path,
-                                    blocking=True,
-                                )
-                            )
-                            break
+        # v2.2.3 content / budget / secret / injection / dangerous API scans.
+        issues.extend(
+            scan_parsed_diff(
+                parsed,
+                limits=self.limits,
+                raw_diff=unified_diff,
+            )
+        )
 
         if duplicate_of:
             issues.append(
@@ -117,7 +107,6 @@ class PatchVerifier:
                 )
             )
 
-        # Deduplicate issue messages
         unique: list[VerificationIssue] = []
         seen: set[str] = set()
         for issue in issues:

@@ -105,6 +105,7 @@ def build_planning_context(
     recent_execution_summary: dict[str, Any] | None = None,
     previous_planner_hypothesis: str | None = None,
     previous_parameter_changes: dict[str, Any] | None = None,
+    patch_feedback_records: list[dict[str, Any]] | None = None,
 ) -> PlanningContext:
     protocol_payload = _scrub(dict(protocol or {}))
     node_payloads = [_scrub(_node_summary(node)) for node in nodes]
@@ -168,6 +169,7 @@ def build_planning_context(
         recent_execution_summary=_scrub(dict(recent_execution_summary or {})),
         previous_planner_hypothesis=previous_planner_hypothesis,
         previous_parameter_changes=_scrub(dict(previous_parameter_changes or {})),
+        patch_feedback_records=_scrub(list(patch_feedback_records or [])),
     )
     digest = context_sha256(context)
     return context.model_copy(update={"context_sha256": digest})

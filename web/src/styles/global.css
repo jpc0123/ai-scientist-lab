@@ -1331,3 +1331,33 @@ button.chip.active-chip,
     width: 100%;
   }
 }
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.85rem 0 0.35rem;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.5rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.banner.ok {
+  background: #e8f5ee;
+  color: #1f6b45;
+  border: 1px solid #b9dfc8;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+}
+
+.steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.55;
+}

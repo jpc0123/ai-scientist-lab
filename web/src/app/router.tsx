@@ -34,6 +34,7 @@ import {
   RollbacksPage,
 } from "../pages/MergeReleasePages";
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
+import { LlmConfigPage } from "../pages/LlmConfigPage";
 import { RealLoopDetailPage, RealLoopsPage } from "../pages/RealLoopsPage";
 
 export function AppRouter() {
@@ -78,6 +79,7 @@ export function AppRouter() {
         <Route path="audits" element={<AuditsPage />} />
         <Route path="audits/:id" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="llm-config" element={<LlmConfigPage />} />
         <Route path="*" element={<Navigate to="/assistant" replace />} />
       </Route>
     </Routes>

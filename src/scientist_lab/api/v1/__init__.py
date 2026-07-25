@@ -14,11 +14,14 @@ from scientist_lab.api.schemas import (
     AuditExportBody,
     CandidateRejectBody,
     ClaimMatrixBuildBody,
+    CodeContextBuildBody,
     CompareExecutionsBody,
     CompareNodesBody,
     CompareTriadBody,
     DemoCreateBody,
     IterationFinalizeBody,
+    LlmConfigUpdateBody,
+    LlmProfileRegisterBody,
     MergeApproveBody,
     MergeFinalizeBody,
     MergePrepareBody,
@@ -26,6 +29,9 @@ from scientist_lab.api.schemas import (
     MergeRollbackBody,
     MergeTestBody,
     PatchApplySandboxBody,
+    PatchCheckSealBody,
+    PatchExportReplayBody,
+    PatchProposeRealBody,
     PlanNextBody,
     ProjectCreateBody,
     ProjectExportBody,
@@ -108,6 +114,90 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         service: ExperimentService = Depends(service_dep),
     ) -> dict[str, Any]:
         return service.security_posture()
+
+    @router.get("/system/llm-config")
+    def get_llm_config(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.get_llm_config_status()
+
+    @router.post("/system/llm-config")
+    def update_llm_config(
+        body: LlmConfigUpdateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.update_llm_config(
+                provider=body.provider,
+                base_url=body.base_url,
+                model=body.model,
+                timeout_seconds=body.timeout_seconds,
+                api_key=body.api_key,
+                allow_network=body.allow_network,
+                clear_api_key=body.clear_api_key,
+            )
+        except Exception as exc:  # noqa: BLE001 — map config errors
+            raise http_error(
+                400, code="llm_config_invalid", message=str(exc)
+            ) from exc
+
+    @router.get("/llm-profiles")
+    def list_llm_profiles(
+        enabled_only: bool = Query(False),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        items = service.list_llm_profiles(enabled_only=enabled_only)
+        return {
+            "items": items,
+            "default_profile_id": service.llm_evals.get_default_profile_id(),
+            "total": len(items),
+        }
+
+    @router.post("/llm-profiles")
+    def register_llm_profile(
+        body: LlmProfileRegisterBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        meta = dict(body.metadata or {})
+        for key in list(meta.keys()):
+            low = str(key).lower()
+            if any(tok in low for tok in ("api_key", "authorization", "token", "password")):
+                raise http_error(
+                    400,
+                    code="llm_profile_secret_forbidden",
+                    message="profile metadata must not contain secrets",
+                )
+        try:
+            profile = service.register_llm_profile(profile=body.model_dump())
+        except Exception as exc:  # noqa: BLE001
+            raise http_error(
+                400, code="llm_profile_invalid", message=str(exc)
+            ) from exc
+        return {"profile": profile}
+
+    @router.get("/llm-profiles/{profile_id}")
+    def show_llm_profile(
+        profile_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return {"profile": service.show_llm_profile(profile_id)}
+        except KeyError as exc:
+            raise http_error(
+                404, code="llm_profile_not_found", message=str(exc)
+            ) from exc
+
+    @router.post("/llm-profiles/{profile_id}/select")
+    def select_llm_profile(
+        profile_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.select_llm_profile(profile_id)
+        except KeyError as exc:
+            raise http_error(
+                404, code="llm_profile_not_found", message=str(exc)
+            ) from exc
 
     @router.get("/system/doctor")
     def system_doctor(
@@ -1269,6 +1359,36 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             items, limit=clamp_limit(limit), offset=clamp_offset(offset)
         )
 
+    @router.get("/patches/sandbox-profiles")
+    def list_patch_sandbox_profiles(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.patches.list_sandbox_test_profiles()
+
+    @router.post("/patches/propose-real")
+    def propose_patch_real(
+        body: PatchProposeRealBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.patching.real_mode import PatchRealModeError
+        from scientist_lab.patching.real_patch_planner import RealPatchPlannerError
+
+        try:
+            return service.patches.propose_real(
+                body.bundle_id,
+                requested_provider=body.provider,
+                allow_network=bool(body.allow_network),
+                real_only=bool(body.real_only),
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (
+            PatchRealModeError,
+            RealPatchPlannerError,
+            ValueError,
+        ) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
     @router.get("/patches/{patch_id}")
     def get_patch(
         patch_id: str,
@@ -1367,6 +1487,126 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
             raise http_error(404, code="not_found", message=str(exc)) from exc
         except ValueError as exc:
             raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/patches/{patch_id}/check-seal")
+    def check_patch_approval_seal(
+        patch_id: str,
+        body: PatchCheckSealBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.patching.approval_seal import ApprovalSealError
+
+        persist = bool(body.persist) if body else True
+        try:
+            return service.patches.check_approval_seal(patch_id, persist=persist)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (ApprovalSealError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.post("/patches/{patch_id}/export-replay")
+    def export_patch_replay(
+        patch_id: str,
+        body: PatchExportReplayBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from pathlib import Path
+
+        from scientist_lab.patching.replay_bundle import PatchReplayError
+
+        payload = body or PatchExportReplayBody()
+        out = (
+            Path(payload.output_dir)
+            if payload.output_dir
+            else (
+                Path(service.patches.outputs_root)
+                / "_patch_replays"
+                / patch_id
+            )
+        )
+        try:
+            return service.patches.export_patch_replay(
+                patch_id,
+                output_dir=out,
+                label=payload.label or "patch_replay",
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+        except (PatchReplayError, ValueError, OSError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    # --- code contexts (v2.2.1 / Web v2.2.9) ------------------------------
+    @router.post("/code-contexts/build")
+    def build_code_context(
+        body: CodeContextBuildBody | None = None,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        from scientist_lab.patching.context_bundle import ContextBundleError
+        from scientist_lab.patching.context_models import PatchRequest
+
+        payload = body or CodeContextBuildBody()
+        try:
+            request = None
+            if not payload.digits_demo:
+                if not payload.project_id:
+                    raise ValueError(
+                        "project_id required when digits_demo=false"
+                    )
+                request = PatchRequest(
+                    request_id=f"preq_web_{payload.project_id}",
+                    project_id=payload.project_id,
+                    goal="Web code context",
+                    failure_summary="Built from Web Patch workbench",
+                )
+            return service.patches.build_code_context(
+                request,
+                persist=bool(payload.persist),
+                bundle_id=payload.bundle_id,
+                digits_demo=bool(payload.digits_demo),
+            )
+        except (ContextBundleError, ValueError) as exc:
+            raise http_error(409, code="conflict", message=str(exc)) from exc
+
+    @router.get("/code-contexts")
+    def list_code_contexts(
+        project_id: str = Query(...),
+        limit: int = Query(50, ge=1, le=200),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        items = service.patches.list_code_contexts(
+            project_id, limit=clamp_limit(limit)
+        )
+        return {
+            "items": [b.model_dump(mode="json") for b in items],
+            "total": len(items),
+            "project_id": project_id,
+        }
+
+    @router.get("/code-contexts/{bundle_id}")
+    def get_code_context(
+        bundle_id: str,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.patches.show_code_context(bundle_id)
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
+    @router.get("/system/patch-provider-doctor")
+    def patch_provider_doctor(
+        allow_network: bool = Query(False),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.patches.patch_provider_doctor(
+            allow_network=bool(allow_network)
+        )
+
+    @router.get("/system/patch-budget")
+    def patch_budget_show(
+        project_id: str = Query(...),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.patches.show_patch_budget(project_id)
 
     # --- real research loops (v2.1.8) ------------------------------------
     @router.get("/real-loops")

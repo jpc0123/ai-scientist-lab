@@ -205,31 +205,26 @@ def evaluate_sota_claim(*, project_id: str, records: list[EvidenceRecord]) -> Sc
 def evaluate_formal_dfine_claim(
     *, project_id: str, records: list[EvidenceRecord]
 ) -> ScientificClaim:
-    ids = _supporting_ids(records)
-    blob = _limitations_blob(records)
-    if "stand-in" in blob or "stand_in" in blob or not records:
-        return ScientificClaim(
-            claim_id="claim_formal_dfine",
-            project_id=project_id,
-            claim_text="The method demonstrates formal DFINE superiority.",
-            claim_type="formal_implementation",
-            required_evidence_types=["paired_comparison"],
-            support_status="blocked",
-            supporting_evidence_ids=ids,
-            limitations=["Stand-in evidence cannot support formal DFINE claims."],
-            reason="Stand-in / non-vendor DFINE evidence cannot support this claim.",
-        )
-    return ScientificClaim(
-        claim_id="claim_formal_dfine",
-        project_id=project_id,
-        claim_text="The method demonstrates formal DFINE superiority.",
-        claim_type="formal_implementation",
-        required_evidence_types=["paired_comparison"],
-        support_status="unsupported",
-        supporting_evidence_ids=ids,
-        limitations=["Formal DFINE claim still requires stronger acceptance evidence."],
-        reason="Formal DFINE evidence is incomplete.",
+    from scientist_lab.evidence.formal_dfine_gate import (
+        apply_formal_dfine_superiority_status,
     )
+
+    ids = _supporting_ids(records)
+    return apply_formal_dfine_superiority_status(
+        project_id=project_id,
+        records=records,
+        supporting_evidence_ids=ids,
+    )
+
+
+def evaluate_formal_dfine_path_claim(
+    *, project_id: str, records: list[EvidenceRecord]
+) -> ScientificClaim:
+    from scientist_lab.evidence.formal_dfine_gate import (
+        evaluate_formal_dfine_path_claim as _eval_path,
+    )
+
+    return _eval_path(project_id=project_id, records=records)
 
 
 def build_claim_support_matrix(
@@ -266,6 +261,7 @@ def build_claim_support_matrix(
         ),
         evaluate_full_benchmark_claim(project_id=project_id, records=records),
         evaluate_sota_claim(project_id=project_id, records=records),
+        evaluate_formal_dfine_path_claim(project_id=project_id, records=records),
         evaluate_formal_dfine_claim(project_id=project_id, records=records),
     ]
 

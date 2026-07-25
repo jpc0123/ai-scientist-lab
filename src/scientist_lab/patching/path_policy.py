@@ -14,6 +14,16 @@ DEFAULT_ALLOWED_PREFIXES: tuple[str, ...] = (
     "src/scientist_lab/tasks/rgbt_detection/",
 )
 
+# Digits / local experiment_app (v2.2 CodeContextBundle + future real Diff)
+DIGITS_ALLOWED_PREFIXES: tuple[str, ...] = (
+    "experiment_app/",
+)
+
+DEFAULT_CONTEXT_ALLOWED_PREFIXES: tuple[str, ...] = (
+    *DEFAULT_ALLOWED_PREFIXES,
+    *DIGITS_ALLOWED_PREFIXES,
+)
+
 DEFAULT_DENIED_PREFIXES: tuple[str, ...] = (
     ".venv/",
     ".git/",
@@ -60,6 +70,11 @@ class PathPolicy:
     extra_denied_paths: tuple[str, ...] = (
         "src/scientist_lab/llm/config.py",
     )
+
+    @classmethod
+    def for_code_context(cls) -> "PathPolicy":
+        """Whitelist used when building CodeContextBundle (includes Digits)."""
+        return cls(allowed_prefixes=DEFAULT_CONTEXT_ALLOWED_PREFIXES)
 
     def normalize(self, path: str) -> str:
         text = (path or "").strip().replace("\\", "/")

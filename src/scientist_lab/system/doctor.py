@@ -59,6 +59,7 @@ class SystemDoctor:
             self._check_git(),
             self._check_version(),
             self._check_security_defaults(),
+            self._check_dfine_cuda(),
         ]
         summary = {
             "ok": sum(1 for c in checks if c.level == "ok"),
@@ -458,8 +459,8 @@ class SystemDoctor:
             id="version",
             title="版本标签",
             level="ok",
-            message=f"Workbench API {API_VERSION}（基线 v1.9.0）",
-            details={"api_version": API_VERSION, "baseline_tag": "v1.9.0"},
+            message=f"Workbench API {API_VERSION}（基线 v2.1.0）",
+            details={"api_version": API_VERSION, "baseline_tag": "v2.1.0"},
         )
 
     def _check_security_defaults(self) -> DoctorCheck:
@@ -475,6 +476,56 @@ class SystemDoctor:
                 "shell_in_ui": False,
             },
         )
+
+    def _check_dfine_cuda(self) -> DoctorCheck:
+        """Offline Vendor DFINE / CUDA readiness (v2.3.7; no GPU required)."""
+        try:
+            from scientist_lab.tasks.rgbt_detection.cuda_doctor import (
+                build_dfine_cuda_doctor,
+            )
+
+            report = build_dfine_cuda_doctor(
+                self.settings.project_root,
+                image_registry=dict(self.settings.image_registry or {}),
+                probe_runtime=False,
+            )
+            offline_ok = bool(report.get("ok"))
+            live = bool(report.get("live_ready"))
+            level: CheckLevel = "ok" if offline_ok else "warning"
+            return DoctorCheck(
+                id="dfine_cuda",
+                title="CUDA + Vendor DFINE",
+                level=level,
+                message=(
+                    "离线资源就绪；live_ready 需另跑 dfine-cuda-doctor 探测 GPU"
+                    if offline_ok
+                    else "Vendor DFINE / CUDA 离线资源不完整"
+                ),
+                impact=(
+                    ""
+                    if offline_ok
+                    else "无法启动 Vendor DFINE Fast Eval / accept_v23_real"
+                ),
+                suggested_action=(
+                    "scientist-lab dfine-cuda-doctor；指南 docs/dfine-cuda-runthrough.md"
+                ),
+                details={
+                    "overall": report.get("overall"),
+                    "live_ready": live,
+                    "doctor_version": report.get("doctor_version"),
+                    "environment_key": report.get("environment_key"),
+                    "check_ids": [c.get("id") for c in (report.get("checks") or [])],
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            return DoctorCheck(
+                id="dfine_cuda",
+                title="CUDA + Vendor DFINE",
+                level="warning",
+                message=str(exc),
+                impact="无法汇总 DFINE CUDA 就绪状态",
+                suggested_action="检查 third_party/DFINE 与 docker/rgbt-detection-v2-cuda",
+            )
 
 
 def session_columns(session_factory: Any, table: str) -> set[str]:

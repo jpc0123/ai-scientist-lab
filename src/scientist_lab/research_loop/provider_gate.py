@@ -23,12 +23,17 @@ FORBIDDEN_IN_REAL_ONLY = frozenset({"mock", "fake", "replay"})
 
 
 def unwrap_provider_label(mode: str | None) -> str | None:
-    """Strip AuditingProvider wrappers (audit:…) before mode checks."""
+    """Strip AuditingProvider / LimitingProvider wrappers before mode checks."""
     if mode is None:
         return None
     text = str(mode).strip().lower()
-    while text.startswith("audit:"):
-        text = text[len("audit:") :].strip()
+    changed = True
+    while changed and text:
+        changed = False
+        for prefix in ("audit:", "limit:"):
+            if text.startswith(prefix):
+                text = text[len(prefix) :].strip()
+                changed = True
     return text or None
 
 

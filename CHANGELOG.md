@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.3.0] - 2026-07-25
+
+CUDA + **Vendor DFINE** readiness and gated Fast Eval path on top of v2.2 (offline-first; no silent stand-in→formal claims).
+
+### Added
+- Vendor pin / stage / adapter surface (`vendor_audit`, pinned `third_party/DFINE`)
+- CUDA doctor with GPU-depth probes (`nvidia-smi` inventory, Docker nvidia runtime summary)
+- Fast Eval orchestrator (default dry-run; `--execute --require-live-ready` for live)
+- Vendor Evidence annotation (non-stand-in); metrics feedback; exploratory-only
+- CUDA formal triad planner (`rgb` / `thermal` / `fusion`; default dry-run)
+- Formal path Claim Gate (`claim_formal_dfine_path`); path-open ≠ superiority
+- Gated live pipeline `dfine_real_acceptance` + `scripts/accept_v23_real.py` (default SKIP)
+- Offline demo `scripts/demo_dfine_cuda_offline.py`; guide `docs/dfine-cuda-runthrough.md`
+- CLI: `dfine-cuda-doctor` / `dfine-cuda-fast-eval` / `dfine-cuda-record-evidence` /
+  `dfine-cuda-formal-triad` / `dfine-formal-path-gate` / `dfine-real-acceptance`
+- System Doctor check `dfine_cuda` (offline)
+- Offline `scripts/accept_v23.py`; acceptance notes under `docs/acceptance/v2.3/`
+
+### Changed
+- Package / CLI / Web / API health versions aligned to **2.3.0** (`API_VERSION=v2.3.0`)
+
+### Notes
+- Zero GPU / zero network by default; live CUDA needs env gates + doctor `live_ready`
+- Stand-in evidence keeps `claim_formal_dfine` **blocked**; Fast Eval never yields formal superiority **supported**
+- Tag target: `v2.3.0` (includes v2.2 Diff workbench; create tag only after explicit user request)
+- Deferred / gated: live `accept_v23_real` GPU evidence; multi-seed formal superiority claims
+
+## [2.2.0] - 2026-07-25
+
+Real-provider **restricted Unified Diff** loop on top of v2.1 (CodeContext → Diff → safety → approve → sandbox → evidence → replay).
+
+### Added
+- CodeContextBundle / AllowedSourceFile / SourceSnapshot / PathPolicy.for_code_context / SHA + size budget
+- RealPatchPlanner + PATCH_PROPOSAL_SCHEMA (no silent mock/fake/replay fallback)
+- DiffSafety: secrets, prompt injection, dangerous APIs, line budget, path deletes, executables
+- Patch real_only mode + LimitingProvider call/token/cost budget
+- Approval content seal (source/context/patch/proposal SHA); stale approve invalidates
+- Sandbox apply + fixed test registry (`smoke` / `syntax` / `unit` / `mock_experiment`)
+- PatchEvidence feedback into Evidence / Claim drafts / Planner / Tree notes
+- Patch Replay Bundle export + MockTransport offline replay (`patch-export-replay` / `patch-replay`)
+- Web Patch workbench: `/code-contexts*`, `/patches/propose-real`, check-seal, export-replay; Patches UI
+- Offline `scripts/accept_v22.py`; gated live `scripts/accept_v22_real.py` (default SKIP)
+
+### Changed
+- Package / CLI / Web / API health versions aligned to **2.2.0** (`API_VERSION=v2.2.0`)
+
+### Notes
+- Never applies Diff to the main workspace; no auto-merge / commit / push
+- Live Provider Diff needs explicit `--allow-network` / Web checkbox + env gates
+- Tag target: `v2.2.0` (baseline `v2.1.0`); create tag only after explicit user request
+- Deferred: CUDA + Vendor DFINE formal runs (v2.3); `accept_v22_real` live evidence may be SKIP
+
 ## [2.1.0] - 2026-07-24
 
 Real-LLM multi-round research closed loop on top of the v2.0 workbench.
@@ -22,7 +74,7 @@ Real-LLM multi-round research closed loop on top of the v2.0 workbench.
 - Default LLM remains **mock**; live closed-loop needs explicit gates
 - Human approval preserved; no auto-approve / auto-push / auto Diff
 - Tag target: `v2.1.0` (baseline `v2.0.0`)
-- Deferred: real-provider Diff (v2.2); CUDA + Vendor DFINE (v2.3)
+- Deferred historically: real-provider Diff (**done in 2.2.0**); CUDA + Vendor DFINE (v2.3)
 
 ## [2.0.0] - 2026-07-24
 

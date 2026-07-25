@@ -245,6 +245,7 @@ export function RealLoopDetailPage() {
   const { sessionId = "" } = useParams();
   const qc = useQueryClient();
   const [candidateId, setCandidateId] = useState("");
+  const [allowNetwork, setAllowNetwork] = useState(false);
   const [confirm, setConfirm] = useState<null | { title: string; run: () => void }>(
     null,
   );
@@ -377,8 +378,19 @@ export function RealLoopDetailPage() {
       <section className="panel">
         <h2>人工操作</h2>
         <p className="muted">
-          Plan / Review 默认零网络；真实 Provider 需 CLI/环境门禁。Approve → Execute 为两段式。
+          Plan / Review 默认零网络。先到{" "}
+          <Link to="/llm-config">模型配置</Link>{" "}
+          保存连接并勾选允许联网，再在此勾选「允许联网」才会发起真实 HTTP。
+          Approve → Execute 为两段式。
         </p>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={allowNetwork}
+            onChange={(e) => setAllowNetwork(e.target.checked)}
+          />
+          允许联网（allow_network）— 仍需环境/配置页已设置 LLM_ALLOW_NETWORK=true
+        </label>
         <div className="filter-row">
           <label className="field">
             Candidate ID（approve）
@@ -412,7 +424,9 @@ export function RealLoopDetailPage() {
             className="btn"
             disabled={runAction.isPending || !can(["baseline_ready", "round_1_feedback_ready", "round_2_planning", "provider_failed", "planner_failed"])}
             onClick={() =>
-              runAction.mutate(() => api.realLoopPlan(sessionId, { allow_network: false }))
+              runAction.mutate(() =>
+                api.realLoopPlan(sessionId, { allow_network: allowNetwork }),
+              )
             }
           >
             Plan
@@ -422,7 +436,9 @@ export function RealLoopDetailPage() {
             className="btn"
             disabled={runAction.isPending || !can(["round_1_reviewing", "round_2_reviewing"])}
             onClick={() =>
-              runAction.mutate(() => api.realLoopReview(sessionId, { allow_network: false }))
+              runAction.mutate(() =>
+                api.realLoopReview(sessionId, { allow_network: allowNetwork }),
+              )
             }
           >
             Review

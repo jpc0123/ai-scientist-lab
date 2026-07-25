@@ -40,6 +40,7 @@ def test_full_benchmark_claim_blocked_under_fast_eval_standin(tmp_path: Path):
     assert "Fast Eval" in by_id["claim_full_rgbt_tiny"]["reason"]
     assert by_id["claim_sota"]["support_status"] == "blocked"
     assert by_id["claim_formal_dfine"]["support_status"] == "blocked"
+    assert by_id["claim_formal_dfine_path"]["support_status"] == "blocked"
     assert by_id["claim_fast_eval_ap_small"]["support_status"] == "supported"
     assert by_id["claim_fast_eval_map"]["support_status"] == "supported"
     assert by_id["claim_fast_eval_ap_small"]["evidence"]

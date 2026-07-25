@@ -20,7 +20,14 @@ DEFAULT_FORMAL_TRIAD_NODES = {
     "fusion": "rgbt_formal_node_003",
 }
 
+DEFAULT_CUDA_FORMAL_TRIAD_NODES = {
+    "rgb": "rgbt_formal_cuda_node_001",
+    "thermal": "rgbt_formal_cuda_node_002",
+    "fusion": "rgbt_formal_cuda_node_003",
+}
+
 DEFAULT_FORMAL_PROTOCOL_ID = "protocol_rgbt_001"
+DEFAULT_CUDA_FORMAL_PROTOCOL_ID = "protocol_rgbt_cuda_001"
 
 DEFAULT_MATCHED_SEEDS = [42, 43, 44]
 
@@ -31,9 +38,10 @@ def infer_triad_role(contract: dict[str, Any] | ExperimentContract) -> str | Non
     else:
         payload = contract
     node_id = str(payload.get("node_id") or "")
-    for role, expected in DEFAULT_FORMAL_TRIAD_NODES.items():
-        if node_id == expected:
-            return role
+    for mapping in (DEFAULT_FORMAL_TRIAD_NODES, DEFAULT_CUDA_FORMAL_TRIAD_NODES):
+        for role, expected in mapping.items():
+            if node_id == expected:
+                return role
     params = dict(payload.get("parameters") or {})
     mode = str(params.get("input_mode") or "")
     fusion = str(params.get("fusion_method") or "")

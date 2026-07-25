@@ -18,12 +18,27 @@ type PatchAction =
   | "test"
   | "evidence"
   | "merge"
-  | "discard";
+  | "discard"
+  | "export-replay"
+  | "propose-real";
+
+type TestProfile = "smoke" | "syntax" | "unit" | "mock_experiment";
 
 export function PatchesPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [allowNetwork, setAllowNetwork] = useState(false);
+  const [lastBundleId, setLastBundleId] = useState("");
+  const [actionResult, setActionResult] = useState<Record<string, unknown> | null>(
+    null,
+  );
+
   const q = useQuery({ queryKey: ["patches"], queryFn: api.patches });
+  const doctor = useQuery({
+    queryKey: ["patch-provider-doctor", allowNetwork],
+    queryFn: () => api.patchProviderDoctor(allowNetwork),
+  });
+
   const seed = useMutation({
     mutationFn: api.seedDemoPatch,
     onSuccess: async (data) => {
@@ -31,16 +46,57 @@ export function PatchesPage() {
       if (data.patch_id) navigate(`/patches/${data.patch_id}`);
     },
   });
+
+  const buildCtx = useMutation({
+    mutationFn: () => api.buildCodeContext({ digits_demo: true, persist: true }),
+    onSuccess: async (data) => {
+      const bundle = asRecord(data.bundle);
+      const bid = String(bundle.bundle_id || "");
+      setLastBundleId(bid);
+      setActionResult({
+        step: "build_code_context",
+        bundle_id: bid,
+        context_sha256: String(bundle.context_sha256 || "").slice(0, 16),
+        files: Array.isArray(bundle.snapshots) ? bundle.snapshots.length : 0,
+        provider_call: data.provider_call,
+      });
+    },
+  });
+
+  const proposeReal = useMutation({
+    mutationFn: async () => {
+      if (!lastBundleId) throw new Error("请先构建 CodeContextBundle");
+      return api.proposePatchReal({
+        bundle_id: lastBundleId,
+        allow_network: allowNetwork,
+        provider: "openai-compatible",
+        real_only: true,
+      });
+    },
+    onSuccess: async (data) => {
+      setActionResult({
+        step: "propose_real",
+        patch_id: data.patch_id,
+        status: data.status,
+        provider: data.provider,
+        allow_network: allowNetwork,
+      });
+      await qc.invalidateQueries({ queryKey: ["patches"] });
+      if (data.patch_id) navigate(`/patches/${data.patch_id}`);
+    },
+  });
+
   if (q.isLoading) return <Loading />;
   if (q.isError) return <div className="error-panel">{(q.error as Error).message}</div>;
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">沙箱</p>
+          <p className="eyebrow">沙箱 · v2.2</p>
           <h1>补丁</h1>
           <p className="lede">
-            只触发受控动作；<strong>不会</strong>一键合并主分支 / commit / push。
+            受限 Diff 工作台：上下文 → 真实 Propose → 审批 → 沙箱。
+            <strong>不会</strong>一键合并主分支 / commit / push。
           </p>
         </div>
         <button
@@ -52,14 +108,69 @@ export function PatchesPage() {
           {seed.isPending ? "生成中…" : "生成演示补丁"}
         </button>
       </header>
-      {seed.isError && (
-        <div className="error-panel">{(seed.error as Error).message}</div>
-      )}
+
+      <section className="panel" style={{ marginBottom: "1.25rem" }}>
+        <h2>v2.2 受限 Diff（真实 Provider）</h2>
+        <p className="muted">
+          先构建 Digits CodeContextBundle（不调模型），再勾选联网后 Propose。
+          未勾选联网时不会静默回退 Mock。配置见{" "}
+          <Link to="/llm-config">模型配置</Link>。
+        </p>
+        <label className="field" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <input
+            type="checkbox"
+            checked={allowNetwork}
+            onChange={(e) => setAllowNetwork(e.target.checked)}
+          />
+          允许联网（allow_network）— 仍需 LLM 配置 / 环境门禁就绪
+        </label>
+        <div className="action-row">
+          <button
+            type="button"
+            disabled={buildCtx.isPending}
+            onClick={() => buildCtx.mutate()}
+          >
+            {buildCtx.isPending ? "构建中…" : "构建 Digits 上下文"}
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={proposeReal.isPending || !lastBundleId}
+            onClick={() => proposeReal.mutate()}
+          >
+            {proposeReal.isPending ? "Propose…" : "真实 Propose Diff"}
+          </button>
+        </div>
+        {lastBundleId && (
+          <p className="mono muted" style={{ marginTop: "0.5rem" }}>
+            最近上下文：{lastBundleId}
+          </p>
+        )}
+        {(buildCtx.isError || proposeReal.isError || seed.isError) && (
+          <div className="error-panel">
+            {(buildCtx.error || proposeReal.error || seed.error) instanceof Error
+              ? (buildCtx.error || proposeReal.error || seed.error)!.message
+              : "操作失败"}
+          </div>
+        )}
+        {actionResult && (
+          <pre className="code-block" style={{ marginTop: "0.75rem" }}>
+            {JSON.stringify(actionResult, null, 2)}
+          </pre>
+        )}
+        {doctor.data && (
+          <details style={{ marginTop: "0.75rem" }}>
+            <summary className="muted">Provider doctor</summary>
+            <pre className="code-block">{JSON.stringify(doctor.data, null, 2)}</pre>
+          </details>
+        )}
+      </section>
+
       {q.data!.items.length === 0 ? (
         <EmptyState
           title="还没有补丁"
-          description="点右上角「生成演示补丁」，或先去总览页生成。生成后点进详情，按按钮顺序操作即可。"
-          hints={["批准", "应用到沙箱", "沙箱测试", "记录证据", "合并意图（不会改主树）"]}
+          description="可生成演示补丁，或走上方 v2.2 上下文 → 真实 Propose。"
+          hints={["构建上下文", "真实 Propose", "批准", "沙箱应用 / 测试", "记录证据"]}
           primaryAction={{
             label: "生成演示补丁",
             onClick: () => seed.mutate(),
@@ -89,8 +200,9 @@ export function PatchDetailPage() {
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState<PatchAction | null>(null);
   const [reason, setReason] = useState("");
-  const [profile, setProfile] = useState<"smoke" | "syntax" | "mock_experiment">(
-    "smoke",
+  const [profile, setProfile] = useState<TestProfile>("smoke");
+  const [actionResult, setActionResult] = useState<Record<string, unknown> | null>(
+    null,
   );
 
   const q = useQuery({
@@ -101,6 +213,10 @@ export function PatchDetailPage() {
   const policy = useQuery({
     queryKey: ["path-policy"],
     queryFn: api.pathPolicy,
+  });
+  const profiles = useQuery({
+    queryKey: ["patch-sandbox-profiles"],
+    queryFn: api.patchSandboxProfiles,
   });
 
   const mutate = useMutation({
@@ -113,14 +229,26 @@ export function PatchDetailPage() {
         return api.recordPatchEvidence(id, { require_tests: true });
       if (action === "merge")
         return api.decidePatchMerge(id, "merge", reason || "merge intent from UI");
+      if (action === "export-replay") return api.exportPatchReplay(id);
+      if (action === "propose-real") {
+        throw new Error("propose-real 请在列表页操作");
+      }
       return api.decidePatchMerge(id, "discard", reason || "discard from UI");
     },
-    onSuccess: async () => {
+    onSuccess: async (data, action) => {
       setConfirm(null);
+      if (action === "export-replay") {
+        setActionResult({ step: "export_replay", ...(asRecord(data)) });
+      }
       await qc.invalidateQueries({ queryKey: ["patch", id] });
       await qc.invalidateQueries({ queryKey: ["patches"] });
       await qc.invalidateQueries({ queryKey: ["summary"] });
     },
+  });
+
+  const checkSeal = useMutation({
+    mutationFn: () => api.checkPatchSeal(id),
+    onSuccess: (data) => setActionResult({ step: "check_seal", ...asRecord(data) }),
   });
 
   const verification = useMemo(
@@ -140,12 +268,29 @@ export function PatchDetailPage() {
     () => asRecord(metadata.merge_decision || q.data?.merge_decision),
     [metadata, q.data],
   );
+  const approvalSeal = useMemo(
+    () => asRecord(metadata.approval_seal || q.data?.approval_seal),
+    [metadata, q.data],
+  );
   const issues = Array.isArray(verification.issues)
     ? (verification.issues as Array<Record<string, unknown>>)
     : [];
   const filesTouched = Array.isArray(q.data?.files_touched)
     ? (q.data!.files_touched as string[])
     : [];
+
+  const profileOptions = useMemo(() => {
+    const fromApi = profiles.data?.items;
+    if (Array.isArray(fromApi) && fromApi.length > 0) {
+      return fromApi
+        .map((row) => {
+          const rec = asRecord(row);
+          return String(rec.id || rec.name || "");
+        })
+        .filter(Boolean) as TestProfile[];
+    }
+    return ["smoke", "syntax", "unit", "mock_experiment"] as TestProfile[];
+  }, [profiles.data]);
 
   if (q.isLoading) return <Loading />;
   if (q.isError) return <div className="error-panel">{(q.error as Error).message}</div>;
@@ -181,6 +326,25 @@ export function PatchDetailPage() {
           {
             label: "主树可写",
             value: patch.can_apply_main ? "是（异常）" : "否（正确）",
+          },
+          {
+            label: "context_sha",
+            value: (
+              <span className="mono">
+                {String(metadata.context_sha256 || "").slice(0, 12) || "—"}
+              </span>
+            ),
+          },
+          {
+            label: "审批印章",
+            value:
+              approvalSeal.ok === true
+                ? "ok"
+                : approvalSeal.ok === false
+                  ? "失效"
+                  : Object.keys(approvalSeal).length
+                    ? "已记录"
+                    : "—",
           },
         ]}
       />
@@ -237,6 +401,21 @@ export function PatchDetailPage() {
         >
           拒绝合并
         </button>
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={checkSeal.isPending}
+          onClick={() => checkSeal.mutate()}
+        >
+          检查审批印章
+        </button>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={() => setConfirm("export-replay")}
+        >
+          导出 Replay
+        </button>
       </div>
 
       <label className="field">
@@ -251,18 +430,23 @@ export function PatchDetailPage() {
         Test profile
         <select
           value={profile}
-          onChange={(e) =>
-            setProfile(e.target.value as "smoke" | "syntax" | "mock_experiment")
-          }
+          onChange={(e) => setProfile(e.target.value as TestProfile)}
         >
-          <option value="smoke">smoke</option>
-          <option value="syntax">syntax</option>
-          <option value="mock_experiment">mock_experiment</option>
+          {profileOptions.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
         </select>
       </label>
 
-      {mutate.isError && (
-        <div className="error-panel">{(mutate.error as Error).message}</div>
+      {(mutate.isError || checkSeal.isError) && (
+        <div className="error-panel">
+          {((mutate.error || checkSeal.error) as Error).message}
+        </div>
+      )}
+      {actionResult && (
+        <pre className="code-block">{JSON.stringify(actionResult, null, 2)}</pre>
       )}
 
       <section className="panel">
@@ -379,11 +563,8 @@ export function PatchDetailPage() {
                   : []
                 ).map((c, idx) => (
                   <li key={idx}>
-                    <span className={`badge ${c.ok ? "" : "bad-badge"}`}>
-                      {c.ok ? "pass" : "fail"}
-                    </span>
-                    <span>{String(c.name)}</span>
-                    <span className="muted">{String(c.detail || "")}</span>
+                    <span className="badge">{String(c.name || "check")}</span>
+                    <span>{String(c.ok)}</span>
                   </li>
                 ))}
               </ul>
@@ -402,49 +583,46 @@ export function PatchDetailPage() {
           )}
         </div>
         <div className="panel">
-          <h2>Merge 决策（意图）</h2>
+          <h2>Merge 意图</h2>
           {Object.keys(mergeDecision).length === 0 ? (
-            <p className="muted">尚未决定；不会写主工作区</p>
+            <p className="muted">尚未决定（不会改主树）</p>
           ) : (
-            <pre className="code-block">{JSON.stringify(mergeDecision, null, 2)}</pre>
+            <pre className="code-block">
+              {JSON.stringify(mergeDecision, null, 2)}
+            </pre>
           )}
         </div>
       </section>
 
-      <ConfirmDialog
-        open={confirm !== null}
-        title={
-          confirm === "approve"
-            ? "确认批准补丁？"
-            : confirm === "reject"
-              ? "确认拒绝补丁？"
-              : confirm === "apply"
-                ? "确认应用到沙箱？"
-                : confirm === "test"
-                  ? "确认运行沙箱测试？"
-                  : confirm === "evidence"
-                    ? "确认记录 PatchEvidence？"
-                    : confirm === "merge"
-                      ? "确认记录「建议合并」意图？"
-                      : "确认记录「拒绝合并」？"
-        }
-        summary="后端仍会校验状态、verify 与路径策略。前端隐藏按钮 ≠ 授权。"
-        consequences={
-          confirm === "apply"
-            ? [
-                "仅写入 outputs/_patch_sandboxes/",
-                "不会修改主工作区",
-                "不会 git commit / push",
-              ]
-            : confirm === "merge" || confirm === "discard"
-              ? ["只记录意图", "不会自动合并主分支", "不会 commit/push"]
-              : confirm === "test"
-                ? ["进程内白名单检查", "不执行任意 Shell"]
-                : ["受控状态机校验"]
-        }
-        onCancel={() => setConfirm(null)}
-        onConfirm={() => confirm && mutate.mutate(confirm)}
-      />
+      {confirm && (
+        <ConfirmDialog
+          open
+          title={
+            confirm === "export-replay"
+              ? "导出 Patch Replay Bundle？"
+              : `确认：${confirm}`
+          }
+          summary={
+            confirm === "merge"
+              ? "仅记录合并意图，不会修改主工作区或执行 git。"
+              : confirm === "export-replay"
+                ? "将写出去敏 Bundle 到 outputs/_patch_replays/，不含密钥。"
+                : confirm === "apply"
+                  ? "仅写入沙箱副本，不会改主树。"
+                  : "请确认这是受控操作。"
+          }
+          consequences={
+            confirm === "merge"
+              ? ["不改主工作区", "不执行 git commit/push"]
+              : confirm === "export-replay"
+                ? ["去敏导出", "零网络", "可供离线 CI 重放"]
+                : ["状态机强制校验", "无任意 Shell"]
+          }
+          confirmLabel="确认"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => mutate.mutate(confirm)}
+        />
+      )}
     </div>
   );
 }

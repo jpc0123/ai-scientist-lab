@@ -16,7 +16,7 @@ from typing import Any, Literal
 from scientist_lab.patching.path_policy import PathPolicy
 from scientist_lab.storage.artifact_store import write_json
 
-SandboxTestProfile = Literal["smoke", "syntax", "mock_experiment"]
+SandboxTestProfile = Literal["smoke", "syntax", "unit", "mock_experiment"]
 
 
 @dataclass
@@ -61,13 +61,21 @@ class SandboxTestReport:
         }
 
 
+_FORBIDDEN_IMPORT_TOKENS = (
+    "subprocess",
+    "os.system",
+    "ctypes",
+    "socket",
+)
+
+
 class SandboxTestRunner:
     """Allow-listed validation profiles for patch sandboxes."""
 
-    PROFILES: tuple[str, ...] = ("smoke", "syntax", "mock_experiment")
+    PROFILES: tuple[str, ...] = ("smoke", "syntax", "unit", "mock_experiment")
 
     def __init__(self, *, policy: PathPolicy | None = None) -> None:
-        self.policy = policy or PathPolicy()
+        self.policy = policy or PathPolicy.for_code_context()
 
     def run(
         self,
@@ -77,11 +85,9 @@ class SandboxTestRunner:
         files_written: list[str] | None = None,
         profile: SandboxTestProfile = "smoke",
     ) -> SandboxTestReport:
-        if profile not in self.PROFILES:
-            raise ValueError(
-                f"unknown sandbox test profile {profile!r}; "
-                f"allowed={list(self.PROFILES)}"
-            )
+        from scientist_lab.patching.sandbox_registry import require_sandbox_test_profile
+
+        profile_name = require_sandbox_test_profile(profile)
         ws = Path(sandbox_dir)
         started = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         checks: list[CheckItem] = []
@@ -90,16 +96,18 @@ class SandboxTestRunner:
         written = list(files_written or self._discover_written(ws))
         checks.extend(self._check_written_files(ws, written))
 
-        if profile in {"syntax", "mock_experiment"}:
+        if profile_name in {"syntax", "unit", "mock_experiment"}:
             checks.extend(self._check_python_syntax(ws, written))
-        if profile == "mock_experiment":
+        if profile_name == "unit":
+            checks.extend(self._check_registered_unit_hooks(ws, written))
+        if profile_name == "mock_experiment":
             checks.extend(self._check_mock_experiment(ws, written))
 
         ok = all(c.ok for c in checks)
         finished = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         report = SandboxTestReport(
             ok=ok,
-            profile=profile,
+            profile=profile_name,
             patch_id=patch_id,
             sandbox_dir=str(ws),
             checks=checks,
@@ -368,4 +376,105 @@ class SandboxTestRunner:
                 detail="in-process only; no shell executed",
             )
         )
+        return items
+
+    def _check_registered_unit_hooks(
+        self, ws: Path, files_written: list[str]
+    ) -> list[CheckItem]:
+        """Only the fixed in-process hooks below — never arbitrary tests."""
+        items: list[CheckItem] = []
+        items.append(
+            CheckItem(
+                name="unit_registry_only",
+                ok=True,
+                detail="registered hooks only; no shell / no free pytest",
+            )
+        )
+
+        # Hook: Digits entrypoint still parses after patch.
+        digits_rel = "experiment_app/run_experiment.py"
+        digits_path = ws / digits_rel
+        if digits_path.is_file() or any(
+            self.policy.normalize(p) == digits_rel for p in files_written
+        ):
+            target = digits_path if digits_path.is_file() else None
+            if target is None:
+                items.append(
+                    CheckItem(
+                        name="unit_digits_entrypoint",
+                        ok=False,
+                        detail="Digits entrypoint missing in sandbox",
+                        path=digits_rel,
+                    )
+                )
+            else:
+                try:
+                    ast.parse(target.read_text(encoding="utf-8"), filename=digits_rel)
+                    items.append(
+                        CheckItem(
+                            name="unit_digits_entrypoint",
+                            ok=True,
+                            detail="ast.parse ok for Digits entrypoint",
+                            path=digits_rel,
+                        )
+                    )
+                except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+                    items.append(
+                        CheckItem(
+                            name="unit_digits_entrypoint",
+                            ok=False,
+                            detail=str(exc),
+                            path=digits_rel,
+                        )
+                    )
+        else:
+            items.append(
+                CheckItem(
+                    name="unit_digits_entrypoint",
+                    ok=True,
+                    detail="skipped (Digits entrypoint not in this sandbox)",
+                )
+            )
+
+        # Hook: forbidden import tokens in added/written .py files.
+        py_files = [
+            self.policy.normalize(p)
+            for p in files_written
+            if self.policy.normalize(p).endswith(".py")
+        ]
+        if not py_files:
+            items.append(
+                CheckItem(
+                    name="unit_forbidden_imports",
+                    ok=True,
+                    detail="no .py files to scan",
+                )
+            )
+            return items
+
+        for rel in py_files:
+            target = ws / rel
+            if not target.is_file():
+                continue
+            try:
+                text = target.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as exc:
+                items.append(
+                    CheckItem(
+                        name="unit_forbidden_imports",
+                        ok=False,
+                        detail=str(exc),
+                        path=rel,
+                    )
+                )
+                continue
+            hit = next((tok for tok in _FORBIDDEN_IMPORT_TOKENS if tok in text), None)
+            items.append(
+                CheckItem(
+                    name="unit_forbidden_imports",
+                    ok=hit is None,
+                    detail="ok" if hit is None else f"forbidden token: {hit}",
+                    path=rel,
+                )
+            )
         return items

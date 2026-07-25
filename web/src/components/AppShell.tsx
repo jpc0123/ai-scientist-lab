@@ -50,7 +50,10 @@ const groupDefs: Array<{ titleKey: string; items: NavItem[] }> = [
   },
   {
     titleKey: "nav.systemGroup",
-    items: [{ to: "/settings", labelKey: "nav.settings", hintKey: "nav.settingsHint" }],
+    items: [
+      { to: "/settings", labelKey: "nav.settings", hintKey: "nav.settingsHint" },
+      { to: "/llm-config", labelKey: "nav.llmConfig", hintKey: "nav.llmConfigHint" },
+    ],
   },
 ];
 

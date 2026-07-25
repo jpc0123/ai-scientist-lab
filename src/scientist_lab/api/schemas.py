@@ -12,7 +12,7 @@ class ReasonBody(BaseModel):
 
 
 class PatchTestBody(BaseModel):
-    profile: Literal["smoke", "syntax", "mock_experiment"] = "smoke"
+    profile: Literal["smoke", "syntax", "unit", "mock_experiment"] = "smoke"
 
 
 class PatchApplySandboxBody(BaseModel):
@@ -26,6 +26,35 @@ class PatchRecordEvidenceBody(BaseModel):
 class PatchDecideMergeBody(BaseModel):
     decision: Literal["merge", "discard"]
     reason: str = ""
+
+
+class CodeContextBuildBody(BaseModel):
+    """Build a restricted CodeContextBundle (v2.2.1; no provider call)."""
+
+    digits_demo: bool = True
+    project_id: str | None = None
+    persist: bool = True
+    bundle_id: str | None = None
+
+
+class PatchProposeRealBody(BaseModel):
+    """Propose a restricted Unified Diff via real provider (v2.2.2/4)."""
+
+    bundle_id: str
+    allow_network: bool = False
+    provider: str = "openai-compatible"
+    real_only: bool = True
+
+
+class PatchExportReplayBody(BaseModel):
+    """Export a redacted Patch Replay Bundle under outputs/ (v2.2.8)."""
+
+    output_dir: str | None = None
+    label: str = "patch_replay"
+
+
+class PatchCheckSealBody(BaseModel):
+    persist: bool = True
 
 
 class IterationFinalizeBody(BaseModel):
@@ -263,3 +292,28 @@ class RealLoopVerifyBody(BaseModel):
     round_number: int = 2
     plan_id: str | None = None
     persist: bool = True
+
+
+class LlmConfigUpdateBody(BaseModel):
+    """Update process-local LLM connection settings (secrets stay in runtime/)."""
+
+    provider: str | None = None
+    base_url: str | None = None
+    model: str | None = None
+    timeout_seconds: float | None = Field(default=None, gt=0)
+    api_key: str | None = None
+    allow_network: bool | None = None
+    clear_api_key: bool = False
+
+
+class LlmProfileRegisterBody(BaseModel):
+    profile_id: str
+    provider: str = "mock"
+    model: str = "mock-planner-v1"
+    api_mode: str = "chat_completions"
+    planner_prompt_version: str = "mock_v1"
+    critic_prompt_version: str = "mock_v1"
+    temperature: float = 0.0
+    max_output_tokens: int = 2048
+    enabled: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)

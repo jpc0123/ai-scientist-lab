@@ -35,6 +35,14 @@ class PatchEvidence(BaseModel):
     limitations: list[str] = Field(default_factory=list)
     recorded_at: str = ""
     artifact_path: str | None = None
+    # v2.2.7 feedback / audit fields
+    context_sha256: str = ""
+    source_commit: str = ""
+    bundle_id: str = ""
+    risks: list[str] = Field(default_factory=list)
+    expected_tests: list[str] = Field(default_factory=list)
+    verdict: Literal["effective", "ineffective", "inconclusive"] = "inconclusive"
+    feedback_package_path: str | None = None
 
 
 class PatchMergeDecision(BaseModel):
@@ -76,6 +84,15 @@ def build_patch_evidence(
         strength = "weak"
 
     evidence_id = new_id("patch_ev")
+    risks = list(meta.get("risks") or [])
+    expected_tests = list(meta.get("expected_tests") or [])
+    if tests_ok is True:
+        verdict: Literal["effective", "ineffective", "inconclusive"] = "effective"
+    elif tests_ok is False:
+        verdict = "ineffective"
+    else:
+        verdict = "inconclusive"
+
     evidence = PatchEvidence(
         evidence_id=evidence_id,
         patch_id=proposal.patch_id,
@@ -92,6 +109,12 @@ def build_patch_evidence(
         evidence_strength=strength,
         limitations=limitations,
         recorded_at=_now(),
+        context_sha256=str(meta.get("context_sha256") or ""),
+        source_commit=str(meta.get("source_commit") or ""),
+        bundle_id=str(meta.get("bundle_id") or ""),
+        risks=risks,
+        expected_tests=expected_tests,
+        verdict=verdict,
     )
 
     out_dir = Path(outputs_root) / proposal.project_id / "patch_evidence"

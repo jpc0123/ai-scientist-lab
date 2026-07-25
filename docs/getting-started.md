@@ -100,6 +100,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop_workbench.ps1
 ## 5. 下一步
 
 - **手动跑通（规划→执行→迭代）**：[manual-runthrough.md](./manual-runthrough.md)
+- **CUDA + Vendor DFINE**：[dfine-cuda-runthrough.md](./dfine-cuda-runthrough.md)
 - 完整流程：[first-project.md](./first-project.md)
 - 安装细节：[installation-windows.md](./installation-windows.md)
 - 排错：[troubleshooting.md](./troubleshooting.md)

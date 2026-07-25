@@ -282,13 +282,40 @@ export const api = {
       boundaries: Array<{
         id: string;
         label: string;
-        enforced: boolean;
+        status: string;
+        enforced?: boolean;
         detail?: string;
       }>;
       ui_forbidden: string[];
       config_snapshot?: Record<string, unknown>;
       note?: string;
     }>("/api/v1/system/security"),
+  llmConfig: () => apiGet<Record<string, unknown>>("/api/v1/system/llm-config"),
+  updateLlmConfig: (body: {
+    provider?: string | null;
+    base_url?: string | null;
+    model?: string | null;
+    timeout_seconds?: number | null;
+    api_key?: string | null;
+    allow_network?: boolean | null;
+    clear_api_key?: boolean;
+  }) => apiPost<Record<string, unknown>>("/api/v1/system/llm-config", body),
+  llmProfiles: (enabledOnly = false) => {
+    const q = new URLSearchParams();
+    if (enabledOnly) q.set("enabled_only", "true");
+    const suffix = q.toString() ? `?${q}` : "";
+    return apiGet<{
+      items: Array<Record<string, unknown>>;
+      default_profile_id: string | null;
+      total: number;
+    }>(`/api/v1/llm-profiles${suffix}`);
+  },
+  registerLlmProfile: (body: Record<string, unknown>) =>
+    apiPost<{ profile: Record<string, unknown> }>("/api/v1/llm-profiles", body),
+  selectLlmProfile: (profileId: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/llm-profiles/${encodeURIComponent(profileId)}/select`,
+    ),
   approvePatch: (id: string, reason = "") =>
     apiPost(`/api/v1/patches/${id}/approve`, { reason }),
   rejectPatch: (id: string, reason = "") =>
@@ -301,6 +328,58 @@ export const api = {
     apiPost(`/api/v1/patches/${id}/record-evidence`, body || {}),
   decidePatchMerge: (id: string, decision: "merge" | "discard", reason = "") =>
     apiPost(`/api/v1/patches/${id}/decide-merge`, { decision, reason }),
+  buildCodeContext: (body?: {
+    digits_demo?: boolean;
+    project_id?: string | null;
+    persist?: boolean;
+    bundle_id?: string | null;
+  }) =>
+    apiPost<{
+      bundle: Record<string, unknown>;
+      persisted: boolean;
+      provider_call: boolean;
+    }>("/api/v1/code-contexts/build", body || { digits_demo: true }),
+  codeContexts: (projectId: string) =>
+    apiGet<{
+      items: Array<Record<string, unknown>>;
+      total: number;
+      project_id: string;
+    }>(
+      `/api/v1/code-contexts?project_id=${encodeURIComponent(projectId)}&limit=50`,
+    ),
+  codeContext: (bundleId: string) =>
+    apiGet<{ bundle: Record<string, unknown> }>(
+      `/api/v1/code-contexts/${encodeURIComponent(bundleId)}`,
+    ),
+  proposePatchReal: (body: {
+    bundle_id: string;
+    allow_network?: boolean;
+    provider?: string;
+    real_only?: boolean;
+  }) =>
+    apiPost<PatchProposal & Record<string, unknown>>(
+      "/api/v1/patches/propose-real",
+      body,
+    ),
+  patchSandboxProfiles: () =>
+    apiGet<Record<string, unknown>>("/api/v1/patches/sandbox-profiles"),
+  checkPatchSeal: (id: string, persist = true) =>
+    apiPost<Record<string, unknown>>(`/api/v1/patches/${id}/check-seal`, {
+      persist,
+    }),
+  exportPatchReplay: (id: string, body?: { output_dir?: string; label?: string }) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/patches/${id}/export-replay`,
+      body || {},
+    ),
+  patchProviderDoctor: (allowNetwork = false) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/system/patch-provider-doctor?allow_network=${allowNetwork ? "true" : "false"}`,
+    ),
+  patchBudget: (projectId: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/system/patch-budget?project_id=${encodeURIComponent(projectId)}`,
+    ),
   seedDemoPatch: () =>
     apiPost<{
       patch_id: string;

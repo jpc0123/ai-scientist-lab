@@ -968,8 +968,219 @@ def build_parser() -> argparse.ArgumentParser:
     patch_propose.add_argument("--title", default=None)
     patch_propose.add_argument("--rationale", default=None)
 
+    patch_propose_real = sub.add_parser(
+        "patch-propose-real",
+        help=(
+            "RealPatchPlanner from a CodeContextBundle (v2.2.2; "
+            "no silent mock fallback)"
+        ),
+    )
+    patch_propose_real.add_argument("bundle_id")
+    patch_propose_real.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Permit live OpenAI-compatible HTTP (also needs LLM_* env)",
+    )
+    patch_propose_real.add_argument(
+        "--provider",
+        default="openai-compatible",
+        help="Must be openai-compatible/real when real_only (default)",
+    )
+    patch_propose_real.add_argument(
+        "--max-calls",
+        type=int,
+        default=None,
+        help="Override patch provider max_calls budget for this invoke",
+    )
+
+    patch_budget_show = sub.add_parser(
+        "patch-budget-show",
+        help="Show per-project RealPatchPlanner provider budget usage (v2.2.4)",
+    )
+    patch_budget_show.add_argument("project_id")
+
+    patch_provider_doctor = sub.add_parser(
+        "patch-provider-doctor",
+        help="Offline readiness check for real patch provider (v2.2.4)",
+    )
+    patch_provider_doctor.add_argument(
+        "--provider", default="openai-compatible"
+    )
+    patch_provider_doctor.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Evaluate live-gate readiness (still does not call the network)",
+    )
+
+    dfine_cuda_doctor = sub.add_parser(
+        "dfine-cuda-doctor",
+        help="CUDA + Vendor DFINE readiness (v2.3.2; probe is optional)",
+    )
+    dfine_cuda_doctor.add_argument(
+        "--no-probe",
+        action="store_true",
+        help="Skip docker/nvidia probes (files + registry only)",
+    )
+
+    dfine_cuda_fast = sub.add_parser(
+        "dfine-cuda-fast-eval",
+        help=(
+            "Orchestrate CUDA Vendor DFINE Fast Eval (v2.3.2); "
+            "default dry-run; never claims formal success"
+        ),
+    )
+    dfine_cuda_fast.add_argument(
+        "--contract",
+        default=None,
+        help="Contract JSON (default: examples/rgbt_remote_cuda_dfine_rgb_contract.json)",
+    )
+    dfine_cuda_fast.add_argument(
+        "--runner-profile",
+        default=None,
+        help="Override runner_profile (default: contract value)",
+    )
+    dfine_cuda_fast.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Plan only; do not submit (default: true)",
+    )
+    dfine_cuda_fast.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually submit via run_contract (requires GPU/image readiness)",
+    )
+    dfine_cuda_fast.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail if doctor live_ready is false (ignored for dry-run)",
+    )
+    dfine_cuda_fast.add_argument(
+        "--no-probe",
+        action="store_true",
+        help="Skip docker/nvidia probes while planning",
+    )
+    dfine_cuda_fast.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="When executing, do not wait for completion",
+    )
+
+    dfine_cuda_evidence = sub.add_parser(
+        "dfine-cuda-record-evidence",
+        help="Record Vendor/stand-in Fast Eval evidence from an execution (v2.3.3)",
+    )
+    dfine_cuda_evidence.add_argument("execution_id")
+    dfine_cuda_evidence.add_argument(
+        "--no-claim-matrix",
+        action="store_true",
+        help="Do not rebuild claim support matrix",
+    )
+
+    dfine_cuda_triad = sub.add_parser(
+        "dfine-cuda-formal-triad",
+        help=(
+            "CUDA Vendor formal triad rgb/thermal/fusion (v2.3.4); "
+            "default dry-run; never claims formal superiority"
+        ),
+    )
+    dfine_cuda_triad.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually submit three contracts (requires live_ready)",
+    )
+    dfine_cuda_triad.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail if doctor live_ready is false (ignored for dry-run)",
+    )
+    dfine_cuda_triad.add_argument(
+        "--no-probe",
+        action="store_true",
+        help="Skip docker/nvidia probes while planning",
+    )
+    dfine_cuda_triad.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="When executing, do not wait for completion",
+    )
+    dfine_cuda_triad.add_argument(
+        "--protocol-id",
+        default="protocol_rgbt_cuda_001",
+        help="CUDA formal triad protocol id",
+    )
+
+    dfine_path_gate = sub.add_parser(
+        "dfine-formal-path-gate",
+        help=(
+            "Assess Vendor formal DFINE path Claim Gate (v2.3.5); "
+            "path-open ≠ superiority"
+        ),
+    )
+    dfine_path_gate.add_argument("project_id")
+    dfine_path_gate.add_argument("--protocol-id", default=None)
+
+    dfine_real = sub.add_parser(
+        "dfine-real-acceptance",
+        help=(
+            "Gated live DFINE acceptance pipeline plan/execute (v2.3.6); "
+            "default dry-run; never claims superiority"
+        ),
+    )
+    dfine_real.add_argument(
+        "--execute",
+        action="store_true",
+        help="Run live pipeline (requires doctor live_ready)",
+    )
+    dfine_real.add_argument(
+        "--include-formal-triad",
+        action="store_true",
+        help="Also run CUDA formal triad after Fast Eval",
+    )
+    dfine_real.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="Do not wait for execution completion",
+    )
+    dfine_real.add_argument(
+        "--no-probe",
+        action="store_true",
+        help="Skip runtime GPU/Docker probes in doctor",
+    )
+
     patch_show = sub.add_parser("patch-show", help="Show a PatchProposal")
     patch_show.add_argument("patch_id")
+
+    code_context_build = sub.add_parser(
+        "code-context-build",
+        help="Build restricted CodeContextBundle (v2.2.1; no provider call)",
+    )
+    code_context_build.add_argument(
+        "--digits-demo",
+        action="store_true",
+        help="Use Digits small-improvement PatchGoal fixture",
+    )
+    code_context_build.add_argument(
+        "--no-persist",
+        action="store_true",
+        help="Do not write the bundle to SQLite",
+    )
+
+    code_context_show = sub.add_parser(
+        "code-context-show", help="Show a persisted CodeContextBundle"
+    )
+    code_context_show.add_argument("bundle_id")
+
+    code_context_export = sub.add_parser(
+        "code-context-export",
+        help="Export a CodeContextBundle JSON for audit/replay",
+    )
+    code_context_export.add_argument("bundle_id")
+    code_context_export.add_argument(
+        "--output",
+        default=None,
+        help="Output JSON path (default under outputs/_code_contexts/)",
+    )
 
     patch_verify = sub.add_parser(
         "patch-verify", help="Re-run static PathPolicy/Diff verification"
@@ -982,6 +1193,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     patch_approve.add_argument("patch_id")
     patch_approve.add_argument("--reason", default="")
+
+    patch_check_seal = sub.add_parser(
+        "patch-check-seal",
+        help="Validate approval content seal fingerprints (v2.2.5)",
+    )
+    patch_check_seal.add_argument("patch_id")
 
     patch_reject = sub.add_parser("patch-reject", help="Human-reject a patch")
     patch_reject.add_argument("patch_id")
@@ -1002,16 +1219,38 @@ def build_parser() -> argparse.ArgumentParser:
         "patch-test-sandbox",
         help=(
             "Run allow-listed in-process checks on an applied sandbox "
-            "(smoke|syntax|mock_experiment) (v1.6.5)"
+            "(smoke|syntax|unit|mock_experiment) (v1.6.5/v2.2.6)"
         ),
     )
     patch_test_sandbox.add_argument("patch_id")
     patch_test_sandbox.add_argument(
         "--profile",
-        choices=["smoke", "syntax", "mock_experiment"],
+        choices=["smoke", "syntax", "unit", "mock_experiment"],
         default="smoke",
-        help="Validation profile (default: smoke; never arbitrary shell)",
+        help="Validation profile (default: smoke; registry only; never arbitrary shell)",
     )
+
+    patch_sandbox_profiles = sub.add_parser(
+        "patch-sandbox-profiles",
+        help="List registered sandbox test profiles (v2.2.6; no arbitrary shell)",
+    )
+
+    patch_export_replay = sub.add_parser(
+        "patch-export-replay",
+        help="Export a redacted Patch Replay Bundle for offline CI (v2.2.8)",
+    )
+    patch_export_replay.add_argument("patch_id")
+    patch_export_replay.add_argument(
+        "--output",
+        required=True,
+        help="Empty directory for the replay bundle",
+    )
+
+    patch_replay = sub.add_parser(
+        "patch-replay",
+        help="Replay a Patch Replay Bundle via MockTransport (v2.2.8; zero network)",
+    )
+    patch_replay.add_argument("bundle_dir")
 
     patch_record_evidence = sub.add_parser(
         "patch-record-evidence",
@@ -1022,6 +1261,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--require-tests",
         action="store_true",
         help="Fail if patch-test-sandbox has not been run",
+    )
+    patch_record_evidence.add_argument(
+        "--feedback",
+        action="store_true",
+        help="Also persist Evidence/Claim/Planner/Tree feedback package (v2.2.7)",
     )
 
     patch_decide_merge = sub.add_parser(
@@ -3164,6 +3408,134 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
 
+    if args.command == "patch-propose-real":
+        try:
+            from scientist_lab.patching.real_mode import PatchProviderBudget
+
+            budget = None
+            if getattr(args, "max_calls", None) is not None:
+                budget = PatchProviderBudget(max_calls=int(args.max_calls))
+            data = service.patches.propose_real(
+                args.bundle_id,
+                requested_provider=args.provider,
+                allow_network=bool(args.allow_network),
+                real_only=True,
+                budget=budget,
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") in {"proposed", "verified"} else 1
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-budget-show":
+        data = service.patches.show_patch_budget(args.project_id)
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "patch-provider-doctor":
+        data = service.patches.patch_provider_doctor(
+            requested_provider=args.provider,
+            allow_network=bool(args.allow_network),
+        )
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0 if data.get("overall") == "ok" else 1
+
+    if args.command == "dfine-cuda-doctor":
+        data = service.dfine_cuda_doctor(
+            probe_runtime=not bool(args.no_probe),
+        )
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        # warnings (missing GPU/image) are expected on CPU CI — exit 0 if no errors
+        return 0 if data.get("ok") else 1
+
+    if args.command == "dfine-cuda-fast-eval":
+        dry_run = not bool(getattr(args, "execute", False))
+        try:
+            data = service.dfine_cuda_fast_eval(
+                contract_path=getattr(args, "contract", None),
+                runner_profile=getattr(args, "runner_profile", None),
+                wait=not bool(getattr(args, "no_wait", False)),
+                dry_run=dry_run,
+                require_live_ready=bool(
+                    getattr(args, "require_live_ready", False)
+                ),
+                probe_runtime=not bool(getattr(args, "no_probe", False)),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        if dry_run:
+            return 0
+        status = str((data.get("run") or {}).get("status") or data.get("status") or "")
+        return 0 if status == "completed" else 1
+
+    if args.command == "dfine-cuda-record-evidence":
+        try:
+            data = service.dfine_cuda_record_evidence(
+                args.execution_id,
+                refresh_claim_matrix=not bool(args.no_claim_matrix),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "dfine-cuda-formal-triad":
+        dry_run = not bool(getattr(args, "execute", False))
+        try:
+            data = service.dfine_cuda_formal_triad(
+                dry_run=dry_run,
+                wait=not bool(getattr(args, "no_wait", False)),
+                require_live_ready=bool(
+                    getattr(args, "require_live_ready", False)
+                ),
+                probe_runtime=not bool(getattr(args, "no_probe", False)),
+                protocol_id=str(
+                    getattr(args, "protocol_id", "protocol_rgbt_cuda_001")
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        if dry_run:
+            return 0
+        return 0 if data.get("status") == "completed" else 1
+
+    if args.command == "dfine-formal-path-gate":
+        try:
+            data = service.dfine_formal_path_gate(
+                args.project_id,
+                protocol_id=getattr(args, "protocol_id", None),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "dfine-real-acceptance":
+        dry_run = not bool(getattr(args, "execute", False))
+        try:
+            data = service.dfine_real_acceptance(
+                dry_run=dry_run,
+                include_formal_triad=bool(
+                    getattr(args, "include_formal_triad", False)
+                ),
+                wait=not bool(getattr(args, "no_wait", False)),
+                probe_runtime=not bool(getattr(args, "no_probe", False)),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        if dry_run:
+            return 0
+        return 0 if data.get("status") == "completed" else 1
+
     if args.command == "patch-show":
         try:
             print(
@@ -3173,6 +3545,38 @@ def main(argv: list[str] | None = None) -> int:
                     indent=2,
                 )
             )
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "code-context-build":
+        try:
+            data = service.patches.build_code_context(
+                digits_demo=bool(args.digits_demo),
+                persist=not bool(args.no_persist),
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "code-context-show":
+        try:
+            data = service.patches.show_code_context(args.bundle_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "code-context-export":
+        try:
+            data = service.patches.export_code_context(
+                args.bundle_id, output_path=args.output
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except KeyError as exc:
             print(str(exc), file=sys.stderr)
@@ -3193,6 +3597,16 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0
         except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-check-seal":
+        try:
+            data = service.patches.check_approval_seal(args.patch_id)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            report = data.get("seal_report") or {}
+            return 0 if report.get("ok") else 1
+        except KeyError as exc:
             print(str(exc), file=sys.stderr)
             return 1
 
@@ -3229,12 +3643,43 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
 
+    if args.command == "patch-sandbox-profiles":
+        data = service.patches.list_sandbox_test_profiles()
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "patch-export-replay":
+        try:
+            data = service.patches.export_patch_replay(
+                args.patch_id, output_dir=args.output
+            )
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("ok") else 1
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.command == "patch-replay":
+        try:
+            data = service.patches.replay_patch_from_bundle(args.bundle_dir)
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0 if data.get("status") in {"proposed", "verified"} else 1
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+
     if args.command == "patch-record-evidence":
         try:
-            data = service.patches.record_evidence(
-                args.patch_id,
-                require_tests=bool(getattr(args, "require_tests", False)),
-            )
+            if bool(getattr(args, "feedback", False)):
+                data = service.record_patch_evidence_feedback(
+                    args.patch_id,
+                    require_tests=bool(getattr(args, "require_tests", False)),
+                )
+            else:
+                data = service.patches.record_evidence(
+                    args.patch_id,
+                    require_tests=bool(getattr(args, "require_tests", False)),
+                )
             print(json.dumps(data, ensure_ascii=False, indent=2))
             return 0 if data.get("status") == "evidence_recorded" else 1
         except (KeyError, ValueError) as exc:

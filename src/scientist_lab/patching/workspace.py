@@ -39,7 +39,7 @@ class PatchSandbox:
     ) -> None:
         self.project_root = Path(project_root).resolve()
         self.sandbox_root = Path(sandbox_root)
-        self.policy = policy or PathPolicy()
+        self.policy = policy or PathPolicy.for_code_context()
         self.verifier = PatchVerifier(self.policy)
 
     def workspace_dir(self, patch_id: str) -> Path:

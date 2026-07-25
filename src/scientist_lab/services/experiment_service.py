@@ -112,6 +112,13 @@ class ExperimentService:
             "local:rgbt_detection_real": Path(self.settings.rgbt_detection_real_dir),
             "image:rgbt-detection-v2": Path(self.settings.rgbt_detection_real_dir),
         }
+        # Apply local LLM secrets (runtime/llm_secrets.env) into process env.
+        try:
+            from scientist_lab.llm.runtime_secrets import apply_runtime_llm_env
+
+            apply_runtime_llm_env(Path(self.settings.runtime_dir))
+        except OSError:
+            pass
         self._local_runner: LocalDockerRunner | None = None
         self._remote_runners: dict[str, RemoteDockerRunner] = {}
         self._execution_runners: dict[str, Any] = {}
@@ -949,6 +956,142 @@ class ExperimentService:
 
         return SystemDoctor(self).run()
 
+    def dfine_cuda_doctor(self, *, probe_runtime: bool = True) -> dict[str, Any]:
+        """CUDA + Vendor DFINE readiness report (v2.3.2)."""
+        from scientist_lab.tasks.rgbt_detection.cuda_doctor import (
+            build_dfine_cuda_doctor,
+        )
+
+        return build_dfine_cuda_doctor(
+            self.settings.project_root,
+            image_registry=dict(self.settings.image_registry or {}),
+            probe_runtime=probe_runtime,
+        )
+
+    def dfine_cuda_fast_eval(
+        self,
+        contract_path: Path | str | None = None,
+        *,
+        runner_profile: str | None = None,
+        wait: bool = True,
+        dry_run: bool = False,
+        require_live_ready: bool = False,
+        probe_runtime: bool = True,
+        overrides: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Plan + (optional) submit CUDA Vendor DFINE Fast Eval (v2.3.2)."""
+        from scientist_lab.tasks.rgbt_detection.dfine_cuda_orchestrator import (
+            run_dfine_cuda_fast_eval,
+        )
+
+        return run_dfine_cuda_fast_eval(
+            self,
+            contract_path=contract_path,
+            runner_profile=runner_profile,
+            wait=wait,
+            dry_run=dry_run,
+            require_live_ready=require_live_ready,
+            probe_runtime=probe_runtime,
+            overrides=overrides,
+        )
+
+    def dfine_cuda_record_evidence(
+        self,
+        execution_id: str,
+        *,
+        refresh_claim_matrix: bool = True,
+    ) -> dict[str, Any]:
+        """Record Vendor/stand-in Fast Eval evidence from an execution (v2.3.3)."""
+        from scientist_lab.tasks.rgbt_detection.dfine_evidence import (
+            record_dfine_fast_eval_evidence,
+        )
+
+        return record_dfine_fast_eval_evidence(
+            self,
+            execution_id=execution_id,
+            refresh_claim_matrix=refresh_claim_matrix,
+        )
+
+    def dfine_cuda_formal_triad(
+        self,
+        *,
+        dry_run: bool = True,
+        wait: bool = True,
+        require_live_ready: bool = False,
+        probe_runtime: bool = True,
+        protocol_id: str = "protocol_rgbt_cuda_001",
+    ) -> dict[str, Any]:
+        """Plan/submit CUDA Vendor formal triad (v2.3.4; dry-run default)."""
+        from scientist_lab.tasks.rgbt_detection.dfine_cuda_formal_triad import (
+            run_dfine_cuda_formal_triad,
+        )
+
+        return run_dfine_cuda_formal_triad(
+            self,
+            dry_run=dry_run,
+            wait=wait,
+            require_live_ready=require_live_ready,
+            probe_runtime=probe_runtime,
+            protocol_id=protocol_id,
+        )
+
+    def dfine_formal_path_gate(
+        self,
+        project_id: str,
+        *,
+        protocol_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Assess Vendor formal DFINE path Claim Gate (v2.3.5)."""
+        from scientist_lab.evidence.claim_matrix import (
+            evaluate_formal_dfine_claim,
+            evaluate_formal_dfine_path_claim,
+        )
+        from scientist_lab.evidence.formal_dfine_gate import (
+            assess_formal_dfine_path_gate,
+        )
+
+        records = self.evidence.list_evidence(
+            project_id=project_id, protocol_id=protocol_id
+        )
+        gate = assess_formal_dfine_path_gate(records)
+        path_claim = evaluate_formal_dfine_path_claim(
+            project_id=project_id, records=records
+        )
+        superiority = evaluate_formal_dfine_claim(
+            project_id=project_id, records=records
+        )
+        return {
+            "project_id": project_id,
+            "protocol_id": protocol_id,
+            "gate": gate,
+            "path_claim": path_claim.model_dump(mode="json"),
+            "superiority_claim": superiority.model_dump(mode="json"),
+            "formal_path_open": gate.get("formal_path_open"),
+            "formal_superiority_eligible": gate.get("formal_superiority_eligible"),
+            "formal_success": False,
+        }
+
+    def dfine_real_acceptance(
+        self,
+        *,
+        dry_run: bool = True,
+        include_formal_triad: bool | None = None,
+        wait: bool = True,
+        probe_runtime: bool = True,
+    ) -> dict[str, Any]:
+        """Gated live DFINE acceptance pipeline (v2.3.6; dry-run default)."""
+        from scientist_lab.tasks.rgbt_detection.dfine_real_acceptance import (
+            run_real_dfine_acceptance,
+        )
+
+        return run_real_dfine_acceptance(
+            self,
+            dry_run=dry_run,
+            include_formal_triad=include_formal_triad,
+            wait=wait,
+            probe_runtime=probe_runtime,
+        )
+
     def security_posture(self) -> dict[str, Any]:
         from scientist_lab.system.security_posture import build_security_posture
 
@@ -1043,6 +1186,90 @@ class ExperimentService:
 
     def show_patch(self, patch_id: str) -> dict[str, Any]:
         return self.patches.show(patch_id)
+
+    def record_patch_evidence_feedback(
+        self,
+        patch_id: str,
+        *,
+        require_tests: bool = False,
+    ) -> dict[str, Any]:
+        """Record PatchEvidence and feed it into Evidence / Claim / Planner / Tree notes.
+
+        v2.2.7 — never modifies the main workspace.
+        """
+        from scientist_lab.evidence.models import EvidenceRecord, ScientificClaim
+        from scientist_lab.patching.feedback import load_planner_patch_feedback
+        from scientist_lab.storage.artifact_store import write_json
+
+        view = self.patches.record_evidence(
+            patch_id, require_tests=require_tests, build_feedback=True
+        )
+        feedback = dict(view.get("patch_feedback") or {})
+        lab_payload = dict(feedback.get("lab_evidence") or {})
+        claim_payload = dict(feedback.get("claim_draft") or {})
+        tree_note = dict(feedback.get("tree_note") or {})
+
+        persisted_evidence_id = None
+        if lab_payload:
+            record = EvidenceRecord.model_validate(lab_payload)
+            stored = self.evidence.persist(record)
+            persisted_evidence_id = stored.evidence_id
+
+        claim_path = None
+        if claim_payload:
+            claim = ScientificClaim.model_validate(claim_payload)
+            project_id = claim.project_id
+            claim_dir = self.settings.outputs_dir / project_id / "patch_feedback"
+            claim_dir.mkdir(parents=True, exist_ok=True)
+            claim_path = claim_dir / f"{claim.claim_id}.json"
+            write_json(claim_path, claim.model_dump(mode="json"))
+
+        tree_attachments: list[dict[str, Any]] = []
+        project_id = str(
+            (view.get("patch_evidence") or {}).get("project_id")
+            or view.get("project_id")
+            or ""
+        )
+        if project_id and tree_note:
+            try:
+                trees = self.trees._repo.list_trees(project_id=project_id)
+            except Exception:  # noqa: BLE001
+                trees = []
+            for tree in trees[:5]:
+                note_dir = (
+                    self.settings.outputs_dir
+                    / project_id
+                    / "patch_feedback"
+                    / "tree_notes"
+                )
+                note_dir.mkdir(parents=True, exist_ok=True)
+                note_path = note_dir / f"{tree.tree_id}_{view.get('patch_id')}.json"
+                payload = {
+                    **tree_note,
+                    "tree_id": tree.tree_id,
+                    "project_id": project_id,
+                }
+                write_json(note_path, payload)
+                tree_attachments.append(
+                    {"tree_id": tree.tree_id, "path": str(note_path)}
+                )
+
+        planner_records = (
+            load_planner_patch_feedback(
+                self.settings.outputs_dir, project_id, limit=20
+            )
+            if project_id
+            else []
+        )
+
+        view["lab_feedback"] = {
+            "persisted_evidence_id": persisted_evidence_id,
+            "claim_draft_path": str(claim_path) if claim_path else None,
+            "tree_attachments": tree_attachments,
+            "planner_feedback_records": planner_records,
+            "main_workspace_modified": False,
+        }
+        return view
 
     def list_claims(
         self, *, project_id: str | None = None
@@ -2252,7 +2479,24 @@ class ExperimentService:
         write_json(comparison_path, comparison)
 
         impl = str((sample_contract.get("task_config") or {}).get("implementation") or "")
-        formal = impl not in {"", "stand_in", "stand-in"} and "standin" not in impl.lower()
+        # v2.3.3: also accept vendored DFINE baseline_implementation tags
+        if not impl:
+            impl = str(
+                (sample_contract.get("parameters") or {}).get("baseline_implementation")
+                or (sample_contract.get("task_config") or {}).get(
+                    "baseline_implementation"
+                )
+                or ""
+            )
+        formal = (
+            impl not in {"", "stand_in", "stand-in"}
+            and "standin" not in impl.lower()
+            and "stand_in" not in impl.lower().replace("-", "_")
+        )
+        if "vendored" in impl.lower() or impl.lower().startswith("dfine"):
+            formal = True
+        if "standin" in impl.lower() or "torch_mini" in impl.lower():
+            formal = False
         has_ablation = bool(
             self.ablations.list_plans(project_id=project_id)
         )
@@ -3049,6 +3293,58 @@ class ExperimentService:
             "default_profile_id": selected,
             "profile": self.show_llm_profile(selected),
         }
+
+    def get_llm_config_status(self) -> dict[str, Any]:
+        """Masked LLM connection status for Web/API (no raw key)."""
+        from scientist_lab.llm.runtime_secrets import llm_config_status
+
+        return llm_config_status(
+            runtime_dir=Path(self.settings.runtime_dir),
+            default_profile_id=self.llm_evals.get_default_profile_id(),
+        )
+
+    def update_llm_config(
+        self,
+        *,
+        provider: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout_seconds: float | None = None,
+        api_key: str | None = None,
+        allow_network: bool | None = None,
+        clear_api_key: bool = False,
+    ) -> dict[str, Any]:
+        """Persist LLM connection settings to runtime secrets + process env."""
+        from scientist_lab.llm.runtime_secrets import write_runtime_llm_env
+
+        write_runtime_llm_env(
+            Path(self.settings.runtime_dir),
+            provider=provider,
+            base_url=base_url,
+            model=model,
+            timeout_seconds=timeout_seconds,
+            api_key=api_key,
+            allow_network=allow_network,
+            clear_api_key=clear_api_key,
+        )
+        status = self.get_llm_config_status()
+        # Soft readiness check — incomplete real config is saved but flagged.
+        if status.get("is_real"):
+            missing: list[str] = []
+            if not status.get("api_key_present"):
+                missing.append("LLM_API_KEY")
+            if not status.get("base_url"):
+                missing.append("LLM_BASE_URL")
+            if not status.get("model"):
+                missing.append("LLM_MODEL")
+            status["ready_for_real_calls"] = not missing and bool(
+                status.get("allow_network")
+            )
+            status["missing_for_real"] = missing
+        else:
+            status["ready_for_real_calls"] = False
+            status["missing_for_real"] = []
+        return status
 
     def review_plan(
         self,

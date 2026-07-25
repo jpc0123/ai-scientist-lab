@@ -61,7 +61,7 @@ export function ExecutionsPage() {
     <div className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">2.1.0 实验中心</p>
+          <p className="eyebrow">2.3.0 实验中心</p>
           <h1>执行记录</h1>
           <p className="lede">
             筛选项目 / 状态 / Runner；详情分区查看 Contract、指标、日志与 Artifact。

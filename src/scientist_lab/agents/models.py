@@ -163,6 +163,9 @@ class PlanningContext(BaseModel):
     previous_planner_hypothesis: str | None = None
     previous_parameter_changes: dict[str, Any] = Field(default_factory=dict)
 
+    # --- v2.2.7: sandbox code-patch outcomes ---
+    patch_feedback_records: list[dict[str, Any]] = Field(default_factory=list)
+
     # Audit helpers (not for LLM reasoning)
     context_sha256: str | None = None
     protocol_id: str | None = None
