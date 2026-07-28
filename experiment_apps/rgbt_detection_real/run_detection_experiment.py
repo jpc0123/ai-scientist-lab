@@ -63,6 +63,21 @@ def main() -> None:
     )
     print(f"data_root={data_root}", flush=True)
 
+    fusion = str(args.fusion_method or "none").strip().lower()
+    if fusion in {
+        "fdpn",
+        "full",
+        "full_method",
+        "complete",
+        "mid_fusion",
+        "late_fusion",
+        "dual_stream",
+    }:
+        raise RuntimeError(
+            f"fusion_method={fusion!r} is not implemented (P00/FDPN blocked); "
+            "use early_concat for exploratory fusion smoke only"
+        )
+
     report = quick_dataset_report(data_root, dataset_key=dataset_key or "unknown")
     write_json(output_dir / "dataset_report.json", report)
     if not report.get("valid"):

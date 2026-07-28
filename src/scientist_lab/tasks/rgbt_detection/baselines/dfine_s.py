@@ -32,6 +32,37 @@ class DFineSBaselineAdapter:
         mode = str(parameters.get("input_mode", "rgb"))
         if mode not in {"rgb", "thermal", "rgbt"}:
             raise ValueError(f"unsupported input_mode: {mode}")
+        fusion = str(parameters.get("fusion_method", "none")).strip().lower()
+        # Implemented Vendor path today: none | early_concat (pixel blend → 3ch).
+        # FDPN / full dual-stream method is not implemented — refuse quiet mislabeling.
+        unimplemented = {
+            "fdpn",
+            "full",
+            "full_method",
+            "complete",
+            "mid_fusion",
+            "late_fusion",
+            "dual_stream",
+        }
+        if fusion in unimplemented:
+            raise ValueError(
+                f"fusion_method={fusion!r} is not implemented (P00/FDPN blocked). "
+                "Supported: none, early_concat. "
+                "See outputs/experiments/v23_smoke/P00/P00_BLOCKER.md"
+            )
+        if fusion not in {"none", "early_concat", "concat", "early"}:
+            raise ValueError(
+                f"unsupported fusion_method: {fusion!r}; supported: none, early_concat"
+            )
+        if mode in {"rgb", "thermal"} and fusion not in {"none", ""}:
+            raise ValueError(
+                f"input_mode={mode} requires fusion_method=none, got {fusion!r}"
+            )
+        if mode == "rgbt" and fusion in {"none", ""}:
+            raise ValueError(
+                "input_mode=rgbt requires an implemented fusion_method "
+                "(currently early_concat only)"
+            )
 
     def build_native_config(self, contract: ExperimentContract) -> dict[str, Any]:
         params = dict(contract.parameters or {})

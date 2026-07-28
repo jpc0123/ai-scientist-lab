@@ -208,6 +208,21 @@ def test_dfine_adapter_reports_vendored():
     assert "vendored" in native["vendor_status"]
 
 
+def test_dfine_s_rejects_unimplemented_fdpn_fusion():
+    adapter = DFineSBaselineAdapter()
+    with pytest.raises(ValueError, match="not implemented"):
+        adapter.validate_parameters(
+            {"input_mode": "rgbt", "fusion_method": "fdpn", "epochs": 1}
+        )
+    with pytest.raises(ValueError, match="unsupported fusion_method"):
+        adapter.validate_parameters(
+            {"input_mode": "rgbt", "fusion_method": "magic", "epochs": 1}
+        )
+    adapter.validate_parameters(
+        {"input_mode": "rgbt", "fusion_method": "early_concat", "epochs": 1}
+    )
+
+
 def test_rgbt_pair_audit_on_fast_eval_dataset(tmp_path: Path):
     sys.path.insert(0, str(REAL_APP))
     from rgbt_pair_audit import audit_rgbt_pairs, write_rgbt_pair_audit
