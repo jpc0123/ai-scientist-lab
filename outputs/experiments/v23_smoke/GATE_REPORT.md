@@ -36,12 +36,25 @@ Proves **execution-path viability only**. Does **not** prove accuracy, improveme
 | Image | `scientist-rgbt-detection:v2-cuda` |
 | Mode | `input_mode=rgbt`, `fusion_method=early_concat`, AMP on, seed=0 |
 | Pairing | train 24 / val 12 paired 1:1 |
-| Artifacts | `rgbt_pair_audit.json`, `category_label_map.json`, `dfine_spatial_query_budget.json`, metrics/execution |
 
-Log: `outputs/experiments/v23_smoke/S01/S01_RGBT_DATA_SMOKE.log`  
-Job: `runtime/scientist-worker/jobs/job_c88ee1e25c49`
+## B0x — PASS (matched modality baselines, exploratory)
 
-S01 mAP=0 is acceptable for data-chain smoke.
+Protocol `protocol_rgbt_cuda_001` registered; project `project_rgbt_cuda_001` ready.
+Details: `outputs/experiments/v23_smoke/B0x/SUMMARY.md`
+
+| ID | Mode | Fusion | Status | Exit | Exec |
+|----|------|--------|--------|------|------|
+| B00 | rgb | none | completed | 0 | exec_c1511f6f0522 |
+| B01 | thermal | none | completed | 0 | exec_133c0aa127ad |
+| B02 | rgbt | early_concat | completed | 0 | exec_4ac0eb472f33 |
+
+All three: mAP50=mAP50_95=0.0 (1-epoch tiny Fast Eval; **not** a ranking).
+
+### Allowed
+Matched RGB / Thermal / early-fusion Vendor D-FINE Fast Eval **paths** completed on official `v2-cuda`.
+
+### Forbidden
+Accuracy ranking, fusion superiority, FDPN effectiveness, formal claims.
 
 ## Fixes locked (not 160-only hardcodes)
 
@@ -49,6 +62,6 @@ S01 mAP=0 is acceptable for data-chain smoke.
 2. `num_queries` capped by coarse tokens **only** when Fast Eval `scale_queries_to_tokens=True`
 3. COCO remap → contiguous 0…N−1 with persisted bijective map
 
-## Next (not started)
+## Next
 
-B00 RGB-only → B01 Thermal-only → B02 early fusion → P00 full method (one variable at a time).
+P00 / ablations / multi-seed only after a longer training budget freeze if accuracy claims are desired.
