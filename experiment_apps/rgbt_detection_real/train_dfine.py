@@ -41,12 +41,22 @@ def run_dfine_train(
     epochs = int(params.get("epochs") or 2)
     batch_size = int(params.get("batch_size") or 2)
     num_workers = int(params.get("num_workers") or 0)
-    image_size = int(
-        params.get("image_width")
-        or params.get("image_size")
-        or 160
-    )
+    image_height = params.get("image_height")
+    image_width = params.get("image_width")
+    image_size = params.get("image_size")
+    # Legacy contracts used image_width as square side when height is omitted.
+    if image_height is None and image_width is not None and image_size is None:
+        image_size = image_width
+        image_width = None
+    if image_height is None and image_width is None and image_size is None:
+        image_size = 160
     learning_rate = float(params.get("learning_rate") or 2e-4)
+    execution_mode = str(contract.get("execution_mode") or "fast_eval")
+    # Only Fast Eval may shrink num_queries to fit tiny smoke resolutions.
+    # Formal / full-size runs keep the model query structure unchanged.
+    scale_queries = execution_mode in {"fast_eval", "smoke", "debug"}
+    if "scale_queries_to_tokens" in params:
+        scale_queries = bool(params.get("scale_queries_to_tokens"))
 
     stage_root = output_dir / "_dfine_stage"
     stage_paths = stage_coco_for_dfine(
@@ -54,6 +64,7 @@ def run_dfine_train(
         stage_root,
         input_mode=input_mode,
         fusion_method=fusion_method,
+        label_map_path=output_dir / "category_label_map.json",
     )
     num_classes = count_categories(stage_paths["train_ann"])
     dfine_out = output_dir / "_dfine_run"
@@ -69,11 +80,19 @@ def run_dfine_train(
         epochs=epochs,
         batch_size=batch_size,
         num_workers=num_workers,
-        image_size=image_size,
+        image_size=int(image_size) if image_size is not None else None,
+        image_height=int(image_height) if image_height is not None else None,
+        image_width=int(image_width) if image_width is not None else None,
         learning_rate=learning_rate,
         num_classes=num_classes,
         seed=seed,
+        scale_queries_to_tokens=scale_queries,
+        budget_record_path=output_dir / "dfine_spatial_query_budget.json",
     )
+    # Keep a copy of the label map next to metrics for eval export / audit.
+    label_map = stage_paths.get("category_label_map")
+    if isinstance(label_map, dict):
+        write_json(output_dir / "category_label_map.json", label_map)
 
     # Import vendored D-FINE.
     if str(dfine_root) not in sys.path:

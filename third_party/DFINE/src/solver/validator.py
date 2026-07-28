@@ -3,11 +3,15 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from loguru import logger
 from torchvision.ops import box_iou
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:  # plotting is optional for Fast Eval smoke
+    plt = None
 
 
 class Validator:
@@ -244,6 +248,9 @@ class Validator:
         return metrics_per_class, conf_matrix, class_to_idx
 
     def save_plots(self, path_to_save) -> None:
+        if plt is None:
+            logger.warning("matplotlib not installed; skip validator plots")
+            return
         path_to_save = Path(path_to_save)
         path_to_save.mkdir(parents=True, exist_ok=True)
 

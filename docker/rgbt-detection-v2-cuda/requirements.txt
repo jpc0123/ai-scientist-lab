@@ -1,11 +1,14 @@
-# Extra deps for vendored D-FINE inside CUDA image (torch already provided by base).
+# Extra deps for vendored D-FINE inside CUDA image.
+# torch / torchvision / torchaudio are provided by the base image
+# (pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel → torch 2.7.1+cu128, torchvision 0.22.1+cu128).
+# Do NOT pin or reinstall them here — pip may pull cu124/cpu wheels and break sm_120.
 numpy>=1.26
 Pillow>=10.0
 PyYAML>=6.0
-torchvision>=0.15.2
 faster-coco-eval>=1.6.6
 scipy
 loguru
 tensorboard
 calflops
 transformers
+matplotlib>=3.7

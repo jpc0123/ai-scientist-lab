@@ -56,8 +56,13 @@ class DockerExecutor:
     def _stage_dfine_vendor(self, workspace_dir: Path) -> None:
         roots: list[Path] = []
         for code_root in self.code_roots.values():
-            roots.append(code_root.resolve().parents[1] / "third_party" / "DFINE")
-            roots.append(code_root.resolve().parents[2] / "third_party" / "DFINE")
+            root = Path(code_root).resolve()
+            roots.append(root / "third_party" / "DFINE")
+            for depth in (1, 2):
+                try:
+                    roots.append(root.parents[depth] / "third_party" / "DFINE")
+                except IndexError:
+                    break
         src = next((path for path in roots if (path / "train.py").is_file()), None)
         if src is None:
             return

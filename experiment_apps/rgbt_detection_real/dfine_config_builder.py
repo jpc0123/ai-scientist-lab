@@ -2,8 +2,79 @@
 
 from __future__ import annotations
 
+import json
+import math
 from pathlib import Path
 from typing import Any
+
+
+DEFAULT_CONFIGURED_NUM_QUERIES = 300
+DEFAULT_CONFIGURED_NUM_DENOISING = 100
+COARSE_STRIDE = 32
+
+
+def resolve_input_size(
+    *,
+    image_size: int | None = None,
+    image_height: int | None = None,
+    image_width: int | None = None,
+) -> tuple[int, int]:
+    """Resolve (H, W) from experiment params. Prefer explicit H/W over square size."""
+    if image_height is not None or image_width is not None:
+        if image_height is None or image_width is None:
+            raise ValueError("image_height and image_width must be set together")
+        h, w = int(image_height), int(image_width)
+    else:
+        side = int(image_size if image_size is not None else 160)
+        h = w = side
+    if h <= 0 or w <= 0:
+        raise ValueError(f"invalid input size: {(h, w)}")
+    return h, w
+
+
+def resolve_query_budget(
+    *,
+    input_h: int,
+    input_w: int,
+    configured_num_queries: int = DEFAULT_CONFIGURED_NUM_QUERIES,
+    configured_num_denoising: int = DEFAULT_CONFIGURED_NUM_DENOISING,
+    stride: int = COARSE_STRIDE,
+    scale_queries_to_tokens: bool = True,
+) -> dict[str, Any]:
+    """Bound Fast Eval num_queries by coarse-map token count.
+
+    Formal / full-resolution runs should set scale_queries_to_tokens=False so the
+    model keeps its configured query count (structure must not silently change).
+    """
+    feature_h = max(1, math.ceil(int(input_h) / int(stride)))
+    feature_w = max(1, math.ceil(int(input_w) / int(stride)))
+    available_tokens = int(feature_h * feature_w)
+    configured = max(1, int(configured_num_queries))
+    if scale_queries_to_tokens:
+        effective = min(configured, available_tokens)
+    else:
+        if configured > available_tokens:
+            raise ValueError(
+                "configured_num_queries exceeds coarse feature tokens; "
+                f"queries={configured} tokens={available_tokens} "
+                f"input=[{input_h}, {input_w}] stride={stride}. "
+                "Increase input size or enable Fast Eval query scaling."
+            )
+        effective = configured
+    denoising_cap = max(1, effective // 2)
+    effective_denoising = min(max(1, int(configured_num_denoising)), denoising_cap)
+    return {
+        "input_size": [int(input_h), int(input_w)],
+        "stride": int(stride),
+        "feature_h": feature_h,
+        "feature_w": feature_w,
+        "available_tokens": available_tokens,
+        "configured_num_queries": configured,
+        "effective_num_queries": int(effective),
+        "configured_num_denoising": int(configured_num_denoising),
+        "effective_num_denoising": int(effective_denoising),
+        "scale_queries_to_tokens": bool(scale_queries_to_tokens),
+    }
 
 
 def write_dfine_fast_config(
@@ -15,10 +86,16 @@ def write_dfine_fast_config(
     epochs: int,
     batch_size: int,
     num_workers: int,
-    image_size: int,
+    image_size: int | None = None,
+    image_height: int | None = None,
+    image_width: int | None = None,
     learning_rate: float,
     num_classes: int,
     seed: int,
+    configured_num_queries: int = DEFAULT_CONFIGURED_NUM_QUERIES,
+    configured_num_denoising: int = DEFAULT_CONFIGURED_NUM_DENOISING,
+    scale_queries_to_tokens: bool = True,
+    budget_record_path: Path | None = None,
 ) -> Path:
     dfine_root = Path(dfine_root).resolve()
     config_path = Path(config_path)
@@ -30,8 +107,47 @@ def write_dfine_fast_config(
     val_ann = Path(stage_paths["val_ann"]).as_posix()
     out = Path(output_dir).as_posix()
 
+    input_h, input_w = resolve_input_size(
+        image_size=image_size,
+        image_height=image_height,
+        image_width=image_width,
+    )
+    eval_spatial_size = [input_h, input_w]
+    assert tuple(eval_spatial_size) == (input_h, input_w)
+
+    query_budget = resolve_query_budget(
+        input_h=input_h,
+        input_w=input_w,
+        configured_num_queries=configured_num_queries,
+        configured_num_denoising=configured_num_denoising,
+        scale_queries_to_tokens=scale_queries_to_tokens,
+    )
+    num_queries = int(query_budget["effective_num_queries"])
+    num_denoising = int(query_budget["effective_num_denoising"])
+
+    record = {
+        "eval_spatial_size": eval_spatial_size,
+        "input_size": [input_h, input_w],
+        "resize_size": [input_h, input_w],
+        "collate_base_size_h": input_h,
+        "collate_base_size_w": input_w,
+        "query_budget": query_budget,
+    }
+    record_path = Path(
+        budget_record_path
+        if budget_record_path is not None
+        else Path(config_path).with_name("dfine_spatial_query_budget.json")
+    )
+    record_path.write_text(
+        json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
     # Relative includes resolve from this file's directory; use absolute includes
     # via copied relative links under a config workspace next to DFINE configs.
+    # D-FINE selects encoder top-k over the coarsest map (stride 32). At small
+    # Fast Eval sizes, default num_queries=300 exceeds available tokens unless
+    # scale_queries_to_tokens=True (Fast Eval only).
     text = f"""
 # Auto-generated Scientist Lab Fast Eval config for DFINE-S
 __include__:
@@ -47,6 +163,9 @@ evaluator:
 
 num_classes: {int(num_classes)}
 remap_mscoco_category: False
+# Must match Resize/collate size derived from experiment input_size.
+# Included dfine_hgnetv2.yml defaults to 640x640 and would desync pos_embed.
+eval_spatial_size: [{input_h}, {input_w}]
 
 output_dir: {out}
 print_freq: 1
@@ -72,6 +191,11 @@ HGNetv2:
 DFINETransformer:
   num_layers: 3
   eval_idx: -1
+  num_queries: {int(num_queries)}
+  num_denoising: {int(num_denoising)}
+
+DFINEPostProcessor:
+  num_top_queries: {int(num_queries)}
 
 HybridEncoder:
   in_channels: [256, 512, 1024]
@@ -106,7 +230,7 @@ train_dataloader:
     transforms:
       type: Compose
       ops:
-        - {{type: Resize, size: [{int(image_size)}, {int(image_size)}]}}
+        - {{type: Resize, size: [{input_h}, {input_w}]}}
         - {{type: ConvertPILImage, dtype: 'float32', scale: True}}
         - {{type: ConvertBoxes, fmt: 'cxcywh', normalize: True}}
       policy:
@@ -119,7 +243,7 @@ train_dataloader:
   total_batch_size: {int(batch_size)}
   collate_fn:
     type: BatchImageCollateFunction
-    base_size: {int(image_size)}
+    base_size: {input_h if input_h == input_w else input_w}
     base_size_repeat: 1
     stop_epoch: 9999
 
@@ -133,7 +257,7 @@ val_dataloader:
     transforms:
       type: Compose
       ops:
-        - {{type: Resize, size: [{int(image_size)}, {int(image_size)}]}}
+        - {{type: Resize, size: [{input_h}, {input_w}]}}
         - {{type: ConvertPILImage, dtype: 'float32', scale: True}}
   shuffle: False
   num_workers: {int(num_workers)}
@@ -142,17 +266,21 @@ val_dataloader:
   collate_fn:
     type: BatchImageCollateFunction
 """
+    # BatchImageCollateFunction historically takes a single base_size; for non-square
+    # inputs Resize ops carry the true HxW and eval_spatial_size matches them.
     config_path.write_text(text.strip() + "\n", encoding="utf-8")
     return config_path
 
 
 def dfine_root_from_app(app_dir: Path) -> Path:
     app_dir = Path(app_dir).resolve()
-    candidates = [
-        app_dir / "third_party" / "DFINE",
-        app_dir.parents[1] / "third_party" / "DFINE",  # repo: experiment_apps/../third_party
-        app_dir.parents[2] / "third_party" / "DFINE",  # safety for nested layouts
-    ]
+    candidates: list[Path] = [app_dir / "third_party" / "DFINE"]
+    # parents[i] can IndexError when the workspace is shallow (e.g. /workspace).
+    for depth in (1, 2):
+        try:
+            candidates.append(app_dir.parents[depth] / "third_party" / "DFINE")
+        except IndexError:
+            break
     for candidate in candidates:
         if (candidate / "train.py").is_file():
             return candidate.resolve()
