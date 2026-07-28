@@ -206,3 +206,18 @@ def test_dfine_adapter_reports_vendored():
     native = adapter.build_native_config(contract)
     assert native["baseline_key"] == "dfine_s"
     assert "vendored" in native["vendor_status"]
+
+
+def test_rgbt_pair_audit_on_fast_eval_dataset(tmp_path: Path):
+    sys.path.insert(0, str(REAL_APP))
+    from rgbt_pair_audit import audit_rgbt_pairs, write_rgbt_pair_audit
+
+    data_root = ROOT / "datasets" / "rgbt_fast_eval_v1"
+    if not data_root.exists():
+        pytest.skip("rgbt_fast_eval_v1 missing")
+    report = write_rgbt_pair_audit(data_root, tmp_path / "rgbt_pair_audit.json")
+    assert report["ok"] is True
+    assert report["splits"]["train"]["n_paired"] >= 1
+    assert report["splits"]["val"]["n_paired"] >= 1
+    offline = audit_rgbt_pairs(data_root)
+    assert offline["ok"] is True

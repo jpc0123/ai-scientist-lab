@@ -11,6 +11,7 @@ from typing import Any
 from artifact_writer import write_json
 from dfine_config_builder import dfine_root_from_app, write_dfine_fast_config
 from dfine_dataset_stage import count_categories, stage_coco_for_dfine
+from rgbt_pair_audit import write_rgbt_pair_audit
 
 
 IMPLEMENTATION = "dfine_s_vendored_v0_8_9"
@@ -57,6 +58,9 @@ def run_dfine_train(
     scale_queries = execution_mode in {"fast_eval", "smoke", "debug"}
     if "scale_queries_to_tokens" in params:
         scale_queries = bool(params.get("scale_queries_to_tokens"))
+
+    if str(input_mode).lower() in {"rgbt", "rgb_thermal"}:
+        write_rgbt_pair_audit(Path(data_root), output_dir / "rgbt_pair_audit.json")
 
     stage_root = output_dir / "_dfine_stage"
     stage_paths = stage_coco_for_dfine(
