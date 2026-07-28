@@ -1,0 +1,61 @@
+{
+  "protocol_id": "protocol_rgbt_p00_mechanism_diagnosis_v1",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "RGB-T A3 vs P00 seed42 mechanism diagnosis (diagnostic_only)",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_fast_eval_v1",
+  "dataset_version": "v1",
+  "split_reference": "split:fast_eval_fixed_v1",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.4.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [42],
+  "primary_metric": "mAP50_95",
+  "secondary_metrics": ["mAP50", "AP_small", "precision", "recall"],
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "gated_multiscale",
+    "fusion": {
+      "type": "gated_multiscale",
+      "levels": ["p3", "p4", "p5"],
+      "share_backbone": false,
+      "residual": true
+    },
+    "protocol": "mechanism_diagnosis",
+    "pretrained": true,
+    "epochs": 40,
+    "batch_size": 2,
+    "image_width": 160,
+    "image_height": 160,
+    "learning_rate": 0.0002,
+    "max_train_images": 24,
+    "max_val_images": 12,
+    "num_workers": 0,
+    "mixed_precision": false,
+    "scale_queries_to_tokens": true,
+    "enforce_disk_gate": true,
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    }
+  },
+  "allowed_variables": [
+    "neck",
+    "experiment_arm",
+    "mechanism_diagnosis"
+  ],
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "notes": [
+    "diagnostic_only: no performance superiority claims",
+    "epochs 40 for fixed-epoch sampling including epoch 40; not an 80ep formal matrix",
+    "Only neck / experiment_arm / mechanism_diagnosis may differ across A3 vs P00"
+  ]
+}

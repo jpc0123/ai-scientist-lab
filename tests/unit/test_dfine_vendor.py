@@ -221,6 +221,14 @@ def test_dfine_s_rejects_unimplemented_fdpn_fusion():
     adapter.validate_parameters(
         {"input_mode": "rgbt", "fusion_method": "early_concat", "epochs": 1}
     )
+    adapter.validate_parameters(
+        {
+            "input_mode": "rgbt",
+            "fusion_method": "gated_multiscale",
+            "fusion": {"type": "gated_multiscale", "residual": True},
+            "epochs": 1,
+        }
+    )
 
 
 def test_rgbt_pair_audit_on_fast_eval_dataset(tmp_path: Path):

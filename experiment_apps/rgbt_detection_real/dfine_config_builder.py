@@ -96,6 +96,8 @@ def write_dfine_fast_config(
     configured_num_denoising: int = DEFAULT_CONFIGURED_NUM_DENOISING,
     scale_queries_to_tokens: bool = True,
     budget_record_path: Path | None = None,
+    pretrained: bool = False,
+    local_model_dir: str | None = None,
 ) -> Path:
     dfine_root = Path(dfine_root).resolve()
     config_path = Path(config_path)
@@ -125,6 +127,20 @@ def write_dfine_fast_config(
     num_queries = int(query_budget["effective_num_queries"])
     num_denoising = int(query_budget["effective_num_denoising"])
 
+    # Prefer vendored local weights (Docker jobs run with network_disabled).
+    # Use a cwd-relative path so the same YAML works on host and in /workspace.
+    weight_dir = local_model_dir
+    if not weight_dir:
+        weight_dir = "third_party/DFINE/weight/hgnetv2/"
+    weight_dir = str(weight_dir).replace("\\", "/")
+    if not weight_dir.endswith("/"):
+        weight_dir = weight_dir + "/"
+    # Sanity: refuse Windows drive paths that would break Linux containers.
+    if len(weight_dir) >= 2 and weight_dir[1] == ":":
+        raise ValueError(
+            f"local_model_dir must be container-portable, got {weight_dir!r}"
+        )
+
     record = {
         "eval_spatial_size": eval_spatial_size,
         "input_size": [input_h, input_w],
@@ -132,6 +148,8 @@ def write_dfine_fast_config(
         "collate_base_size_h": input_h,
         "collate_base_size_w": input_w,
         "query_budget": query_budget,
+        "pretrained": bool(pretrained),
+        "local_model_dir": weight_dir,
     }
     record_path = Path(
         budget_record_path
@@ -186,7 +204,8 @@ HGNetv2:
   freeze_at: -1
   freeze_norm: False
   use_lab: True
-  pretrained: False
+  pretrained: {str(bool(pretrained))}
+  local_model_dir: {weight_dir}
 
 DFINETransformer:
   num_layers: 3

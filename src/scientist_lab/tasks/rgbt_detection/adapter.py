@@ -59,14 +59,27 @@ class RGBTDetectionAdapter:
         if real and contract.execution_mode == "fast_eval":
             # Formal exploratory fast_eval (v0.8.2+) may train under budget.
             # Pipeline claim on real baseline still allows short train in v0.8.1.
+            # formal_candidate: frozen matched A2/A4 protocol (not SOTA / not significance).
             if claim not in {
                 "",
                 "pipeline_validation_only",
                 "exploratory_comparison",
+                "formal_candidate",
             }:
                 raise ValueError(
                     f"unsupported claim_level for real baseline fast_eval: {claim}"
                 )
+            ckpt_policy = (contract.parameters or {}).get("checkpoint_policy")
+            if claim == "formal_candidate":
+                if not isinstance(ckpt_policy, dict):
+                    raise ValueError(
+                        "formal_candidate requires parameters.checkpoint_policy"
+                    )
+                if ckpt_policy.get("primary") != "best_on_validation":
+                    raise ValueError(
+                        "formal_candidate requires checkpoint_policy.primary="
+                        "best_on_validation"
+                    )
 
     def prepare_execution(
         self,

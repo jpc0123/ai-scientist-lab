@@ -63,20 +63,34 @@ def main() -> None:
     )
     print(f"data_root={data_root}", flush=True)
 
-    fusion = str(args.fusion_method or "none").strip().lower()
-    if fusion in {
-        "fdpn",
-        "full",
-        "full_method",
-        "complete",
-        "mid_fusion",
-        "late_fusion",
-        "dual_stream",
-    }:
+    from fusion_names import BLOCKED_FUSION_METHODS, normalize_fusion_method
+
+    fusion = normalize_fusion_method(args.fusion_method or "none")
+    fusion_raw = str(args.fusion_method or "none").strip().lower()
+    if fusion_raw in BLOCKED_FUSION_METHODS:
         raise RuntimeError(
-            f"fusion_method={fusion!r} is not implemented (P00/FDPN blocked); "
-            "use early_concat for exploratory fusion smoke only"
+            f"fusion_method={fusion_raw!r} is not a fusion switch "
+            "(FDPN belongs under parameters.neck.type); "
+            "use early_concat or gated_multiscale"
         )
+    if fusion not in {"none", "early_concat", "gated_multiscale"}:
+        raise RuntimeError(
+            f"unsupported fusion_method={fusion_raw!r}; "
+            "supported: none, early_concat, gated_multiscale"
+        )
+
+    params = dict(config.get("parameters") or contract.get("parameters") or {})
+    neck = params.get("neck")
+    if neck is not None:
+        if not isinstance(neck, dict):
+            raise RuntimeError("parameters.neck must be a mapping when present")
+        neck_type = str(neck.get("type") or "standard").strip().lower()
+        if neck_type in {"hybrid", "hybrid_encoder", "default", ""}:
+            neck_type = "standard"
+        if neck_type not in {"standard", "fdpn"}:
+            raise RuntimeError(
+                f"unsupported neck.type={neck_type!r}; supported: standard, fdpn"
+            )
 
     report = quick_dataset_report(data_root, dataset_key=dataset_key or "unknown")
     write_json(output_dir / "dataset_report.json", report)
@@ -135,7 +149,7 @@ def main() -> None:
                 contract={**contract, "execution_mode": mode},
                 seed=seed,
                 input_mode=args.input_mode,
-                fusion_method=args.fusion_method,
+                fusion_method=fusion,
             )
         else:
             run_minimal_train(
@@ -145,7 +159,7 @@ def main() -> None:
                 contract={**contract, "execution_mode": mode},
                 seed=seed,
                 input_mode=args.input_mode,
-                fusion_method=args.fusion_method,
+                fusion_method=fusion,
             )
         if not (output_dir / "checkpoint" / "last.pt").exists():
             raise RuntimeError("checkpoint_missing")

@@ -1,0 +1,53 @@
+{
+  "protocol_id": "protocol_rgbt_p01_residual_scale_v1",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "P01 gated fusion + FDPN residual_scale=0.25 (seed42 exploratory)",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_fast_eval_v1",
+  "dataset_version": "v1",
+  "split_reference": "split:fast_eval_fixed_v1",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.4.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [42],
+  "primary_metric": "mAP50_95",
+  "secondary_metrics": ["mAP50", "AP_small", "precision", "recall"],
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "gated_multiscale",
+    "fusion": {
+      "type": "gated_multiscale",
+      "levels": ["p3", "p4", "p5"],
+      "share_backbone": false,
+      "residual": true
+    },
+    "neck": {"type": "fdpn", "residual_scale": 0.25},
+    "protocol": "multi_seed_exploratory",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 2,
+    "image_width": 160,
+    "image_height": 160,
+    "learning_rate": 0.0002,
+    "max_train_images": 24,
+    "max_val_images": 12,
+    "num_workers": 0,
+    "mixed_precision": false,
+    "scale_queries_to_tokens": true,
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    }
+  },
+  "allowed_variables": [],
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "stop_rule": "Compare to A3 seed42 exploratory mAP50_95=0.20525; require +0.01 practical delta or close gated+FDPN route after P01 (P02 not launched)."
+}

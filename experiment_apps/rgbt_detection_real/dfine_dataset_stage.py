@@ -7,6 +7,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from fusion_names import is_early_concat, is_gated_multiscale, normalize_fusion_method
+
 
 def stage_coco_for_dfine(
     data_root: Path,
@@ -23,18 +25,27 @@ def stage_coco_for_dfine(
         shutil.rmtree(stage_root)
     train_img = stage_root / "train2017"
     val_img = stage_root / "val2017"
+    thermal_train_img = stage_root / "thermal_train2017"
+    thermal_val_img = stage_root / "thermal_val2017"
     ann_dir = stage_root / "annotations"
     train_img.mkdir(parents=True)
     val_img.mkdir(parents=True)
     ann_dir.mkdir(parents=True)
 
-    modality = _resolve_modality_dir(input_mode=input_mode, fusion_method=fusion_method)
+    fusion = normalize_fusion_method(fusion_method)
+    early = (
+        str(input_mode).lower() in {"rgbt", "rgb_thermal"} and is_early_concat(fusion)
+    )
+    gated = (
+        str(input_mode).lower() in {"rgbt", "rgb_thermal"} and is_gated_multiscale(fusion)
+    )
+    modality = _resolve_modality_dir(input_mode=input_mode, fusion_method=fusion)
     train_map = _copy_split(
         src_images=data_root / "images" / "train" / modality,
         src_ann=data_root / "annotations" / "instances_train.json",
         dst_images=train_img,
         dst_ann=ann_dir / "instances_train2017.json",
-        fusion=(input_mode == "rgbt" and fusion_method == "early_concat"),
+        fusion=early,
         data_root=data_root,
         split="train",
     )
@@ -43,10 +54,23 @@ def stage_coco_for_dfine(
         src_ann=data_root / "annotations" / "instances_val.json",
         dst_images=val_img,
         dst_ann=ann_dir / "instances_val2017.json",
-        fusion=(input_mode == "rgbt" and fusion_method == "early_concat"),
+        fusion=early,
         data_root=data_root,
         split="val",
     )
+    if gated:
+        thermal_train_img.mkdir(parents=True, exist_ok=True)
+        thermal_val_img.mkdir(parents=True, exist_ok=True)
+        _copy_modality_images(
+            src_images=data_root / "images" / "train" / "thermal",
+            dst_images=thermal_train_img,
+            src_ann=data_root / "annotations" / "instances_train.json",
+        )
+        _copy_modality_images(
+            src_images=data_root / "images" / "val" / "thermal",
+            dst_images=thermal_val_img,
+            src_ann=data_root / "annotations" / "instances_val.json",
+        )
     if train_map != val_map:
         raise ValueError(
             "train/val category remap maps differ; refuse inconsistent label spaces"
@@ -57,7 +81,7 @@ def stage_coco_for_dfine(
         json.dumps(train_map, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    return {
+    out: dict[str, Path | dict[str, Any]] = {
         "train_img": train_img,
         "val_img": val_img,
         "train_ann": ann_dir / "instances_train2017.json",
@@ -65,17 +89,48 @@ def stage_coco_for_dfine(
         "stage_root": stage_root,
         "category_label_map": train_map,
         "category_label_map_path": map_path,
+        "fusion_method": fusion,
+        "staging_mode": (
+            "gated_paired"
+            if gated
+            else ("early_concat_blend" if early else "single_modality")
+        ),
     }
+    if gated:
+        out["thermal_train_img"] = thermal_train_img
+        out["thermal_val_img"] = thermal_val_img
+    return out
 
 
 def _resolve_modality_dir(*, input_mode: str, fusion_method: str) -> str:
     mode = (input_mode or "rgb").strip().lower()
+    fusion = normalize_fusion_method(fusion_method)
     if mode == "thermal":
         return "thermal"
-    if mode in {"rgbt", "rgb_thermal"} and fusion_method == "early_concat":
-        # Early fusion is materialized as RGB-shaped tensors during copy.
+    if mode in {"rgbt", "rgb_thermal"} and (
+        is_early_concat(fusion) or is_gated_multiscale(fusion)
+    ):
+        # RGB folder is the primary COCO image root; thermal is paired separately
+        # for gated_multiscale, or blended in-place for early_concat.
         return "rgb"
     return "rgb"
+
+
+def _copy_modality_images(
+    *,
+    src_images: Path,
+    dst_images: Path,
+    src_ann: Path,
+) -> None:
+    if not src_ann.is_file():
+        raise FileNotFoundError(f"missing annotation: {src_ann}")
+    payload = json.loads(src_ann.read_text(encoding="utf-8"))
+    for image in payload.get("images") or []:
+        name = str(image["file_name"])
+        src = src_images / name
+        if not src.is_file():
+            raise FileNotFoundError(f"missing image: {src}")
+        shutil.copy2(src, dst_images / name)
 
 
 def _copy_split(

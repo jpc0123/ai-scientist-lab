@@ -12,6 +12,39 @@ from typing import Any
 from scientist_lab.domain.contracts import ExperimentContract
 from scientist_lab.tasks.rgbt_detection.baseline_adapter import register_baseline
 
+# Keep names in sync with experiment_apps/.../fusion_names.py (no app import here).
+# NOTE: "fdpn" remains blocked as fusion_method; use parameters.neck.type=fdpn.
+_BLOCKED_FUSION = {
+    "fdpn",
+    "full",
+    "full_method",
+    "complete",
+    "mid_fusion",
+    "late_fusion",
+    "dual_stream",
+}
+
+
+def _normalize_fusion(fusion_method: str) -> str:
+    name = str(fusion_method or "none").strip().lower()
+    if name in {"concat", "early"}:
+        return "early_concat"
+    if name == "full_fusion":
+        return "gated_multiscale"
+    return name
+
+
+def _normalize_neck_type(raw: Any) -> str:
+    if raw is None:
+        return "standard"
+    if isinstance(raw, dict):
+        name = str(raw.get("type") or "standard").strip().lower()
+    else:
+        name = str(raw).strip().lower()
+    if name in {"hybrid", "hybrid_encoder", "default", ""}:
+        return "standard"
+    return name
+
 
 @register_baseline
 class DFineSBaselineAdapter:
@@ -32,48 +65,66 @@ class DFineSBaselineAdapter:
         mode = str(parameters.get("input_mode", "rgb"))
         if mode not in {"rgb", "thermal", "rgbt"}:
             raise ValueError(f"unsupported input_mode: {mode}")
-        fusion = str(parameters.get("fusion_method", "none")).strip().lower()
-        # Implemented Vendor path today: none | early_concat (pixel blend → 3ch).
-        # FDPN / full dual-stream method is not implemented — refuse quiet mislabeling.
-        unimplemented = {
-            "fdpn",
-            "full",
-            "full_method",
-            "complete",
-            "mid_fusion",
-            "late_fusion",
-            "dual_stream",
-        }
-        if fusion in unimplemented:
+        fusion_raw = str(parameters.get("fusion_method", "none")).strip().lower()
+        if fusion_raw in _BLOCKED_FUSION:
             raise ValueError(
-                f"fusion_method={fusion!r} is not implemented (P00/FDPN blocked). "
-                "Supported: none, early_concat. "
-                "See outputs/experiments/v23_smoke/P00/P00_BLOCKER.md"
+                f"fusion_method={fusion_raw!r} is not a fusion switch. "
+                "For FDPN use parameters.neck.type='fdpn' with "
+                "fusion_method=early_concat|gated_multiscale. "
+                "Supported fusion_method: none, early_concat, gated_multiscale."
             )
-        if fusion not in {"none", "early_concat", "concat", "early"}:
+        fusion = _normalize_fusion(fusion_raw)
+        if fusion not in {"none", "early_concat", "gated_multiscale"}:
             raise ValueError(
-                f"unsupported fusion_method: {fusion!r}; supported: none, early_concat"
+                f"unsupported fusion_method: {fusion_raw!r}; "
+                "supported: none, early_concat, gated_multiscale"
             )
+        nested = parameters.get("fusion")
+        if nested is not None:
+            if not isinstance(nested, dict):
+                raise ValueError("parameters.fusion must be a mapping when present")
+            if fusion != "gated_multiscale":
+                raise ValueError(
+                    "parameters.fusion is only valid with "
+                    "fusion_method=gated_multiscale|full_fusion"
+                )
+        neck = parameters.get("neck")
+        neck_type = _normalize_neck_type(neck)
+        if neck is not None and not isinstance(neck, dict):
+            raise ValueError("parameters.neck must be a mapping when present")
+        if neck_type not in {"standard", "fdpn"}:
+            raise ValueError(
+                f"unsupported neck.type={neck_type!r}; supported: standard, fdpn"
+            )
+        ckpt = parameters.get("checkpoint_policy")
+        if ckpt is not None:
+            if not isinstance(ckpt, dict):
+                raise ValueError("parameters.checkpoint_policy must be a mapping")
+            if ckpt.get("primary") not in {None, "best_on_validation"}:
+                raise ValueError(
+                    "checkpoint_policy.primary must be best_on_validation when set"
+                )
         if mode in {"rgb", "thermal"} and fusion not in {"none", ""}:
             raise ValueError(
-                f"input_mode={mode} requires fusion_method=none, got {fusion!r}"
+                f"input_mode={mode} requires fusion_method=none, got {fusion_raw!r}"
             )
         if mode == "rgbt" and fusion in {"none", ""}:
             raise ValueError(
                 "input_mode=rgbt requires an implemented fusion_method "
-                "(currently early_concat only)"
+                "(early_concat or gated_multiscale)"
             )
 
     def build_native_config(self, contract: ExperimentContract) -> dict[str, Any]:
         params = dict(contract.parameters or {})
         task_config = dict(contract.task_config or {})
-        return {
+        fusion = _normalize_fusion(str(params.get("fusion_method", "none")))
+        native = {
             "baseline_key": self.baseline_key,
             "baseline_implementation": "dfine_s_vendored_v0_8_9",
             "vendor_status": "vendored_with_standin_fallback",
             "vendor_commit": "7fe2f8889f0b7b817f20c315b40fc15a4fb64ae6",
             "input_mode": params.get("input_mode", "rgb"),
-            "fusion_method": params.get("fusion_method", "none"),
+            "fusion_method": fusion,
             "epochs": int(params.get("epochs", 2)),
             "batch_size": int(params.get("batch_size", 2)),
             "learning_rate": float(params.get("learning_rate", 1e-3)),
@@ -91,6 +142,11 @@ class DFineSBaselineAdapter:
                 "evaluation_scope", "debug_subset"
             ),
         }
+        if isinstance(params.get("fusion"), dict):
+            native["fusion"] = dict(params["fusion"])
+        if isinstance(params.get("neck"), dict):
+            native["neck"] = dict(params["neck"])
+        return native
 
     def build_command_notes(self, contract: ExperimentContract) -> list[str]:
         return [
