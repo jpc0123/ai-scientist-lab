@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "stage": "v2.4_rgbt_fusion_campaign",
+  "updated_at": "2026-07-29",
+  "final_route": "A_plus_C_archive_and_document",
+  "decisions": [
+    {
+      "order": 1,
+      "decision_id": "select_A4_exploratory_mainline_pre_formal",
+      "verdict": "prefer_A4_for_formal_candidate_prep",
+      "action": "prepare_formal_candidate",
+      "reason": "Exploratory 2x2 and budget-scale suggested A4 lead vs A2 with lower cost than A3/P00.",
+      "superseded_by": "formal_candidate_mixed_evidence",
+      "evidence_paths": [
+        "outputs/experiments/v24_a3/factor_matrix_2x2/MAINLINE_DECISION.json",
+        "outputs/experiments/v24_a3/budget_scale/BUDGET_SCALE_SUMMARY.json"
+      ]
+    },
+    {
+      "order": 2,
+      "decision_id": "freeze_formal_candidate_a2_a4_v1",
+      "verdict": "freeze_protocol_and_checkpoint_policy",
+      "action": "launch_experiment",
+      "reason": "Need matched 80ep seeds 42/43/44 with best-on-val primary checkpoint before any superiority claim.",
+      "evidence_paths": [
+        "outputs/experiments/v24_a3/formal_candidate/PROTOCOL_FREEZE.json",
+        "examples/rgbt_protocol_formal_candidate_a2_a4_v1.json"
+      ]
+    },
+    {
+      "order": 3,
+      "decision_id": "formal_candidate_a4_vs_a2_not_supported",
+      "verdict": "not_supported",
+      "action": "stop_seed_extension",
+      "reason": "Paired deltas mixed 2/3; refuse A4 promotion and seeds 45/46.",
+      "evidence_paths": [
+        "outputs/experiments/v24_a3/formal_candidate/CLAIM_GATE_A4_VS_A2.json",
+        "outputs/experiments/v24_a3/formal_candidate/FORMAL_CANDIDATE_PAIRED_REPORT.json",
+        "outputs/experiments/v24_a3/STRATEGY_DECISION_STOP_EXTEND_TO_DIAGNOSIS.json"
+      ]
+    },
+    {
+      "order": 4,
+      "decision_id": "route_to_p00_mechanism_diagnosis",
+      "verdict": "launch_analysis_campaign",
+      "action": "launch_analysis_campaign",
+      "reason": "P00 negative interaction has higher information value than more A2/A4 seeds.",
+      "evidence_paths": [
+        "outputs/experiments/v24_a3/p00_diagnostics/DIAGNOSTIC_CONTRACT.json",
+        "outputs/experiments/v24_a3/STRATEGY_DECISION_STOP_EXTEND_TO_DIAGNOSIS.json"
+      ]
+    },
+    {
+      "order": 5,
+      "decision_id": "p00_diag_launch_p01_only",
+      "verdict": "launch_P01_only",
+      "action": "launch_experiment",
+      "reason": "fusion_suppressed_in_P00; P02 redundant-scale hypothesis unsupported.",
+      "evidence_paths": [
+        "outputs/experiments/v24_a3/p00_diagnostics/FOLLOWUP_DECISION.json",
+        "outputs/experiments/v24_a3/p00_diagnostics/DIAGNOSTIC_ANALYSIS.json"
+      ]
+    },
+    {
+      "order": 6,
+      "decision_id": "p01_single_seed_pass_no_promotion",
+      "verdict": "keep_exploratory_no_variant_expansion",
+      "action": "iterate",
+      "reason": "P01 beat A3 seed42 by +0.035 but remains single-seed; no P02/P03.",
+      "evidence_paths": [
+        "outputs/experiments/v24_a3/p00_diagnostics/P01_RESULT.json",
+        "outputs/experiments/v24_a3/STRATEGY_DECISION_AFTER_P01.json"
+      ]
+    },
+    {
+      "order": 7,
+      "decision_id": "archive_v24_choose_A_plus_C",
+      "verdict": "archive_close_stage",
+      "action": "stop",
+      "reason": "User selected A+C: archive conclusions and document decision chain; defer B (P01 formal multi-seed).",
+      "rejected_alternatives": [
+        {
+          "action": "B_formalize_P01_multiseed",
+          "why_rejected": "Single-seed +0.035 does not justify immediate formal multi-seed spend."
+        }
+      ],
+      "evidence_paths": [
+        "docs/research/v24/RESEARCH_MEMO_V24.md",
+        "docs/research/v24/STAGE_FREEZE.json",
+        "docs/research/v24/P01_ARCHIVE.json"
+      ],
+      "next_mainline_priorities": [
+        "realistic_input_size_and_fuller_dataset",
+        "stronger_reproducible_dfine_baseline",
+        "APS_AP75_recall_system_analysis",
+        "e2e_inference_latency_deployment",
+        "ai_scientist_stop_policy_hardening",
+        "revisit_P01_last"
+      ]
+    }
+  ]
+}
