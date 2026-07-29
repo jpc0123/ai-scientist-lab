@@ -1,0 +1,36 @@
+{
+  "stage": "v2.5_high_resolution_baseline",
+  "status": "active",
+  "opened_at": "2026-07-29",
+  "parent_archive": "docs/research/v24/",
+  "route": "priority_1_realistic_input_size_plus_reproducible_baseline",
+  "blocked_from_reopening": ["A4_formal_promotion", "P01_formal_multiseed", "gated_plus_fdpn_active_spend"],
+  "first_experiment": {
+    "protocol_id": "protocol_rgbt_baseline_native_res_v1",
+    "arm": "A2_early_concat_only",
+    "resolution": [640, 640],
+    "scale_queries_to_tokens": false,
+    "epochs": 10,
+    "seed": 42,
+    "note": "Disk native is 640x512; probe uses 640x640 for full 300 queries and DFINE FLOPs-profiler compatibility.",
+    "success_criteria": [
+      "exit_code=0",
+      "dfine_spatial_query_budget.effective_num_queries=300",
+      "metrics.mAP50_95 is finite and parseable",
+      "prediction_count_score_ge_0_1 > 0"
+    ],
+    "non_goals": [
+      "No superiority claim vs v2.4 A4/P01",
+      "No FDPN / gated fusion"
+    ]
+  },
+  "known_issue_fixed": {
+    "mechanism_diagnosis_empty_dict_false_positive": "train_dfine no longer treats missing mechanism_diagnosis as enabled",
+    "flops_profiler_nonsquare": "stats() wrapped to skip on shape mismatch; first probe uses square 640"
+  },
+  "next_after_probe": [
+    "If OOM: keep AMP, batch=1, or try 512x512",
+    "If pass: optional rgbt_debug_v1 (40/15) same protocol",
+    "Defer real external RGB-T dataset registration until probe is green"
+  ]
+}

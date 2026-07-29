@@ -173,24 +173,44 @@ def run_dfine_train(
 
     solver = TASKS[yaml_cfg.yaml_cfg["task"]](yaml_cfg)
 
-    mech = params.get("mechanism_diagnosis") or {}
-    mech_enabled = bool(mech) if isinstance(mech, dict) else bool(mech)
-    if isinstance(mech, dict):
+    # FLOPs profiler (calflops) may probe with a square default that mismatches
+    # non-square eval_spatial_size; never fail the run for profiling alone.
+    try:
+        from src.misc import profiler_utils as _profiler_utils  # type: ignore
+
+        _orig_stats = _profiler_utils.stats
+
+        def _safe_stats(cfg):  # noqa: ANN001
+            try:
+                return _orig_stats(cfg)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[warn] model FLOPs/stats skipped: {type(exc).__name__}: {exc}")
+                return 0, f"flops_unavailable: {type(exc).__name__}"
+
+        _profiler_utils.stats = _safe_stats
+    except Exception:  # noqa: BLE001
+        pass
+
+    mech_raw = params.get("mechanism_diagnosis")
+    if mech_raw is None:
+        mech_enabled = False
+        mech: dict[str, Any] = {}
+    elif isinstance(mech_raw, dict):
+        mech = dict(mech_raw)
         mech_enabled = bool(mech.get("enabled", True))
+    else:
+        mech = {}
+        mech_enabled = bool(mech_raw)
     if mech_enabled or protocol in {"mechanism_diagnosis", "diagnostic_only"}:
         from instrumented_fit import install_instrumented_fit
 
         arm_name = str(
-            (mech.get("arm") if isinstance(mech, dict) else None)
+            mech.get("arm")
             or params.get("experiment_arm")
             or (contract.get("task_config") or {}).get("experiment_id")
             or "ARM"
         )
-        sample_epochs = (
-            list(mech.get("sample_epochs_1based") or [1, 20, 40])
-            if isinstance(mech, dict)
-            else [1, 20, 40]
-        )
+        sample_epochs = list(mech.get("sample_epochs_1based") or [1, 20, 40])
         diag_dir = output_dir / "mechanism_diagnostics"
         install_instrumented_fit(
             solver,

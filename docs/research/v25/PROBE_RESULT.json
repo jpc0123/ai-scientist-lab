@@ -1,0 +1,30 @@
+{
+  "probe_id": "v25_high_res_a2_seed42",
+  "status": "pass",
+  "execution_id": "exec_d9cfecd5e867",
+  "failed_first_attempt": "exec_acaf575b1695",
+  "failure_reason_attempt1": "512x640 vs FLOPs profiler 640x640 pos-embed mismatch; also empty mechanism_diagnosis dict falsely enabled instrumentation",
+  "resolution": [640, 640],
+  "scale_queries_to_tokens": false,
+  "effective_num_queries": 300,
+  "available_tokens": 400,
+  "epochs": 10,
+  "seed": 42,
+  "metrics": {
+    "mAP50_95": 0.0788,
+    "mAP50": 0.1686,
+    "AP75": 0.0084,
+    "prediction_count_score_ge_0_1": 3435,
+    "peak_gpu_memory_mb": 831,
+    "duration_seconds": 116
+  },
+  "success_criteria": {
+    "exit_0": true,
+    "queries_300": true,
+    "finite_map": true,
+    "nondegenerate_predictions": true
+  },
+  "claim_authority": "baseline_resolution_probe",
+  "formal_performance_claims_allowed": false,
+  "next": "Optional: same protocol on rgbt_debug_v1 (40/15); defer external real RGB-T dataset until needed"
+}
