@@ -40,6 +40,8 @@ const zh: MessageTree = {
     projects: "项目",
     projectsHint: "生命周期",
     experiments: "实验",
+    training: "训练监控",
+    trainingHint: "进度 / 失败",
     executions: "实验中心",
     executionsHint: "执行与筛选",
     compare: "比较工作台",

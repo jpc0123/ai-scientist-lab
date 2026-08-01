@@ -74,6 +74,7 @@ class WorkerSettings(BaseSettings):
             candidates = {
                 "rgbt_debug_v1": root / "datasets" / "rgbt_debug_v1",
                 "rgbt_fast_eval_v1": root / "datasets" / "rgbt_fast_eval_v1",
+                "rgbt_tiny_v1": root / "datasets" / "registered" / "rgbt_tiny_v1",
             }
             self.dataset_registry = {
                 key: str(path.resolve())

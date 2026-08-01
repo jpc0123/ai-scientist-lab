@@ -52,6 +52,26 @@ def run_dfine_train(
     epochs = int(params.get("epochs") or 2)
     batch_size = int(params.get("batch_size") or 2)
     num_workers = int(params.get("num_workers") or 0)
+    _proto_params = str(params.get("protocol") or "").strip().lower()
+    _proto_task = str((contract.get("task_config") or {}).get("protocol") or "").strip().lower()
+    _det_protocols = {
+        "gate_j_deterministic_diagnosis",
+        "gate_j_rng_hunt",
+        "gate_j3b_rng_hunt",
+    }
+    deterministic = bool(
+        params.get("deterministic_algorithms")
+        or params.get("cudnn_deterministic")
+        or _proto_params in _det_protocols
+        or _proto_task in _det_protocols
+        or "rng_hunt" in _proto_params
+        or "rng_hunt" in _proto_task
+    )
+    if deterministic:
+        # Diagnosis default: eliminate worker RNG drift.
+        num_workers = 0
+        params = dict(params)
+        params["num_workers"] = 0
     image_height = params.get("image_height")
     image_width = params.get("image_width")
     image_size = params.get("image_size")
@@ -103,6 +123,7 @@ def run_dfine_train(
         shutil.rmtree(dfine_out)
     dfine_out.mkdir(parents=True)
 
+    disable_multiscale = deterministic or bool(params.get("disable_multiscale_collate"))
     cfg_path = write_dfine_fast_config(
         dfine_root=dfine_root,
         config_path=output_dir / "dfine_fast_config.yml",
@@ -121,6 +142,7 @@ def run_dfine_train(
         budget_record_path=output_dir / "dfine_spatial_query_budget.json",
         pretrained=pretrained,
         local_model_dir=str(local_model_dir) if local_model_dir else None,
+        disable_multiscale_collate=disable_multiscale,
     )
     # Keep a copy of the label map next to metrics for eval export / audit.
     label_map = stage_paths.get("category_label_map")
@@ -135,12 +157,64 @@ def run_dfine_train(
 
     import torch
 
+    determinism_report: dict[str, Any] | None = None
+    order_audit: dict[str, Any] | None = None
+    reseed_each_epoch = False
+    disable_ema = False
+    if deterministic:
+        from determinism import (
+            build_epoch0_order_audit,
+            configure_determinism,
+            rebuild_train_loader_seeded,
+            write_determinism_artifacts,
+        )
+
+        determinism_report = configure_determinism(seed)
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     yaml_cfg = YAMLConfig(str(cfg_path))
     # Disable distributed assumptions for single-process Lab runs.
     if hasattr(yaml_cfg, "yaml_cfg"):
         yaml_cfg.yaml_cfg["use_amp"] = bool(params.get("mixed_precision")) and device == "cuda"
         yaml_cfg.yaml_cfg["sync_bn"] = False
+
+    if deterministic:
+        # Force AMP off under strict determinism diagnosis unless explicitly requested.
+        if params.get("force_amp_under_determinism") is not True and hasattr(yaml_cfg, "yaml_cfg"):
+            yaml_cfg.yaml_cfg["use_amp"] = False
+        # Gate J3b: optimizer.yml defaults use_ema=True — disable for RNG hunt.
+        rng_hunt = "rng_hunt" in str(protocol) or "rng_hunt" in _proto_params
+        if "disable_ema" in params:
+            disable_ema = bool(params.get("disable_ema"))
+        else:
+            disable_ema = rng_hunt
+        if disable_ema and hasattr(yaml_cfg, "yaml_cfg"):
+            yaml_cfg.yaml_cfg["use_ema"] = False
+        if "reseed_each_epoch" in params:
+            reseed_each_epoch = bool(params.get("reseed_each_epoch"))
+        else:
+            reseed_each_epoch = rng_hunt
+        _ = yaml_cfg.train_dataloader  # materialize
+        rebuild_train_loader_seeded(yaml_cfg=yaml_cfg, seed=seed, num_workers=num_workers)
+        order_audit = build_epoch0_order_audit(
+            dataset=yaml_cfg.train_dataloader.dataset,
+            seed=seed,
+            batch_size=batch_size,
+        )
+        write_determinism_artifacts(
+            output_dir,
+            configure_report=determinism_report or {},
+            order_audit=order_audit,
+            extra={
+                "protocol": str(params.get("protocol") or protocol or "gate_j_deterministic_diagnosis"),
+                "num_workers": num_workers,
+                "disable_multiscale_collate": disable_multiscale,
+                "disable_ema": disable_ema,
+                "reseed_each_epoch": reseed_each_epoch,
+                "mixed_precision": bool((yaml_cfg.yaml_cfg or {}).get("use_amp")),
+                "use_ema": bool((yaml_cfg.yaml_cfg or {}).get("use_ema")),
+            },
+        )
 
     fusion_summary: dict[str, Any] | None = None
     fusion_cfg = parse_fusion_config(params, fusion_method=fusion_method)
@@ -190,6 +264,11 @@ def run_dfine_train(
         _profiler_utils.stats = _safe_stats
     except Exception:  # noqa: BLE001
         pass
+
+    if deterministic and reseed_each_epoch:
+        from determinism import install_epoch_reseed
+
+        install_epoch_reseed(solver, seed)
 
     mech_raw = params.get("mechanism_diagnosis")
     if mech_raw is None:

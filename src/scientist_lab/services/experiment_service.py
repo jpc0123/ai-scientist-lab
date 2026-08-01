@@ -1416,12 +1416,317 @@ class ExperimentService:
 
     def get_log_text(self, execution_id: str, max_chars: int = 80_000) -> str:
         path = self.get_log_path(execution_id)
-        if not path.exists():
+        if path.exists():
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if len(text) > max_chars:
+                return text[-max_chars:]
+            return text
+
+        # Remote / in-flight jobs keep logs on the worker until collect.
+        job_id: str | None = None
+        try:
+            binding_path = (
+                Path(self.settings.runtime_dir) / "remote_jobs" / f"{execution_id}.json"
+            )
+            if binding_path.is_file():
+                binding = json.loads(binding_path.read_text(encoding="utf-8-sig"))
+                job_id = binding.get("job_id")
+        except (OSError, json.JSONDecodeError):
+            job_id = None
+
+        if job_id:
+            worker_log = (
+                Path(self.settings.runtime_dir)
+                / "scientist-worker"
+                / "jobs"
+                / str(job_id)
+                / "logs"
+                / "combined.log"
+            )
+            if worker_log.is_file():
+                text = worker_log.read_text(encoding="utf-8", errors="replace")
+                if len(text) > max_chars:
+                    return text[-max_chars:]
+                return text
+
+        try:
+            chunk = self._runner_for_execution(execution_id).get_logs(execution_id)
+            text = getattr(chunk, "content", "") or ""
+            if len(text) > max_chars:
+                return text[-max_chars:]
+            return text
+        except Exception:  # noqa: BLE001
             return ""
-        text = path.read_text(encoding="utf-8", errors="replace")
-        if len(text) > max_chars:
-            return text[-max_chars:]
-        return text
+
+    def training_monitor(
+        self,
+        *,
+        project_id: str | None = None,
+        limit: int = 40,
+    ) -> dict[str, Any]:
+        """Aggregate live training progress for the web console monitor page."""
+        from scientist_lab.services.training_monitor import (
+            ACTIVE,
+            FAILED,
+            discover_dfine_log,
+            discover_worker_log,
+            enrich_execution_row,
+            load_gate_campaigns,
+            parse_dfine_log_txt,
+            _tail_text,
+        )
+
+        attempts = self.list_executions(limit=max(limit, 50), project_id=project_id)
+        rows: list[dict[str, Any]] = []
+        deep_budget = 8  # remote/log enrichment budget for speed
+
+        for attempt in attempts[:limit]:
+            status_name = str(getattr(attempt.status, "value", attempt.status) or "").lower()
+            want_deep = status_name in ACTIVE or status_name in FAILED or deep_budget > 0
+
+            refreshed = attempt
+            if want_deep and status_name in ACTIVE:
+                try:
+                    refreshed = self.refresh_execution(attempt.execution_id)
+                    status_name = str(
+                        getattr(refreshed.status, "value", refreshed.status) or ""
+                    ).lower()
+                except Exception:  # noqa: BLE001
+                    refreshed = attempt
+
+            payload = refreshed.model_dump(mode="json")
+            if not payload.get("project_id"):
+                node = self.repo.get_node(refreshed.node_id)
+                if node is not None:
+                    payload["project_id"] = node.project_id
+
+            job_id = None
+            live: dict[str, Any] | None = None
+            binding_path = (
+                Path(self.settings.runtime_dir)
+                / "remote_jobs"
+                / f"{refreshed.execution_id}.json"
+            )
+            binding: dict[str, Any] | None = None
+            if binding_path.is_file():
+                try:
+                    binding = json.loads(binding_path.read_text(encoding="utf-8-sig"))
+                    job_id = binding.get("job_id")
+                except (OSError, json.JSONDecodeError):
+                    binding = None
+                    job_id = None
+
+            log_text = ""
+            dfine = None
+            if want_deep and deep_budget > 0:
+                deep_budget -= 1
+                if status_name in ACTIVE or status_name in FAILED:
+                    try:
+                        status_obj = self._runner_for_execution(
+                            refreshed.execution_id
+                        ).get_status(refreshed.execution_id)
+                        live = {
+                            "status": str(status_obj.status),
+                            "progress": status_obj.progress,
+                            "stage": status_obj.message,
+                            "message": status_obj.message,
+                        }
+                        if job_id:
+                            runner = self._runner_for_execution(refreshed.execution_id)
+                            client = getattr(runner, "client", None)
+                            if client is not None:
+                                try:
+                                    remote = client.get_job(job_id)
+                                    live.update(
+                                        {
+                                            "status": str(
+                                                remote.get("status") or live["status"]
+                                            ),
+                                            "progress": remote.get(
+                                                "progress", live.get("progress")
+                                            ),
+                                            "stage": remote.get("stage")
+                                            or live.get("stage"),
+                                            "error_message": remote.get("error_message"),
+                                            "error_type": remote.get("error_type"),
+                                            "finished_at": remote.get("finished_at"),
+                                        }
+                                    )
+                                    job_id = remote.get("job_id") or job_id
+                                except Exception:  # noqa: BLE001
+                                    pass
+                    except Exception:  # noqa: BLE001
+                        live = None
+
+                # Prefer local worker log (fast) over remote HTTP logs.
+                if job_id:
+                    wlog = discover_worker_log(Path(self.settings.runtime_dir), job_id)
+                    if wlog is not None:
+                        log_text = _tail_text(wlog, max_chars=24_000)
+                if not log_text:
+                    out_combined = None
+                    if binding and binding.get("output_directory"):
+                        out_combined = Path(binding["output_directory"]) / "combined.log"
+                    if out_combined and out_combined.is_file():
+                        log_text = _tail_text(out_combined, max_chars=24_000)
+                    else:
+                        try:
+                            host_log = self.get_log_path(refreshed.execution_id)
+                            if host_log.is_file():
+                                log_text = _tail_text(host_log, max_chars=24_000)
+                        except Exception:  # noqa: BLE001
+                            pass
+
+                out_dir = None
+                if binding and binding.get("output_directory"):
+                    out_dir = Path(binding["output_directory"])
+                if out_dir is None:
+                    out_dir = (
+                        Path(self.settings.outputs_dir)
+                        / str(payload.get("project_id") or "")
+                        / refreshed.execution_id
+                    )
+                dfine_path = discover_dfine_log(
+                    Path(self.settings.runtime_dir), job_id, out_dir
+                )
+                dfine = parse_dfine_log_txt(dfine_path) if dfine_path else None
+            else:
+                # Lightweight row for older completed runs.
+                err = payload.get("error_json") if isinstance(payload.get("error_json"), dict) else {}
+                live = {
+                    "status": status_name,
+                    "progress": 1.0 if status_name == "completed" else None,
+                    "error_message": (err or {}).get("message"),
+                }
+
+            row = enrich_execution_row(
+                attempt=payload,
+                live=live,
+                log_text=log_text,
+                dfine=dfine,
+                job_id=job_id,
+            )
+            if row.get("is_failed"):
+                try:
+                    row["failure_classification"] = self.classify_execution_failure(
+                        refreshed.execution_id,
+                        persist=False,
+                    ).get("classification")
+                except Exception:  # noqa: BLE001
+                    row["failure_classification"] = None
+            rows.append(row)
+
+        active = [r for r in rows if r.get("is_active")]
+        failed = [r for r in rows if r.get("is_failed")]
+        completed = [r for r in rows if r.get("is_completed")]
+        campaigns = load_gate_campaigns(Path(self.settings.outputs_dir))
+
+        return {
+            "generated_at": utc_now_iso(),
+            "project_id": project_id,
+            "counts": {
+                "active": len(active),
+                "failed": len(failed),
+                "completed": len(completed),
+                "total": len(rows),
+            },
+            "active": active,
+            "failed": failed[:15],
+            "recent": rows[:25],
+            "campaigns": campaigns,
+            "poll_hint_seconds": 3,
+        }
+
+    def classify_execution_failure(
+        self,
+        execution_id: str,
+        *,
+        persist: bool = True,
+        campaign_dir: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Classify why an execution failed / stalled and which action is safe."""
+        from scientist_lab.services.failure_classifier import (
+            classify_failure,
+            write_classification,
+        )
+
+        attempt = self.repo.get_attempt(execution_id)
+        if attempt is None:
+            raise KeyError(f"未找到 execution: {execution_id}")
+
+        err = dict(attempt.error_json or {})
+        log_text = self.get_log_text(execution_id, max_chars=40_000)
+        metrics_present = False
+        out_dir = None
+        binding_path = (
+            Path(self.settings.runtime_dir) / "remote_jobs" / f"{execution_id}.json"
+        )
+        job_id = None
+        worker_status = None
+        if binding_path.is_file():
+            try:
+                binding = json.loads(binding_path.read_text(encoding="utf-8-sig"))
+                job_id = binding.get("job_id")
+                out_dir = Path(binding.get("output_directory") or "")
+            except (OSError, json.JSONDecodeError):
+                pass
+        if out_dir and (out_dir / "metrics.json").is_file():
+            metrics_present = True
+        if not metrics_present:
+            for p in Path(self.settings.outputs_dir).glob(
+                f"*/{execution_id}/metrics.json"
+            ):
+                metrics_present = True
+                out_dir = p.parent
+                break
+
+        if job_id:
+            try:
+                runner = self._runner_for_execution(execution_id)
+                client = getattr(runner, "client", None)
+                if client is not None:
+                    remote = client.get_job(job_id)
+                    worker_status = str(remote.get("status") or "")
+                    if not err.get("message") and remote.get("error_message"):
+                        err["message"] = remote.get("error_message")
+            except Exception:  # noqa: BLE001
+                pass
+
+        classification = classify_failure(
+            log_text=log_text,
+            error_message=str(err.get("message") or ""),
+            cli_text="",
+            worker_status=worker_status,
+            metrics_present=metrics_present,
+            exec_status=str(attempt.status),
+        )
+        payload = {
+            "execution_id": execution_id,
+            "job_id": job_id,
+            "classification": classification.to_dict(),
+            "policy": {
+                "auto_rerun_expensive_gpu": False,
+                "engineering_auto_recover": True,
+                "scientific_requires_user": True,
+            },
+        }
+        if persist:
+            target = Path(campaign_dir) if campaign_dir else (
+                out_dir
+                if out_dir
+                else Path(self.settings.outputs_dir) / "_failure_classifications" / execution_id
+            )
+            write_classification(
+                target,
+                classification,
+                context={
+                    "execution_id": execution_id,
+                    "job_id": job_id,
+                    "node_id": attempt.node_id,
+                },
+            )
+            payload["persisted_to"] = str(target / "FAILURE_CLASSIFICATION.json")
+        return payload
 
     def cancel_execution(self, execution_id: str) -> ExecutionAttempt:
         attempt = self.repo.get_attempt(execution_id)

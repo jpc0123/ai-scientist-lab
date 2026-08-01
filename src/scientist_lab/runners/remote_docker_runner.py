@@ -355,15 +355,46 @@ class RemoteDockerRunner(ExperimentRunner):
         return self._bindings_dir / f"{execution_id}.json"
 
     def _save_binding(self, binding: RemoteJobBinding) -> None:
+        """Atomically persist binding JSON to avoid empty-file reads during poll."""
         path = self._binding_path(binding.execution_id)
-        path.write_text(
-            binding.model_dump_json(indent=2), encoding="utf-8"
-        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Unique tmp name avoids WinError 32 when another poller holds *.json.tmp.
+        payload = binding.model_dump_json(indent=2)
+        last_exc: Exception | None = None
+        for attempt in range(12):
+            tmp = path.with_suffix(path.suffix + f".{os.getpid()}.{attempt}.tmp")
+            try:
+                tmp.write_text(payload, encoding="utf-8")
+                os.replace(tmp, path)
+                return
+            except OSError as exc:
+                last_exc = exc
+                try:
+                    if tmp.exists():
+                        tmp.unlink()
+                except OSError:
+                    pass
+                time.sleep(0.05 * (attempt + 1))
+        raise RuntimeError(
+            f"remote binding save failed for {binding.execution_id}: {last_exc}"
+        ) from last_exc
 
     def _load_binding(self, execution_id: str) -> RemoteJobBinding:
         path = self._binding_path(execution_id)
         if not path.exists():
             raise KeyError(f"remote binding not found: {execution_id}")
-        return RemoteJobBinding.model_validate_json(
-            path.read_text(encoding="utf-8")
-        )
+        # Retry briefly: concurrent writers may leave a transient empty/partial file
+        # even with atomic replace (reader can race a truncated view on some FS).
+        last_exc: Exception | None = None
+        for attempt in range(8):
+            try:
+                text = path.read_text(encoding="utf-8").strip()
+                if not text:
+                    raise ValueError("remote binding file is empty")
+                return RemoteJobBinding.model_validate_json(text)
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                time.sleep(0.05 * (attempt + 1))
+        raise RuntimeError(
+            f"remote binding unreadable for {execution_id}: {last_exc}"
+        ) from last_exc

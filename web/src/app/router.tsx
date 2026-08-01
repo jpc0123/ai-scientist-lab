@@ -36,6 +36,7 @@ import {
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
 import { LlmConfigPage } from "../pages/LlmConfigPage";
 import { RealLoopDetailPage, RealLoopsPage } from "../pages/RealLoopsPage";
+import { TrainingMonitorPage } from "../pages/TrainingMonitorPage";
 
 export function AppRouter() {
   return (
@@ -50,6 +51,7 @@ export function AppRouter() {
         <Route path="projects/new" element={<ProjectCreateWizardPage />} />
         <Route path="projects/:projectId" element={<ProjectDetailRoute />} />
         <Route path="projects/:projectId/real-loops" element={<ProjectRealLoopsRoute />} />
+        <Route path="training" element={<TrainingMonitorPage />} />
         <Route path="executions" element={<ExecutionsPage />} />
         <Route path="executions/:id" element={<ExecutionDetailPage />} />
         <Route path="compare" element={<ComparePage />} />

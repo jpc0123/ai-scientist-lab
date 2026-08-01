@@ -62,6 +62,15 @@ export const api = {
   execution: (id: string) => apiGet<Record<string, unknown>>(`/api/v1/executions/${id}`),
   executionLogs: (id: string) =>
     apiGet<{ execution_id: string; log: string }>(`/api/v1/executions/${id}/logs`),
+  trainingMonitor: (params?: { project_id?: string; limit?: number }) => {
+    const q = new URLSearchParams({ limit: String(params?.limit ?? 40) });
+    if (params?.project_id) q.set("project_id", params.project_id);
+    return apiGet<Record<string, unknown>>(`/api/v1/training/monitor?${q}`);
+  },
+  failureClassification: (executionId: string, persist = false) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/executions/${executionId}/failure-classification?persist=${persist ? "true" : "false"}`,
+    ),
   nodes: (params?: { limit?: number; project_id?: string }) => {
     const q = new URLSearchParams({
       limit: String(params?.limit ?? 50),

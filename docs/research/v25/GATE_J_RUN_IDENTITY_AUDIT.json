@@ -1,0 +1,448 @@
+{
+  "gate": "GATE_J_SEED_INSTABILITY_DIAGNOSIS",
+  "phase": "J1_RUN_IDENTITY_AUDIT",
+  "audited_at": "2026-07-30T09:14:43.292986+00:00",
+  "runs": {
+    "42": {
+      "execution_id": "exec_4088755cafc6",
+      "contract_seed": 42,
+      "yaml_seed": 42,
+      "docker_image_name": "scientist-rgbt-detection:v2-cuda",
+      "docker_container_id": "7f888a6bc8b7ea25cadac963b4b18f334610e10877fc39eb22a01410af053474",
+      "docker_image_digest_at_audit": "sha256:6b4dfd4c96d42f22d874d296545ce1205595b2fdc3abfbf585be574143142656",
+      "note_docker_inspect_id_was_container_not_image": true,
+      "dataset_report": {
+        "valid": true,
+        "dataset_key": "rgbt_tiny_v1",
+        "paired_image_count": 2330,
+        "paired_train": 1830,
+        "paired_val": 500,
+        "issues": [],
+        "validator": "rgbt_detection_real_quick"
+      },
+      "stage_ann_sha256": {
+        "instances_train2017.json": "4233f44fc6d1e6defc4204ceb3f8fc3c85a9c9cf15ebc3f5cba44201e968fc1d",
+        "instances_val2017.json": "192c6a259fbd0666a3d5912d0649bc494917a25f31becea98759a0238cf04d56"
+      },
+      "stage_image_lists": {
+        "train2017": {
+          "count": 1830,
+          "names_sha256": "bf30450b0fb7bdcdcf8983d96c89c3bba91efc1d538b038c6871393f99ba3c04",
+          "head5": [
+            "DJI_0028_4__00000.jpg",
+            "DJI_0028_4__00005.jpg",
+            "DJI_0028_4__00010.jpg",
+            "DJI_0028_4__00015.jpg",
+            "DJI_0028_4__00020.jpg"
+          ],
+          "tail5": [
+            "DJI_0343_5__02217.jpg",
+            "DJI_0343_5__02222.jpg",
+            "DJI_0343_5__02227.jpg",
+            "DJI_0343_5__02232.jpg",
+            "DJI_0343_5__02237.jpg"
+          ]
+        },
+        "val2017": {
+          "count": 500,
+          "names_sha256": "a84c889ae92369709f7033fdec7ffc2e45788db837d1e261e7f3075e797144b9",
+          "head5": [
+            "DJI_0085_2__00000.jpg",
+            "DJI_0085_2__00005.jpg",
+            "DJI_0085_2__00010.jpg",
+            "DJI_0085_2__00015.jpg",
+            "DJI_0085_2__00020.jpg"
+          ],
+          "tail5": [
+            "DJI_0341_2__00788.jpg",
+            "DJI_0341_2__00793.jpg",
+            "DJI_0341_2__00798.jpg",
+            "DJI_0341_2__00803.jpg",
+            "DJI_0341_2__00808.jpg"
+          ]
+        }
+      },
+      "dfine_yaml_sha256": "108a7d48a076aae1af6cc8d5e1d2935919245d9672e7fa428dda53f2cab4d21e",
+      "dfine_yaml_normalized_sha256": "7383485c17ddaa600489d9a25024e2f7b241bd6472f11912a67a2d338e310d33",
+      "pth_refs": [],
+      "config_identity": {
+        "baseline": "dfine_s",
+        "fusion_method": "early_concat",
+        "pretrained": true,
+        "epochs": 20,
+        "batch_size": 1,
+        "learning_rate": 0.0002,
+        "image_width": 640,
+        "image_height": 640,
+        "num_workers": 0,
+        "mixed_precision": true,
+        "scale_queries_to_tokens": false,
+        "checkpoint_policy": {
+          "primary": "best_on_validation",
+          "selection_metric": "mAP50_95",
+          "selection_mode": "max",
+          "tie_breaker": "earliest_epoch",
+          "secondary": "last_epoch",
+          "test_set_used_for_selection": false
+        },
+        "protocol_label": "gate_h_curve_health",
+        "contract_protocol_id": "protocol_rgbt_v25_gate_h_a2_curve_health",
+        "dataset_reference": "dataset:rgbt_tiny_v1",
+        "dataset_version": "v1_gate_h_expand",
+        "split_reference": "split:rgbt_tiny_v1_gate_h_seq"
+      },
+      "checkpoint_policy": {
+        "primary": "best_on_validation",
+        "selection_metric": "mAP50_95",
+        "selection_mode": "max",
+        "tie_breaker": "earliest_epoch",
+        "secondary": "last_epoch",
+        "test_set_used_for_selection": false,
+        "eval_frequency": "every_epoch"
+      },
+      "best": {
+        "epoch_0based": 18,
+        "epoch": 19,
+        "mAP50_95": 0.08334684868325494,
+        "mAP50": 0.18967608702891092,
+        "AP75": 0.061012300172191426,
+        "APS": 0.09645798551898736,
+        "train_loss": 17.094577473362328,
+        "loss_bbox": 0.032221209774648804,
+        "loss_giou": 0.5800839086047939,
+        "lr": 9.99999999999979e-05
+      },
+      "last": {
+        "epoch_0based": 19,
+        "epoch": 20,
+        "mAP50_95": 0.08218029641794485,
+        "mAP50": 0.1924597410672257,
+        "AP75": 0.06806532659030688,
+        "APS": 0.09472713130470123,
+        "train_loss": 17.020683148092097,
+        "loss_bbox": 0.03179907298575618,
+        "loss_giou": 0.5708792829204127,
+        "lr": 9.99999999999979e-05
+      }
+    },
+    "43": {
+      "execution_id": "exec_a6f6dff68971",
+      "contract_seed": 43,
+      "yaml_seed": 43,
+      "docker_image_name": "scientist-rgbt-detection:v2-cuda",
+      "docker_container_id": "fd62b0fd2ae9eed6e8aaa6509dc24fc30170b37ac9d748ae35b475f0a07506af",
+      "docker_image_digest_at_audit": "sha256:6b4dfd4c96d42f22d874d296545ce1205595b2fdc3abfbf585be574143142656",
+      "note_docker_inspect_id_was_container_not_image": true,
+      "dataset_report": {
+        "valid": true,
+        "dataset_key": "rgbt_tiny_v1",
+        "paired_image_count": 2330,
+        "paired_train": 1830,
+        "paired_val": 500,
+        "issues": [],
+        "validator": "rgbt_detection_real_quick"
+      },
+      "stage_ann_sha256": {
+        "instances_train2017.json": "4233f44fc6d1e6defc4204ceb3f8fc3c85a9c9cf15ebc3f5cba44201e968fc1d",
+        "instances_val2017.json": "192c6a259fbd0666a3d5912d0649bc494917a25f31becea98759a0238cf04d56"
+      },
+      "stage_image_lists": {
+        "train2017": {
+          "count": 1830,
+          "names_sha256": "bf30450b0fb7bdcdcf8983d96c89c3bba91efc1d538b038c6871393f99ba3c04",
+          "head5": [
+            "DJI_0028_4__00000.jpg",
+            "DJI_0028_4__00005.jpg",
+            "DJI_0028_4__00010.jpg",
+            "DJI_0028_4__00015.jpg",
+            "DJI_0028_4__00020.jpg"
+          ],
+          "tail5": [
+            "DJI_0343_5__02217.jpg",
+            "DJI_0343_5__02222.jpg",
+            "DJI_0343_5__02227.jpg",
+            "DJI_0343_5__02232.jpg",
+            "DJI_0343_5__02237.jpg"
+          ]
+        },
+        "val2017": {
+          "count": 500,
+          "names_sha256": "a84c889ae92369709f7033fdec7ffc2e45788db837d1e261e7f3075e797144b9",
+          "head5": [
+            "DJI_0085_2__00000.jpg",
+            "DJI_0085_2__00005.jpg",
+            "DJI_0085_2__00010.jpg",
+            "DJI_0085_2__00015.jpg",
+            "DJI_0085_2__00020.jpg"
+          ],
+          "tail5": [
+            "DJI_0341_2__00788.jpg",
+            "DJI_0341_2__00793.jpg",
+            "DJI_0341_2__00798.jpg",
+            "DJI_0341_2__00803.jpg",
+            "DJI_0341_2__00808.jpg"
+          ]
+        }
+      },
+      "dfine_yaml_sha256": "e13362482aaa12c6593465cc9ba9e3ac4e9d15f6b8015ab6d8ac30985a61ad15",
+      "dfine_yaml_normalized_sha256": "7383485c17ddaa600489d9a25024e2f7b241bd6472f11912a67a2d338e310d33",
+      "pth_refs": [],
+      "config_identity": {
+        "baseline": "dfine_s",
+        "fusion_method": "early_concat",
+        "pretrained": true,
+        "epochs": 20,
+        "batch_size": 1,
+        "learning_rate": 0.0002,
+        "image_width": 640,
+        "image_height": 640,
+        "num_workers": 0,
+        "mixed_precision": true,
+        "scale_queries_to_tokens": false,
+        "checkpoint_policy": {
+          "primary": "best_on_validation",
+          "selection_metric": "mAP50_95",
+          "selection_mode": "max",
+          "tie_breaker": "earliest_epoch",
+          "secondary": "last_epoch",
+          "test_set_used_for_selection": false
+        },
+        "protocol_label": "gate_i_formal_a2_multiseed",
+        "contract_protocol_id": "protocol_rgbt_v25_gate_i_a2_formal_multiseed",
+        "dataset_reference": "dataset:rgbt_tiny_v1",
+        "dataset_version": "v1_gate_h_expand",
+        "split_reference": "split:rgbt_tiny_v1_gate_h_seq"
+      },
+      "checkpoint_policy": {
+        "primary": "best_on_validation",
+        "selection_metric": "mAP50_95",
+        "selection_mode": "max",
+        "tie_breaker": "earliest_epoch",
+        "secondary": "last_epoch",
+        "test_set_used_for_selection": false,
+        "eval_frequency": "every_epoch"
+      },
+      "best": {
+        "epoch_0based": 2,
+        "epoch": 3,
+        "mAP50_95": 0.10817447410080037,
+        "mAP50": 0.2261890568007816,
+        "AP75": 0.09370554376458223,
+        "APS": 0.11582717781391756,
+        "train_loss": 20.458703235965068,
+        "loss_bbox": 0.08250312530461068,
+        "loss_giou": 0.9531834209388722,
+        "lr": 9.99999999999979e-05
+      },
+      "last": {
+        "epoch_0based": 19,
+        "epoch": 20,
+        "mAP50_95": 0.037971074226580484,
+        "mAP50": 0.11924005794063745,
+        "AP75": 0.018412469387945274,
+        "APS": 0.04096836784650248,
+        "train_loss": 17.162201549397793,
+        "loss_bbox": 0.033940497395465445,
+        "loss_giou": 0.5866189915625776,
+        "lr": 9.99999999999979e-05
+      }
+    },
+    "44": {
+      "execution_id": "exec_373196093d79",
+      "contract_seed": 44,
+      "yaml_seed": 44,
+      "docker_image_name": "scientist-rgbt-detection:v2-cuda",
+      "docker_container_id": "463acf1ca6f39ccf3d6f464534401102a9f8612e3289c28e5407f52e4b79afa0",
+      "docker_image_digest_at_audit": "sha256:6b4dfd4c96d42f22d874d296545ce1205595b2fdc3abfbf585be574143142656",
+      "note_docker_inspect_id_was_container_not_image": true,
+      "dataset_report": {
+        "valid": true,
+        "dataset_key": "rgbt_tiny_v1",
+        "paired_image_count": 2330,
+        "paired_train": 1830,
+        "paired_val": 500,
+        "issues": [],
+        "validator": "rgbt_detection_real_quick"
+      },
+      "stage_ann_sha256": {
+        "instances_train2017.json": "4233f44fc6d1e6defc4204ceb3f8fc3c85a9c9cf15ebc3f5cba44201e968fc1d",
+        "instances_val2017.json": "192c6a259fbd0666a3d5912d0649bc494917a25f31becea98759a0238cf04d56"
+      },
+      "stage_image_lists": {
+        "train2017": {
+          "count": 1830,
+          "names_sha256": "bf30450b0fb7bdcdcf8983d96c89c3bba91efc1d538b038c6871393f99ba3c04",
+          "head5": [
+            "DJI_0028_4__00000.jpg",
+            "DJI_0028_4__00005.jpg",
+            "DJI_0028_4__00010.jpg",
+            "DJI_0028_4__00015.jpg",
+            "DJI_0028_4__00020.jpg"
+          ],
+          "tail5": [
+            "DJI_0343_5__02217.jpg",
+            "DJI_0343_5__02222.jpg",
+            "DJI_0343_5__02227.jpg",
+            "DJI_0343_5__02232.jpg",
+            "DJI_0343_5__02237.jpg"
+          ]
+        },
+        "val2017": {
+          "count": 500,
+          "names_sha256": "a84c889ae92369709f7033fdec7ffc2e45788db837d1e261e7f3075e797144b9",
+          "head5": [
+            "DJI_0085_2__00000.jpg",
+            "DJI_0085_2__00005.jpg",
+            "DJI_0085_2__00010.jpg",
+            "DJI_0085_2__00015.jpg",
+            "DJI_0085_2__00020.jpg"
+          ],
+          "tail5": [
+            "DJI_0341_2__00788.jpg",
+            "DJI_0341_2__00793.jpg",
+            "DJI_0341_2__00798.jpg",
+            "DJI_0341_2__00803.jpg",
+            "DJI_0341_2__00808.jpg"
+          ]
+        }
+      },
+      "dfine_yaml_sha256": "be2327df32299b838fc4876975f64da4f33a0bb2017de5a0131b15b7a5ce39cf",
+      "dfine_yaml_normalized_sha256": "7383485c17ddaa600489d9a25024e2f7b241bd6472f11912a67a2d338e310d33",
+      "pth_refs": [],
+      "config_identity": {
+        "baseline": "dfine_s",
+        "fusion_method": "early_concat",
+        "pretrained": true,
+        "epochs": 20,
+        "batch_size": 1,
+        "learning_rate": 0.0002,
+        "image_width": 640,
+        "image_height": 640,
+        "num_workers": 0,
+        "mixed_precision": true,
+        "scale_queries_to_tokens": false,
+        "checkpoint_policy": {
+          "primary": "best_on_validation",
+          "selection_metric": "mAP50_95",
+          "selection_mode": "max",
+          "tie_breaker": "earliest_epoch",
+          "secondary": "last_epoch",
+          "test_set_used_for_selection": false
+        },
+        "protocol_label": "gate_i_formal_a2_multiseed",
+        "contract_protocol_id": "protocol_rgbt_v25_gate_i_a2_formal_multiseed",
+        "dataset_reference": "dataset:rgbt_tiny_v1",
+        "dataset_version": "v1_gate_h_expand",
+        "split_reference": "split:rgbt_tiny_v1_gate_h_seq"
+      },
+      "checkpoint_policy": {
+        "primary": "best_on_validation",
+        "selection_metric": "mAP50_95",
+        "selection_mode": "max",
+        "tie_breaker": "earliest_epoch",
+        "secondary": "last_epoch",
+        "test_set_used_for_selection": false,
+        "eval_frequency": "every_epoch"
+      },
+      "best": {
+        "epoch_0based": 14,
+        "epoch": 15,
+        "mAP50_95": 0.04143016439577045,
+        "mAP50": 0.10661741229116238,
+        "AP75": 0.030160453486028582,
+        "APS": 0.0527285076669081,
+        "train_loss": 17.639725811163707,
+        "loss_bbox": 0.03617643982482453,
+        "loss_giou": 0.6191486244278201,
+        "lr": 9.99999999999979e-05
+      },
+      "last": {
+        "epoch_0based": 19,
+        "epoch": 20,
+        "mAP50_95": 0.022242537998124878,
+        "mAP50": 0.0674223211171498,
+        "AP75": 0.01902866249607216,
+        "APS": 0.02984430056631472,
+        "train_loss": 17.02555370071058,
+        "loss_bbox": 0.03192563066767946,
+        "loss_giou": 0.5776516118784094,
+        "lr": 9.99999999999979e-05
+      }
+    }
+  },
+  "registered_dataset": {
+    "key": "rgbt_tiny_v1",
+    "version": "v1_gate_h_expand",
+    "registration_subset_seed": 42,
+    "manifest_hashes": {
+      "train_pairs.csv": "fd5e205583e48321709b8e9788f85d3428451ba8878b1f418bc2ad5ddca75c2c",
+      "val_pairs.csv": "a788f1c771072f1025444e25f5375e5be0e85d7175893e13d901c5720f3da731",
+      "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+    },
+    "sequence_split_counts": {
+      "train": 40,
+      "val": 10,
+      "test": 6
+    },
+    "interpretation": "Subset carved once at registration with seed=42. Training seeds 42/43/44 consume frozen registered dataset; staged COCO/image lists are byte/name identical across runs."
+  },
+  "docker_image_digest_now": "sha256:6b4dfd4c96d42f22d874d296545ce1205595b2fdc3abfbf585be574143142656",
+  "pretrained_weight": {
+    "path": "third_party\\DFINE\\weight\\hgnetv2\\PPHGNetV2_B0_stage1.pth",
+    "sha256": "70a372e8cbc59b34c5da2943261ecb633faf304a58e7e05461a27bd8d8b7f3d1",
+    "yaml_refs": []
+  },
+  "code_sha_at_audit": {
+    "train_dfine.py": "8f01298d017f828a0a5a1a4fc878437d3cec734beccb3b799e391d9765c9c440",
+    "run_detection_experiment.py": "c59d6d3f95a5744bb5078496d7a12f17efc3f2411297bec0d9a6615a7c13186b",
+    "dfine_config_builder.py": "d6ec09082a21640d7a138b5de9815373e075802bd20761c194e194684eaea2c7"
+  },
+  "comparison": {
+    "stage_ann_train_identical": true,
+    "stage_ann_val_identical": true,
+    "train_image_list_identical": true,
+    "val_image_list_identical": true,
+    "yaml_normalized_identical": true,
+    "yaml_raw_differs_only_by_seed": true,
+    "checkpoint_policy_identical": true,
+    "pair_counts": {
+      "42": [
+        1830,
+        500
+      ],
+      "43": [
+        1830,
+        500
+      ],
+      "44": [
+        1830,
+        500
+      ]
+    }
+  },
+  "hard_mismatches": [],
+  "soft_notes": [
+    {
+      "field": "protocol_label",
+      "values": {
+        "42": "gate_h_curve_health",
+        "43": "gate_i_formal_a2_multiseed",
+        "44": "gate_i_formal_a2_multiseed"
+      },
+      "severity": "soft",
+      "interpretation": "seed42 reused Gate H run; protocol string differs but resolved DFINE yaml (except seed) and staged data are identical. Does not change train/val membership."
+    }
+  ],
+  "subset_membership_depends_on_train_seed": false,
+  "matched_seed_protocol_ok": true,
+  "determinism_code_audit": {
+    "app_explicit_random_seed_all_libs": false,
+    "app_cudnn_deterministic": false,
+    "app_worker_init_fn": false,
+    "num_workers": 0,
+    "vendor_yaml_seed_present": true,
+    "implication": "Even with matched protocol, execution non-determinism remains plausible; J2 replicates + J3 hardening required."
+  },
+  "decision_j1": "identity_pass__proceed_j2_replicates",
+  "allowed_claim_now": "A2 three-seed engineering runs used identical frozen subset membership and identical resolved training config except random_seed; cross-seed mAP dispersion is therefore not explained by subset resampling. Formal baseline still not frozen pending J2/J3."
+}

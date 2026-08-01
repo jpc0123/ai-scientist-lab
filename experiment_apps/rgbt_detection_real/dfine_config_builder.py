@@ -98,6 +98,7 @@ def write_dfine_fast_config(
     budget_record_path: Path | None = None,
     pretrained: bool = False,
     local_model_dir: str | None = None,
+    disable_multiscale_collate: bool = False,
 ) -> Path:
     dfine_root = Path(dfine_root).resolve()
     config_path = Path(config_path)
@@ -263,7 +264,7 @@ train_dataloader:
   collate_fn:
     type: BatchImageCollateFunction
     base_size: {input_h if input_h == input_w else input_w}
-    base_size_repeat: 1
+    base_size_repeat: {("null" if disable_multiscale_collate else 1)}
     stop_epoch: 9999
 
 val_dataloader:

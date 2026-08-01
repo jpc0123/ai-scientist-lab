@@ -652,6 +652,79 @@ h2 {
   color: var(--danger);
 }
 
+.progress-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #e8eef3;
+  overflow: hidden;
+  margin: 0.75rem 0 0.5rem;
+  border: 1px solid var(--line);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent, #2f6fed);
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.progress-fill.progress-indeterminate {
+  width: 35%;
+  animation: progress-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes progress-pulse {
+  0% {
+    transform: translateX(-40%);
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(220%);
+    opacity: 0.55;
+  }
+}
+
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.9rem;
+}
+
+.monitor-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.monitor-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.monitor-metrics .stat-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.monitor-card-fail {
+  border-color: #e7c1c1;
+  background: #fbf4f4;
+}
+
+.monitor-campaign {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+  background: var(--panel, #fff);
+}
+
 .muted {
   color: var(--muted);
 }

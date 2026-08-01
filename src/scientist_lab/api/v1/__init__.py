@@ -451,6 +451,29 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except KeyError as exc:
             raise http_error(404, code="not_found", message=str(exc)) from exc
 
+    @router.get("/training/monitor")
+    def training_monitor(
+        project_id: str | None = None,
+        limit: int = Query(40, ge=1, le=100),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        """Live training progress: active runs, failures, gate campaigns, epoch/mAP."""
+        return service.training_monitor(project_id=project_id, limit=limit)
+
+    @router.get("/executions/{execution_id}/failure-classification")
+    def get_failure_classification(
+        execution_id: str,
+        persist: bool = Query(False),
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        """Classify an incomplete/failed execution (engineering vs scientific)."""
+        try:
+            return service.classify_execution_failure(
+                execution_id, persist=persist
+            )
+        except KeyError as exc:
+            raise http_error(404, code="not_found", message=str(exc)) from exc
+
     @router.get("/nodes")
     def list_nodes(
         project_id: str | None = None,

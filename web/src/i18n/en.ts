@@ -40,6 +40,8 @@ const en: MessageTree = {
     projects: "Projects",
     projectsHint: "Lifecycle",
     experiments: "Experiments",
+    training: "Training Monitor",
+    trainingHint: "Progress / failures",
     executions: "Experiment Hub",
     executionsHint: "Runs & filters",
     compare: "Compare",

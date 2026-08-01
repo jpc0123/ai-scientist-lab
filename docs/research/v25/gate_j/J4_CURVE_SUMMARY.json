@@ -1,0 +1,68 @@
+{
+  "gate": "GATE_J4_CURVE_DIAGNOSIS",
+  "status": "partial_pre_j3b",
+  "updated_at": "2026-08-01T09:07:39.408765+00:00",
+  "runs": {
+    "seed42_original": {
+      "execution_id": "exec_4088755cafc6",
+      "n_epochs": 20,
+      "best_epoch": 19,
+      "best_mAP50_95": 0.08334684868325494,
+      "last_mAP50_95": 0.08218029641794485,
+      "curve_peak_vs_last": 0.0011665522653100946
+    },
+    "seed43_original": {
+      "execution_id": "exec_a6f6dff68971",
+      "n_epochs": 20,
+      "best_epoch": 3,
+      "best_mAP50_95": 0.10817447410080037,
+      "last_mAP50_95": 0.037971074226580484,
+      "curve_peak_vs_last": 0.07020339987421989
+    },
+    "seed43_rep1": {
+      "execution_id": "exec_f542d7eea047",
+      "n_epochs": 20,
+      "best_epoch": 4,
+      "best_mAP50_95": 0.07333747401988738,
+      "last_mAP50_95": 0.013970008620566392,
+      "curve_peak_vs_last": 0.05936746539932099
+    },
+    "seed44_original": {
+      "execution_id": "exec_373196093d79",
+      "n_epochs": 20,
+      "best_epoch": 15,
+      "best_mAP50_95": 0.04143016439577045,
+      "last_mAP50_95": 0.022242537998124878,
+      "curve_peak_vs_last": 0.019187626397645572
+    },
+    "seed43_j3_det_rep1": {
+      "execution_id": "exec_dd11f6d9c60c",
+      "n_epochs": 20,
+      "best_epoch": 4,
+      "best_mAP50_95": 0.04295406358691742,
+      "last_mAP50_95": 0.03884527857142176,
+      "curve_peak_vs_last": 0.004108785015495657
+    },
+    "seed43_j3_det_rep2": {
+      "execution_id": "exec_faf97ad6609d",
+      "n_epochs": 20,
+      "best_epoch": 11,
+      "best_mAP50_95": 0.07995186793450823,
+      "last_mAP50_95": 0.04619914353451712,
+      "curve_peak_vs_last": 0.03375272439999111
+    }
+  },
+  "observations": [
+    "Gate I multiseed: seed43_original peaks early/high then collapses; seed44 stays low — level gap is curve-shape, not only best-epoch noise.",
+    "J3 det_rep1 best=0.04295406358691742@ep4 vs det_rep2 best=0.07995186793450823@ep11 (|Δ|mAP≈0.037) with matching order_hash — residual CUDA/EMA nondeterminism (J3b target).",
+    "seed43_original best≈0.10817447410080037 vs seed44_original best≈0.04143016439577045 — if J3b still cannot lock seed43, prefer Case A protocol revision over claiming seed-mean.",
+    "J3b rows will be appended after rng-hunt completes; A4/P01 remain blocked."
+  ],
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "pending": [
+    "append_j3b_rep_curves_when_ready"
+  ]
+}

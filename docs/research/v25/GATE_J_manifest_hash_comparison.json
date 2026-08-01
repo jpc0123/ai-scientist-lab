@@ -1,0 +1,52 @@
+{
+  "registered_freeze": {
+    "train_pairs.csv": "fd5e205583e48321709b8e9788f85d3428451ba8878b1f418bc2ad5ddca75c2c",
+    "val_pairs.csv": "a788f1c771072f1025444e25f5375e5be0e85d7175893e13d901c5720f3da731",
+    "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+  },
+  "registered_recompute": {
+    "train_pairs.csv": "fd5e205583e48321709b8e9788f85d3428451ba8878b1f418bc2ad5ddca75c2c",
+    "val_pairs.csv": "a788f1c771072f1025444e25f5375e5be0e85d7175893e13d901c5720f3da731",
+    "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+  },
+  "runs": {
+    "42": {
+      "execution_id": "exec_4088755cafc6",
+      "paired_train": 1830,
+      "paired_val": 500,
+      "stage_ann_sha256": {
+        "instances_train2017.json": "4233f44fc6d1e6defc4204ceb3f8fc3c85a9c9cf15ebc3f5cba44201e968fc1d",
+        "instances_val2017.json": "192c6a259fbd0666a3d5912d0649bc494917a25f31becea98759a0238cf04d56"
+      },
+      "train_names_sha256": "bf30450b0fb7bdcdcf8983d96c89c3bba91efc1d538b038c6871393f99ba3c04",
+      "val_names_sha256": "a84c889ae92369709f7033fdec7ffc2e45788db837d1e261e7f3075e797144b9"
+    },
+    "43": {
+      "execution_id": "exec_a6f6dff68971",
+      "paired_train": 1830,
+      "paired_val": 500,
+      "stage_ann_sha256": {
+        "instances_train2017.json": "4233f44fc6d1e6defc4204ceb3f8fc3c85a9c9cf15ebc3f5cba44201e968fc1d",
+        "instances_val2017.json": "192c6a259fbd0666a3d5912d0649bc494917a25f31becea98759a0238cf04d56"
+      },
+      "train_names_sha256": "bf30450b0fb7bdcdcf8983d96c89c3bba91efc1d538b038c6871393f99ba3c04",
+      "val_names_sha256": "a84c889ae92369709f7033fdec7ffc2e45788db837d1e261e7f3075e797144b9"
+    },
+    "44": {
+      "execution_id": "exec_373196093d79",
+      "paired_train": 1830,
+      "paired_val": 500,
+      "stage_ann_sha256": {
+        "instances_train2017.json": "4233f44fc6d1e6defc4204ceb3f8fc3c85a9c9cf15ebc3f5cba44201e968fc1d",
+        "instances_val2017.json": "192c6a259fbd0666a3d5912d0649bc494917a25f31becea98759a0238cf04d56"
+      },
+      "train_names_sha256": "bf30450b0fb7bdcdcf8983d96c89c3bba91efc1d538b038c6871393f99ba3c04",
+      "val_names_sha256": "a84c889ae92369709f7033fdec7ffc2e45788db837d1e261e7f3075e797144b9"
+    }
+  },
+  "verdict": {
+    "subset_membership_depends_on_train_seed": false,
+    "stage_annotations_identical_across_seeds": true,
+    "stage_image_lists_identical_across_seeds": true
+  }
+}

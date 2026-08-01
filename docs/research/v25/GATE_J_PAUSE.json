@@ -1,0 +1,11 @@
+{
+  "status": "resumed_autochain",
+  "resumed_at": "2026-07-31T01:56:34.214615+08:00",
+  "pipeline": [
+    "seed44_rep1",
+    "seed43_rep1",
+    "J2_REPLICATE_SUMMARY"
+  ],
+  "current": "seed44_rep1",
+  "execution_id": "exec_755b00bebeaf"
+}

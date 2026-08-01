@@ -68,9 +68,14 @@ export function ExecutionsPage() {
             无任意 Shell。
           </p>
         </div>
-        <Link className="btn-primary" to="/compare">
-          比较工作台
-        </Link>
+        <div className="action-row">
+          <Link className="btn-ghost-link" to="/training">
+            训练监控
+          </Link>
+          <Link className="btn-primary" to="/compare">
+            比较工作台
+          </Link>
+        </div>
       </header>
 
       <section className="panel">
@@ -323,6 +328,22 @@ export function ExecutionDetailPage() {
               },
             ]}
           />
+          {(() => {
+            const err = asRecord(attempt.error_json);
+            const msg = String(err.message || err.error_message || "");
+            if (!msg && status !== "failed") return null;
+            return (
+              <div className="error-panel" style={{ marginTop: "0.85rem" }}>
+                <strong>失败信息</strong>
+                <pre className="log-block" style={{ maxHeight: 200 }}>
+                  {msg || "状态为 failed，请打开「日志」查看详情。"}
+                </pre>
+                <p className="muted">
+                  也可在 <Link to="/training">训练监控</Link> 查看实时战役状态。
+                </p>
+              </div>
+            );
+          })()}
           <p className="muted" style={{ marginTop: "0.75rem" }}>
             禁止：任意 Shell、任意 Docker 参数、任意宿主机路径输入。
           </p>

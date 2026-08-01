@@ -1,0 +1,44 @@
+{
+  "status": "draft",
+  "gate": "GATE_J_A2_THROUGHPUT_PROBE",
+  "claim_authority": "engineering_probe",
+  "allow_scientific_claims": false,
+  "allow_replace_gate_i_baseline": false,
+  "blocked": ["A4", "P01", "fdpn", "gated_multiscale", "formal_map_ranking"],
+  "inherits_subset_from": "GATE_H_A2_CURVE_HEALTH",
+  "invariants_vs_gate_i": [
+    "early_concat",
+    "dfine_s",
+    "pretrained",
+    "640x640",
+    "queries=300",
+    "lr=0.0002",
+    "mixed_precision",
+    "same Docker image tag at freeze time"
+  ],
+  "allowed_variables": ["batch_size", "num_workers", "epochs"],
+  "matrix": [
+    {"id": "B0", "batch_size": 1, "num_workers": 0, "epochs": 3},
+    {"id": "T1", "batch_size": 2, "num_workers": 0, "epochs": 3},
+    {"id": "T2", "batch_size": 4, "num_workers": 0, "epochs": 3},
+    {"id": "T3", "batch_size": 2, "num_workers": 2, "epochs": 3},
+    {"id": "T4", "batch_size": 4, "num_workers": 2, "epochs": 3}
+  ],
+  "primary_engineering_metrics": [
+    "images_per_second",
+    "gpu_util_avg",
+    "peak_gpu_memory_mb",
+    "data_time_avg",
+    "iter_time_avg"
+  ],
+  "pass_rule": {
+    "throughput_useful": "ips >= 1.5x B0 OR gpu_util_avg +20pp vs B0; peak_mem_mb < 11264",
+    "decisions": [
+      "adopt_batch_for_future_gates",
+      "keep_batch1_science_default",
+      "oom_or_unstable"
+    ]
+  },
+  "run_after": "GATE_I_A2_FORMAL_MULTISEED completed or explicit user pause",
+  "doc": "docs/research/v25/GATE_J_THROUGHPUT_PROTOCOL_DRAFT.md"
+}

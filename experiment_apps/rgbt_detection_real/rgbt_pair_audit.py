@@ -84,9 +84,49 @@ def audit_rgbt_pairs(
 
         cats = payload.get("categories") or []
         cat_ids = sorted(int(c["id"]) for c in cats)
-        ann_cat_ids = sorted(
-            {int(a.get("category_id", -1)) for a in payload.get("annotations") or []}
+        cat_id_set = set(cat_ids)
+        annotations = list(payload.get("annotations") or [])
+        ann_cat_ids = sorted({int(a.get("category_id", -1)) for a in annotations})
+        unknown_cats = sorted(cid for cid in ann_cat_ids if cid not in cat_id_set)
+
+        illegal_bbox = 0
+        for ann in annotations:
+            bbox = ann.get("bbox") or []
+            if len(bbox) != 4:
+                illegal_bbox += 1
+                continue
+            try:
+                x, y, w, h = (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+            except (TypeError, ValueError):
+                illegal_bbox += 1
+                continue
+            if w <= 0 or h <= 0 or x < 0 or y < 0:
+                illegal_bbox += 1
+
+        image_ids = [img.get("id") for img in payload.get("images") or []]
+        file_names = [str(img.get("file_name")) for img in payload.get("images") or []]
+        dup_image_ids = sorted({i for i in image_ids if image_ids.count(i) > 1})
+        dup_file_names = sorted({n for n in file_names if file_names.count(n) > 1})
+
+        quality_ok = (
+            split_ok
+            and (sample is None or sample.get("same_spatial_size"))
+            and not unknown_cats
+            and illegal_bbox == 0
+            and not dup_image_ids
+            and not dup_file_names
         )
+        if not quality_ok:
+            ok = False
+            if unknown_cats:
+                errors.append(f"{split}: unknown category_id: {unknown_cats[:10]}")
+            if illegal_bbox:
+                errors.append(f"{split}: illegal_bbox_count={illegal_bbox}")
+            if dup_image_ids:
+                errors.append(f"{split}: duplicate image ids: {dup_image_ids[:10]}")
+            if dup_file_names:
+                errors.append(f"{split}: duplicate file_name: {dup_file_names[:10]}")
+
         split_reports[split] = {
             "n_rgb": len(rgb_names),
             "n_thermal": len(thr_names),
@@ -99,8 +139,14 @@ def audit_rgbt_pairs(
             "orphan_rgb_not_in_ann": orphan_rgb[:20],
             "category_ids": cat_ids,
             "annotation_category_ids": ann_cat_ids,
+            "unknown_category_ids": unknown_cats,
+            "illegal_bbox_count": illegal_bbox,
+            "duplicate_image_ids": dup_image_ids,
+            "duplicate_file_names": dup_file_names,
+            "pairing_errors": len(only_rgb) + len(only_thr),
+            "missing_images": len(missing_rgb) + len(missing_thr),
             "sample": sample,
-            "ok": split_ok and (sample is None or sample.get("same_spatial_size")),
+            "ok": quality_ok,
         }
 
     return {

@@ -19,6 +19,8 @@ SMOKE_LIKE_PROTOCOLS = frozenset(
         "mechanism_diagnosis",
         "diagnostic_only",
         "baseline_resolution_probe",
+        "gate_e_debug",
+        "debug_only",
     }
 )
 
@@ -64,6 +66,8 @@ def resolve_protocol(
         "mechanism_diagnosis",
         "diagnostic_only",
         "baseline_resolution_probe",
+        "gate_e_debug",
+        "debug_only",
     }:
         if mode in {
             "metric_validity",
@@ -73,6 +77,8 @@ def resolve_protocol(
             "mechanism_diagnosis",
             "diagnostic_only",
             "baseline_resolution_probe",
+            "gate_e_debug",
+            "debug_only",
         }:
             return mode
         return "smoke"
@@ -121,6 +127,8 @@ def claim_gate_metadata(protocol: str) -> dict[str, Any]:
         purpose = "mechanism_diagnosis"
     elif proto == "baseline_resolution_probe":
         purpose = "baseline_resolution_probe"
+    elif proto in {"gate_e_debug", "debug_only"}:
+        purpose = "gate_e_debug"
     elif allow_scientific_claims(proto):
         purpose = "method_comparison"
     else:
@@ -138,6 +146,7 @@ def claim_gate_metadata(protocol: str) -> dict[str, Any]:
             "formal_candidate",
             "mechanism_diagnosis",
             "baseline_resolution_probe",
+            "gate_e_debug",
         }
         else allow_scientific_claims(proto),
     }

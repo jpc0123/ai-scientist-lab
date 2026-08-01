@@ -1,0 +1,64 @@
+{
+  "runs": {
+    "42": {
+      "execution_id": "exec_4088755cafc6",
+      "policy": {
+        "primary": "best_on_validation",
+        "selection_metric": "mAP50_95",
+        "selection_mode": "max",
+        "tie_breaker": "earliest_epoch",
+        "secondary": "last_epoch",
+        "test_set_used_for_selection": false,
+        "eval_frequency": "every_epoch"
+      },
+      "best_epoch": 19,
+      "last_epoch": 20,
+      "best_mAP50_95": 0.08334684868325494,
+      "last_mAP50_95": 0.08218029641794485,
+      "best_minus_last": 0.0011665522653100946
+    },
+    "43": {
+      "execution_id": "exec_a6f6dff68971",
+      "policy": {
+        "primary": "best_on_validation",
+        "selection_metric": "mAP50_95",
+        "selection_mode": "max",
+        "tie_breaker": "earliest_epoch",
+        "secondary": "last_epoch",
+        "test_set_used_for_selection": false,
+        "eval_frequency": "every_epoch"
+      },
+      "best_epoch": 3,
+      "last_epoch": 20,
+      "best_mAP50_95": 0.10817447410080037,
+      "last_mAP50_95": 0.037971074226580484,
+      "best_minus_last": 0.07020339987421989
+    },
+    "44": {
+      "execution_id": "exec_373196093d79",
+      "policy": {
+        "primary": "best_on_validation",
+        "selection_metric": "mAP50_95",
+        "selection_mode": "max",
+        "tie_breaker": "earliest_epoch",
+        "secondary": "last_epoch",
+        "test_set_used_for_selection": false,
+        "eval_frequency": "every_epoch"
+      },
+      "best_epoch": 15,
+      "last_epoch": 20,
+      "best_mAP50_95": 0.04143016439577045,
+      "last_mAP50_95": 0.022242537998124878,
+      "best_minus_last": 0.019187626397645572
+    }
+  },
+  "verdict": {
+    "policy_identical": true,
+    "best_epochs": {
+      "42": 19,
+      "43": 3,
+      "44": 15
+    },
+    "note": "best epochs 19/3/15 differ substantially; curve diagnosis is J4."
+  }
+}

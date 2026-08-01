@@ -2,18 +2,29 @@
 
 Opened after v2.4 A+C archive. **Does not reopen** A4 promotion or P01 formalization.
 
-## Goal
+## Gate F — PASSED
+## Gate G — probe passed
+## Gate H — PASSED (exec_4088755cafc6)
+## Gate I — COMPLETED (engineering), **not frozen as formal baseline**
 
-Establish a reproducible D-FINE **early_concat** baseline at **native 640×512** with **full 300 queries** (`scale_queries_to_tokens=false`).
+GATE_I_A2_FORMAL_MULTISEED · A2 · Gate-H subset · 20ep · seeds 42/43/44
 
-## First probe
+| seed | exec | best ep | mAP50_95 |
+|------|------|---------|----------|
+| 42 | exec_4088755cafc6 (reuse H) | 19 | 0.0833 |
+| 43 | exec_a6f6dff68971 | 3 | 0.1082 |
+| 44 | exec_373196093d79 | 15 | 0.0414 |
 
-- Protocol: `protocol_rgbt_baseline_native_res_v1`
-- Contract: `examples/rgbt_v25_native_res_a2_seed42_contract.json`
-- Seed 42, 10 epochs, batch 1, AMP on
-- Success: completes, queries=300, non-degenerate predictions/metrics
+- mean≈**0.0777** · stdev≈0.0337 · decision: **diagnose_seed_instability**
+- Engineering all pass; formal candidates **not** OK (seed44 outlier)
+- Report: GATE_I_REPORT.md · freeze: GATE_I_FREEZE.json
 
-## Explicit non-goals
+## Gate J — draft only
+Throughput probe drafts remain; do not start until instability diagnosis decided.
 
-- No FDPN / gated fusion / P01
-- No claim that this beats v2.4 formal-candidate arms
+## Gate J — Seed Instability Diagnosis (active)
+
+- **J1 PASS**: subset membership identical across 42/43/44; yaml differs only by seed
+- **J2 running**: seed44_rep1 = exec_a0f800e20389 → then seed43_rep1
+- Docs: GATE_J.md · audit under outputs/.../gate_j_seed_diagnosis/
+- Still blocked: A4/P01

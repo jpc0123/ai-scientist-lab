@@ -21,6 +21,7 @@ const groupDefs: Array<{ titleKey: string; items: NavItem[] }> = [
   {
     titleKey: "nav.experiments",
     items: [
+      { to: "/training", labelKey: "nav.training", hintKey: "nav.trainingHint" },
       { to: "/executions", labelKey: "nav.executions", hintKey: "nav.executionsHint" },
       { to: "/compare", labelKey: "nav.compare", hintKey: "nav.compareHint" },
       { to: "/trees", labelKey: "nav.trees", hintKey: "nav.treesHint" },

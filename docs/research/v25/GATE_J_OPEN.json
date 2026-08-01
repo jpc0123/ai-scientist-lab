@@ -1,0 +1,21 @@
+{
+  "gate": "GATE_J_SEED_INSTABILITY_DIAGNOSIS",
+  "opened_at": "2026-07-30T09:14:43.294986+00:00",
+  "replaces_draft_name": "GATE_J_A2_THROUGHPUT_PROBE (deferred; instability first)",
+  "priority_queue": [
+    "J1_identity_audit",
+    "J2_seed43_rep1",
+    "J2_seed44_rep1",
+    "J3_determinism",
+    "J4_curves",
+    "J5_detection_diag"
+  ],
+  "j1_decision": "identity_pass__proceed_j2_replicates",
+  "blocked": [
+    "A4",
+    "P01",
+    "add_seed_45_46",
+    "drop_seed44_and_average",
+    "pick_best_seed_as_baseline"
+  ]
+}
