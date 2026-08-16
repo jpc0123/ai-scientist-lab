@@ -56,4 +56,11 @@ Manager 自动 `claim_gate.json`（仅 `baseline_metrics`、无配对指纹）�
 - 只提交 freeze 文档 + M1–M4 / ClaimGate / Formal C1 协议与 HOW 源码
 - 不提交 `.run/`、secrets、`.env`、数据集图像、v2.5 GATE 战役文档、bench 产物
 - 不改 git config，不 push，不用 `--no-verify`
-- annotated tag：`mvp-freeze-m1-m4-claimgate-c1`
+- annotated tag：`mvp-freeze-m1-m4-claimgate-c1`（指向 SHA `130b02cfbb5521829e959d10b99d17fd5fff28ab`；已打，不要移动/删除）
+
+## Tag 保护与版本分叉（封版后追加，不改上文冻结数字）
+
+- 保护分支：`freeze/mvp-m1-m4-claimgate-c1`，固定指向同一 SHA。后续开发**不得把 commit 打进这个 tag**，不得 `git tag -f`、不得 reset 该保护分支到别的 commit。
+- 封版后材料：`docs/MVP_RELEASE_NOTES.md`、`docs/MVP_DEFENSE_EVIDENCE.md`。这些是 freeze commit **之后**的文档，不是 tag 内容。
+- 当前工作树里的 v2.5 脏文件（`docs/research/v25/`、`examples/rgbt_v25_*`、`datasets/registered/`、`web/`、`llm/`、相关 src/scripts 修改等）是 **post-MVP worktree state**，不属于 freeze tag，不得回灌进 `mvp-freeze-m1-m4-claimgate-c1`。
+- 后续 v2.5 / trajectory / LLM / Web 从冻结点**之后**继续，开发线：`feat/post-mvp-v25`（以 freeze tag 为起点）。不要为了切分支而 `checkout -f` 或 stash 丢数据。
