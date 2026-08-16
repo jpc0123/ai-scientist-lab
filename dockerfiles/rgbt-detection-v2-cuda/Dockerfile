@@ -1,6 +1,6 @@
 # CUDA-enabled RGB-T detection image (DFINE-S + torch CUDA).
 # Build (host needs network for pip during build):
-#   docker build -t scientist-rgbt-detection:v2-cuda-cu128 -f docker/rgbt-detection-v2-cuda/Dockerfile .
+#   docker build -t scientist-rgbt-detection:v2-cuda-cu128 -f dockerfiles/rgbt-detection-v2-cuda/Dockerfile .
 #
 # Candidate tag for RTX 5070 Ti / sm_120 (Blackwell). Do not overwrite v2-cuda until S00 passes.
 # Runtime: Worker must request NVIDIA DeviceRequest (prefer_gpu / cuda_required).
@@ -16,7 +16,7 @@ ENV PIP_DEFAULT_TIMEOUT=120
 
 WORKDIR /workspace
 
-COPY docker/rgbt-detection-v2-cuda/requirements.txt /tmp/requirements.txt
+COPY dockerfiles/rgbt-detection-v2-cuda/requirements.txt /tmp/requirements.txt
 
 # Base image already ships torch 2.7.1+cu128 and torchvision 0.22.1+cu128.
 # Install extra deps only; never reinstall torch*/cu124/cpu wheels.

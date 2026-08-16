@@ -34,6 +34,16 @@ from scientist_lab.storage.artifact_store import (
 )
 
 
+def build_gpu_device_requests(gpu_count: int) -> list[Any] | None:
+    """Attach NVIDIA devices when the contract asked for a GPU."""
+    n = int(gpu_count or 0)
+    if n <= 0:
+        return None
+    from docker.types import DeviceRequest
+
+    return [DeviceRequest(count=n, capabilities=[["gpu"]])]
+
+
 @dataclass
 class _RuntimeJob:
     execution_id: str
@@ -406,21 +416,25 @@ class LocalDockerRunner(ExperimentRunner):
 
             mem_limit = f"{job.contract.resources.memory_gb}g"
             nano_cpus = int(job.contract.resources.cpu_count * 1_000_000_000)
+            run_kwargs: dict[str, Any] = {
+                "image": job.image_name,
+                "command": command,
+                "detach": True,
+                "name": f"scientist-{execution_id}".replace("_", "-").lower(),
+                "working_dir": "/workspace",
+                "volumes": volumes,
+                "environment": environment,
+                "network_disabled": True,
+                "mem_limit": mem_limit,
+                "nano_cpus": nano_cpus,
+                "auto_remove": False,
+            }
+            gpu_requests = build_gpu_device_requests(job.contract.resources.gpu_count)
+            if gpu_requests:
+                run_kwargs["device_requests"] = gpu_requests
 
             job.status = JobStatus.RUNNING
-            container = self.client.containers.run(
-                image=job.image_name,
-                command=command,
-                detach=True,
-                name=f"scientist-{execution_id}".replace("_", "-").lower(),
-                working_dir="/workspace",
-                volumes=volumes,
-                environment=environment,
-                network_disabled=True,
-                mem_limit=mem_limit,
-                nano_cpus=nano_cpus,
-                auto_remove=False,
-            )
+            container = self.client.containers.run(**run_kwargs)
             job.container_id = container.id
 
             return_code = self._wait_container(

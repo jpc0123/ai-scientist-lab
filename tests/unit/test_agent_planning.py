@@ -7,7 +7,7 @@ import pytest
 
 from scientist_lab.agents.context_builder import build_planning_context
 from scientist_lab.agents.models import CandidateExperiment, PlanningContext
-from scientist_lab.agents.planner import MockPlanner
+from scientist_lab.agents.legacy_planner import MockPlanner
 from scientist_lab.domain import NodeStage, NodeStatus, NodeType, ProjectStatus
 from scientist_lab.domain.models import ExperimentNode, ResearchProject
 from scientist_lab.planning.candidate_verifier import (

@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0.0",
+  "claim_id": "claim_c2_fdpn_effective",
+  "claim_type": "component_effectiveness",
+  "claim_text": "FDPN makes a positive contribution to small-object APS.",
+  "claim_strength": "C2",
+  "metric": "APS",
+  "asserts": { "component_effective": true }
+}

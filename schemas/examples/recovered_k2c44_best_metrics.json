@@ -1,0 +1,14 @@
+{
+  "source": "docs/research/v25/gate_k/K2C44_REEVAL.json",
+  "execution_id": "exec_4f4151310027",
+  "seed": 44,
+  "checkpoint": "best-of-run",
+  "scale": "coco_percent",
+  "note": "APS is COCO AP_small×100 (raw_coco_lines.best_small=0.155). mAP50_95 is COCO AP all×100 (best_all=0.143). Independent COCO lines; APS is not invented from mAP50_95.",
+  "APS": 15.5,
+  "mAP50_95": 14.3,
+  "mAP50": 29.9,
+  "params_m": 10.228,
+  "flops_g": 25.0065,
+  "gpu_memory_gb": 0.836
+}

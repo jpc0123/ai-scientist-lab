@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from artifact_writer import write_json
 from claim_gate import claim_gate_metadata, resolve_protocol
@@ -24,6 +25,21 @@ from rgbt_pair_audit import write_rgbt_pair_audit
 
 
 IMPLEMENTATION = "dfine_s_vendored_v0_8_9"
+PROBE_EXECUTION_MODES = frozenset({"fast_eval", "smoke", "smoke_train", "debug"})
+
+
+def resolve_stage_image_caps(
+    execution_mode: str, params: Mapping[str, Any]
+) -> tuple[int | None, int | None]:
+    """Subset only probe/smoke HOW. Formal / full_train keep the full split."""
+    if str(execution_mode) not in PROBE_EXECUTION_MODES:
+        return None, None
+    max_train = params.get("max_train_images")
+    max_val = params.get("max_val_images")
+    return (
+        int(max_train or 16),
+        int(max_val or 8),
+    )
 
 
 def run_dfine_train(
@@ -82,7 +98,16 @@ def run_dfine_train(
     if image_height is None and image_width is None and image_size is None:
         image_size = 160
     learning_rate = float(params.get("learning_rate") or 2e-4)
+    warmup_raw = params.get("warmup_duration", params.get("warmup_steps"))
+    warmup_duration = int(warmup_raw) if warmup_raw is not None else None
+    ms_raw = params.get("lr_scheduler_milestones", params.get("multistep_milestones"))
+    lr_scheduler_milestones = (
+        [int(x) for x in ms_raw] if ms_raw is not None else None
+    )
+    gamma_raw = params.get("lr_scheduler_gamma", params.get("multistep_gamma"))
+    lr_scheduler_gamma = float(gamma_raw) if gamma_raw is not None else None
     execution_mode = str(contract.get("execution_mode") or "fast_eval")
+    max_train_images, max_val_images = resolve_stage_image_caps(execution_mode, params)
     protocol = resolve_protocol(
         contract=contract,
         parameters=params,
@@ -116,6 +141,25 @@ def run_dfine_train(
         input_mode=input_mode,
         fusion_method=fusion_method,
         label_map_path=output_dir / "category_label_map.json",
+        max_train_images=max_train_images,
+        max_val_images=max_val_images,
+    )
+    train_ann = json.loads(Path(stage_paths["train_ann"]).read_text(encoding="utf-8"))
+    val_ann = json.loads(Path(stage_paths["val_ann"]).read_text(encoding="utf-8"))
+    write_json(
+        output_dir / "dfine_subset.json",
+        {
+            "execution_mode": execution_mode,
+            "input_mode": input_mode,
+            "fusion_method": fusion_method,
+            "staging_mode": stage_paths.get("staging_mode"),
+            "max_train_images": max_train_images,
+            "max_val_images": max_val_images,
+            "staged_train_images": len(train_ann.get("images") or []),
+            "staged_val_images": len(val_ann.get("images") or []),
+            "staged_train_annotations": len(train_ann.get("annotations") or []),
+            "staged_val_annotations": len(val_ann.get("annotations") or []),
+        },
     )
     num_classes = count_categories(stage_paths["train_ann"])
     dfine_out = output_dir / "_dfine_run"
@@ -143,6 +187,9 @@ def run_dfine_train(
         pretrained=pretrained,
         local_model_dir=str(local_model_dir) if local_model_dir else None,
         disable_multiscale_collate=disable_multiscale,
+        warmup_duration=warmup_duration,
+        lr_scheduler_milestones=lr_scheduler_milestones,
+        lr_scheduler_gamma=lr_scheduler_gamma,
     )
     # Keep a copy of the label map next to metrics for eval export / audit.
     label_map = stage_paths.get("category_label_map")
@@ -402,12 +449,9 @@ def run_dfine_train(
     prediction_audit = _audit_val_predictions(
         solver,
         device=device,
-        dump_path=(
-            output_dir / "mechanism_diagnostics" / "val_predictions.json"
-            if (mech_enabled or protocol in {"mechanism_diagnosis", "diagnostic_only"})
-            else None
-        ),
+        dump_path=output_dir / "sample_predictions.json",
         score_threshold=0.05,
+        max_dump_images=8,
     )
     write_json(output_dir / "prediction_audit.json", prediction_audit)
     metrics_values["prediction_count"] = float(prediction_audit.get("prediction_count") or 0)
@@ -546,6 +590,9 @@ def _write_training_history_from_dfine_log(
         "AP75",
         "APS",
         "lr",
+        "backbone_actual_lr",
+        "non_backbone_actual_lr",
+        "scheduler_last_epoch",
         "train_time_seconds",
         "test_time_seconds",
     ]
@@ -563,6 +610,10 @@ def _write_training_history_from_dfine_log(
             if "epoch" not in payload:
                 continue
             bbox = payload.get("test_coco_eval_bbox") or []
+            backbone_lr = payload.get("backbone_actual_lr")
+            if backbone_lr is None:
+                backbone_lr = payload.get("train_lr")
+            non_bb_lr = payload.get("non_backbone_actual_lr")
             rows.append(
                 {
                     "epoch": int(payload.get("epoch", -1)) + 1,
@@ -574,7 +625,10 @@ def _write_training_history_from_dfine_log(
                     "mAP50": float(bbox[1]) if len(bbox) > 1 else None,
                     "AP75": float(bbox[2]) if len(bbox) > 2 else None,
                     "APS": float(bbox[3]) if len(bbox) > 3 else None,
-                    "lr": payload.get("train_lr"),
+                    "lr": backbone_lr if backbone_lr is not None else payload.get("train_lr"),
+                    "backbone_actual_lr": backbone_lr,
+                    "non_backbone_actual_lr": non_bb_lr,
+                    "scheduler_last_epoch": payload.get("scheduler_last_epoch"),
                     "train_time_seconds": payload.get("train_time"),
                     "test_time_seconds": payload.get("test_time") or payload.get("test_eval_time"),
                 }
@@ -592,6 +646,9 @@ def _write_training_history_from_dfine_log(
                 "AP75": None,
                 "APS": None,
                 "lr": None,
+                "backbone_actual_lr": None,
+                "non_backbone_actual_lr": None,
+                "scheduler_last_epoch": None,
                 "train_time_seconds": None,
                 "test_time_seconds": None,
             }
@@ -621,6 +678,7 @@ def _audit_val_predictions(
     device: str,
     dump_path: Path | None = None,
     score_threshold: float = 0.1,
+    max_dump_images: int = 8,
 ) -> dict[str, Any]:
     """Count non-empty detections on one val pass (Gate D metric-validity signal)."""
     import torch
@@ -665,7 +723,7 @@ def _audit_val_predictions(
                     if boxes is not None and boxes.numel():
                         wh = boxes[:, 2:] - boxes[:, :2]
                         box_n += int(((wh[:, 0] > 1e-3) & (wh[:, 1] > 1e-3)).sum().item())
-                    if dump_path is not None:
+                    if dump_path is not None and len(per_image) < int(max_dump_images):
                         keep = scores >= float(score_threshold)
                         image_id = target.get("image_id")
                         if torch.is_tensor(image_id):
@@ -705,6 +763,7 @@ def _audit_val_predictions(
             write_json(
                 Path(dump_path),
                 {
+                    "predictions": per_image,
                     "n_images": len(per_image),
                     "score_threshold": score_threshold,
                     "images": per_image,
@@ -718,6 +777,11 @@ def _audit_val_predictions(
             out["dump_path"] = str(dump_path)
     except Exception as exc:  # noqa: BLE001
         out["error"] = f"{type(exc).__name__}: {exc}"
+        if dump_path is not None and not Path(dump_path).exists():
+            write_json(
+                Path(dump_path),
+                {"predictions": [], "error": out["error"]},
+            )
     return out
 
 

@@ -165,9 +165,10 @@ class DfineCudaFastEvalOrchestrator:
             raise DfineCudaOrchestratorError(
                 f"expected task_type=rgbt_detection, got {contract.task_type!r}"
             )
-        if contract.execution_mode != "fast_eval":
+        mode = (contract.execution_mode or "").strip()
+        if mode not in {"fast_eval", "full_train"}:
             raise DfineCudaOrchestratorError(
-                f"expected execution_mode=fast_eval, got {contract.execution_mode!r}"
+                f"expected execution_mode=fast_eval|full_train, got {mode!r}"
             )
         if contract.environment_key != CUDA_ENV_KEY:
             raise DfineCudaOrchestratorError(
@@ -188,11 +189,21 @@ class DfineCudaFastEvalOrchestrator:
             params.get("dfine_backend") or params.get("baseline_backend") or "auto"
         ).strip().lower()
         claim_gate = self._claim_gate(contract)
-        if not claim_gate["is_exploratory_fast_eval_context"]:
+        claim = str((contract.task_config or {}).get("claim_level") or "")
+        if mode == "fast_eval" and not claim_gate["is_exploratory_fast_eval_context"]:
             raise DfineCudaOrchestratorError(
                 "contract is not an exploratory Fast Eval context; "
                 "set claim_level=exploratory_comparison or "
                 "evaluation_scope=fast_eval_subset"
+            )
+        if mode == "full_train" and claim not in {
+            "exploratory_comparison",
+            "formal_candidate",
+        }:
+            raise DfineCudaOrchestratorError(
+                "full_train requires claim_level=exploratory_comparison|"
+                "formal_candidate; Freeze ClaimGate (not this orchestrator) "
+                "decides C1 scientific claims"
             )
 
         return DfineCudaFastEvalPlan(

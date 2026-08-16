@@ -99,6 +99,9 @@ def write_dfine_fast_config(
     pretrained: bool = False,
     local_model_dir: str | None = None,
     disable_multiscale_collate: bool = False,
+    warmup_duration: int | None = None,
+    lr_scheduler_milestones: list[int] | None = None,
+    lr_scheduler_gamma: float | None = None,
 ) -> Path:
     dfine_root = Path(dfine_root).resolve()
     config_path = Path(config_path)
@@ -142,6 +145,28 @@ def write_dfine_fast_config(
             f"local_model_dir must be container-portable, got {weight_dir!r}"
         )
 
+    # Default matches DFINE include/optimizer.yml (LinearWarmup warmup_duration: 500).
+    resolved_warmup = (
+        int(warmup_duration) if warmup_duration is not None else 500
+    )
+    if resolved_warmup < 0:
+        raise ValueError(f"warmup_duration must be >= 0, got {resolved_warmup}")
+
+    # Default MultiStep milestones come from include/optimizer.yml ([500]).
+    # When overridden, emit an explicit lr_scheduler block (YAML merge replaces).
+    resolved_milestones: list[int] | None = None
+    if lr_scheduler_milestones is not None:
+        resolved_milestones = [int(x) for x in lr_scheduler_milestones]
+        if not resolved_milestones:
+            raise ValueError("lr_scheduler_milestones must be non-empty when set")
+        if any(m < 0 for m in resolved_milestones):
+            raise ValueError(f"lr_scheduler_milestones must be >= 0, got {resolved_milestones}")
+    resolved_gamma = (
+        float(lr_scheduler_gamma) if lr_scheduler_gamma is not None else 0.1
+    )
+    if resolved_gamma <= 0:
+        raise ValueError(f"lr_scheduler_gamma must be > 0, got {resolved_gamma}")
+
     record = {
         "eval_spatial_size": eval_spatial_size,
         "input_size": [input_h, input_w],
@@ -151,6 +176,14 @@ def write_dfine_fast_config(
         "query_budget": query_budget,
         "pretrained": bool(pretrained),
         "local_model_dir": weight_dir,
+        "warmup_duration": resolved_warmup,
+        "a2_reference_warmup_duration": 500,
+        "lr_scheduler_type": "MultiStepLR",
+        "lr_scheduler_milestones": resolved_milestones
+        if resolved_milestones is not None
+        else [500],
+        "lr_scheduler_gamma": resolved_gamma,
+        "a2_reference_lr_scheduler_milestones": [500],
     }
     record_path = Path(
         budget_record_path
@@ -167,6 +200,16 @@ def write_dfine_fast_config(
     # D-FINE selects encoder top-k over the coarsest map (stride 32). At small
     # Fast Eval sizes, default num_queries=300 exceeds available tokens unless
     # scale_queries_to_tokens=True (Fast Eval only).
+    scheduler_override = ""
+    if resolved_milestones is not None:
+        ms = ", ".join(str(m) for m in resolved_milestones)
+        scheduler_override = f"""
+# Override include/optimizer.yml MultiStepLR milestones (default [500]).
+lr_scheduler:
+  type: MultiStepLR
+  milestones: [{ms}]
+  gamma: {format(float(resolved_gamma), ".8f")}
+"""
     text = f"""
 # Auto-generated Scientist Lab Fast Eval config for DFINE-S
 __include__:
@@ -228,18 +271,23 @@ optimizer:
   params:
     -
       params: '^(?=.*backbone)(?!.*norm|bn).*$'
-      lr: {float(learning_rate) * 0.5}
+      lr: {format(float(learning_rate) * 0.5, ".8f")}
     -
       params: '^(?=.*backbone)(?=.*norm|bn).*$'
-      lr: {float(learning_rate) * 0.5}
+      lr: {format(float(learning_rate) * 0.5, ".8f")}
       weight_decay: 0.
     -
       params: '^(?=.*(?:encoder|decoder))(?=.*(?:norm|bn|bias)).*$'
       weight_decay: 0.
-  lr: {float(learning_rate)}
+  lr: {format(float(learning_rate), ".8f")}
   betas: [0.9, 0.999]
   weight_decay: 0.0001
 
+# Override include/optimizer.yml LinearWarmup (default 500). Integer only — avoid YAML float coercion.
+lr_warmup_scheduler:
+  type: LinearWarmup
+  warmup_duration: {int(resolved_warmup)}
+{scheduler_override}
 train_dataloader:
   type: DataLoader
   dataset:

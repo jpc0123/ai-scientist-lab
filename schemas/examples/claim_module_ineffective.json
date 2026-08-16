@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0.0",
+  "claim_id": "claim_discard_module_ineffective",
+  "claim_type": "observational",
+  "claim_text": "The fusion module is ineffective (DISCARD).",
+  "claim_strength": "C0",
+  "metric": "APS",
+  "asserts": { "module_ineffective": true }
+}

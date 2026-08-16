@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/review_decision.schema.json",
+  "title": "ReviewDecision",
+  "description": "Reviewer output after VALID evidence. MemoryWriter persists lessons/strategy deterministically.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "hypothesis_status",
+    "review_decision",
+    "reasoning_summary",
+    "objective_check",
+    "constraint_check",
+    "research_lessons",
+    "strategies"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "run_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "hypothesis_status": {
+      "type": "string",
+      "enum": [
+        "SUPPORTED",
+        "REJECTED",
+        "INCONCLUSIVE",
+        "NEEDS_REPLICATION",
+        "NEEDS_VALIDATION"
+      ]
+    },
+    "review_decision": {
+      "type": "string",
+      "enum": ["KEEP", "DISCARD", "REPLICATE", "VALIDATE", "ESCALATE", "STOP"],
+      "description": "Must not be PENDING on finalized ReviewDecision documents."
+    },
+    "reasoning_summary": { "type": "string", "minLength": 1 },
+    "objective_check": { "$ref": "common.schema.json#/$defs/objective_check" },
+    "constraint_check": { "$ref": "common.schema.json#/$defs/constraint_check" },
+    "research_lessons": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/research_lesson" },
+      "default": []
+    },
+    "strategies": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/strategy_record" },
+      "default": []
+    },
+    "primary_metric_judgment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metric": { "$ref": "common.schema.json#/$defs/metric_name" },
+        "before": { "type": ["number", "null"] },
+        "after": { "type": ["number", "null"] },
+        "delta": { "type": ["number", "null"] },
+        "within_constraints": { "type": "boolean" }
+      }
+    },
+    "claim_hints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Suggested claim strength; ClaimGate still decides allow/deny.",
+      "default": []
+    }
+  }
+}

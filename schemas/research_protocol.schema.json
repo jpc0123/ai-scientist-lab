@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/research_protocol.schema.json",
+  "title": "ResearchProtocol",
+  "description": "Project-lifetime research constitution. AI cannot modify; changes require Protocol Amendment + version bump.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "protocol_id",
+    "protocol_version",
+    "goal",
+    "baseline",
+    "objective",
+    "editable_scope",
+    "frozen_scope",
+    "experiment_budget",
+    "risk_policy",
+    "decision_policy",
+    "stop_rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "project_id": {
+      "$ref": "common.schema.json#/$defs/non_empty_string"
+    },
+    "protocol_id": {
+      "$ref": "common.schema.json#/$defs/non_empty_string"
+    },
+    "protocol_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Incremented on Protocol Amendment."
+    },
+    "title": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "improve"
+      ],
+      "properties": {
+        "improve": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task_type": {
+          "type": "string",
+          "default": "rgbt_detection"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "dataset"
+      ],
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dataset": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adapter": {
+          "type": "string",
+          "default": "dfine",
+          "description": "ExperimentAdapter key."
+        },
+        "reference_run_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional baseline run id; null if not yet bound."
+        }
+      }
+    },
+    "objective": {
+      "$ref": "common.schema.json#/$defs/objective"
+    },
+    "editable_scope": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/scope_token"
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "frozen_scope": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/scope_token"
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "constraints": {
+      "$ref": "common.schema.json#/$defs/constraints"
+    },
+    "experiment_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe",
+        "validation",
+        "formal"
+      ],
+      "properties": {
+        "probe": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "formal": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Duration budget string (e.g. 12h), or approval_required."
+        }
+      }
+    },
+    "risk_policy": {
+      "type": "object",
+      "description": "Action -> auto | approval_required | forbidden. Human Gate cannot override forbidden.",
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/risk_level"
+      },
+      "properties": {
+        "probe_training": {
+          "$ref": "common.schema.json#/$defs/risk_level"
+        },
+        "full_training": {
+          "$ref": "common.schema.json#/$defs/risk_level"
+        },
+        "install_dependency": {
+          "$ref": "common.schema.json#/$defs/risk_level"
+        },
+        "dataset_change": {
+          "$ref": "common.schema.json#/$defs/risk_level"
+        },
+        "evaluator_change": {
+          "$ref": "common.schema.json#/$defs/risk_level"
+        },
+        "code_outside_editable": {
+          "$ref": "common.schema.json#/$defs/risk_level"
+        }
+      }
+    },
+    "decision_policy": {
+      "$ref": "common.schema.json#/$defs/decision_policy"
+    },
+    "stop_rules": {
+      "$ref": "common.schema.json#/$defs/stop_rules"
+    },
+    "fingerprint_id": {
+      "$ref": "common.schema.json#/$defs/non_empty_string",
+      "description": "Bound Frozen Research Fingerprint id (Comparability Contract)."
+    },
+    "claim_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow_scientific_claims": {
+          "type": "boolean",
+          "default": false
+        },
+        "allow_significance_claim": {
+          "type": "boolean",
+          "default": false
+        },
+        "allow_sota_claim": {
+          "type": "boolean",
+          "default": false
+        },
+        "default_claim_level": {
+          "type": "string",
+          "default": "exploratory_comparison"
+        },
+        "claim_types": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/claim_type" },
+          "description": "Allowed claim types. Empty/omitted: observational only unless allow_scientific_claims."
+        },
+        "max_claim_strength": {
+          "$ref": "common.schema.json#/$defs/claim_strength",
+          "description": "Hard cap. Protocol default forbids C1+ when allow_scientific_claims is false."
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

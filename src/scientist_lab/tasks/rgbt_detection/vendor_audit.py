@@ -80,10 +80,14 @@ def stage_dfine_vendor(
     }
 
 
+# Image recipes live here. Must not be named ``docker/`` — that shadows PyPI ``docker``.
+DOCKERFILES_REL = Path("dockerfiles")
+
+
 def cuda_dockerfile_present(project_root: Path | str) -> bool:
     path = (
         Path(project_root).resolve()
-        / "docker"
+        / DOCKERFILES_REL
         / "rgbt-detection-v2-cuda"
         / "Dockerfile"
     )

@@ -210,7 +210,7 @@ def test_dfine_adapter_reports_vendored():
 
 def test_dfine_s_rejects_unimplemented_fdpn_fusion():
     adapter = DFineSBaselineAdapter()
-    with pytest.raises(ValueError, match="not implemented"):
+    with pytest.raises(ValueError, match="not a fusion switch"):
         adapter.validate_parameters(
             {"input_mode": "rgbt", "fusion_method": "fdpn", "epochs": 1}
         )

@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_round2_fusion_early",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_v1",
+  "protocol_version": 1,
+  "parent_run_id": "run_plan_round1_neck_hr",
+  "round_index": 2,
+  "observation": "neck probe discarded; localization still weak.",
+  "hypothesis": "After negative evidence on neck, a fusion change is a better probe of APS than repeating the discarded direction.",
+  "modification_scope": ["fusion"],
+  "proposed_changes": [
+    { "target": "fusion", "summary": "Probe fusion after DISCARD on neck; do not repeat that change." }
+  ],
+  "controlled_variables": ["backbone", "dataset_split", "evaluator"],
+  "expected_effect": {
+    "primary_metric": "APS",
+    "direction": "increase",
+    "rationale": "Protocol objective.primary=APS; rules-first Planner switch after DISCARD."
+  },
+  "evaluation": { "method": "fast_eval", "seeds": [42] },
+  "budget_class": "probe",
+  "risk_level": "auto",
+  "memory_refs": {
+    "lesson_ids": ["LESSON-017"],
+    "strategy_ids": ["STRATEGY-009"]
+  },
+  "evidence_runs": ["run_plan_round1_neck_hr"],
+  "bootstrap": false,
+  "rationale": "N+1 fusion Plan after neck DISCARD; Adapter HOW uses existing early_concat, not a new operator."
+}

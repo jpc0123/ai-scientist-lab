@@ -13,5 +13,6 @@ outputs/*
 backups/*
 !backups/.gitkeep
 .scientist-worktrees/
+.run/
 .env
 .DS_Store

@@ -161,7 +161,7 @@ def probe_cuda_image(*, image: str = CUDA_IMAGE) -> dict[str, Any]:
             "detail": err or out or "image missing",
             "build_hint": (
                 f"docker build -t {image} "
-                f"-f docker/rgbt-detection-v2-cuda/Dockerfile ."
+                f"-f dockerfiles/rgbt-detection-v2-cuda/Dockerfile ."
             ),
         }
     return {
@@ -235,7 +235,7 @@ def build_dfine_cuda_doctor(
             "ok": dockerfile,
             "level": "ok" if dockerfile else "error",
             "detail": str(
-                root / "docker" / "rgbt-detection-v2-cuda" / "Dockerfile"
+                root / "dockerfiles" / "rgbt-detection-v2-cuda" / "Dockerfile"
             ),
         },
         {

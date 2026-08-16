@@ -524,7 +524,7 @@ class SystemDoctor:
                 level="warning",
                 message=str(exc),
                 impact="无法汇总 DFINE CUDA 就绪状态",
-                suggested_action="检查 third_party/DFINE 与 docker/rgbt-detection-v2-cuda",
+                suggested_action="检查 third_party/DFINE 与 dockerfiles/rgbt-detection-v2-cuda",
             )
 
 

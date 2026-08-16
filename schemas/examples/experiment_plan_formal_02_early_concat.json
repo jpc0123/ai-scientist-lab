@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_formal_02_early_concat",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_formal_c1_v1",
+  "protocol_version": 1,
+  "parent_run_id": "run_plan_formal_01_rgb_none",
+  "round_index": 0,
+  "observation": "Formal-01 is the matched rgb+none baseline arm. Candidate must use the same protocol, split, seed policy, evaluator, and APS spec.",
+  "hypothesis": "Under the same Frozen Fingerprint, rgbt + early_concat APS is higher than the matched DFINE rgb+none formal baseline.",
+  "modification_scope": ["fusion"],
+  "proposed_changes": [
+    {
+      "target": "fusion",
+      "summary": "Formal rgbt+early_concat via existing staging blend (early_concat_blend); not FDPN, not gated_multiscale."
+    }
+  ],
+  "controlled_variables": ["dataset_split", "evaluator", "metric_definition", "seed", "epochs", "resolution"],
+  "expected_effect": {
+    "primary_metric": "APS",
+    "direction": "increase",
+    "rationale": "C1 comparative only. No ablation, so no C2 module-effectiveness claim."
+  },
+  "evaluation": {
+    "method": "full_train",
+    "seeds": [42],
+    "notes": "Same formal budget as Formal-01: full_train, full val, epochs=2, 160x160 with scale_queries_to_tokens, timeout 4h. HOW difference only."
+  },
+  "budget_class": "formal",
+  "risk_level": "auto",
+  "memory_refs": { "lesson_ids": [], "strategy_ids": [] },
+  "evidence_runs": ["run_plan_formal_01_rgb_none"],
+  "bootstrap": true,
+  "rationale": "Independent formal candidate arm (not a Planner N+1 loop). ClaimGate pairs this run with Formal-01. KEEP/DISCARD must not override the claim."
+}

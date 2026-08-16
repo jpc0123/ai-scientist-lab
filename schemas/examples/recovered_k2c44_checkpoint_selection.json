@@ -1,0 +1,7 @@
+{
+  "source_execution_id": "exec_4f4151310027",
+  "protocol": "K2-C / formal A2 seed 44",
+  "selection_metric": "mAP50_95",
+  "selected": "last@20",
+  "note": "Recovered artifact for Scientist Lab REPLAY. Formal A2/A4/P01 comparison used mAP50_95 last@20; Freeze primary is APS, taken from the same COCO print (AP_small), not derived from mAP."
+}

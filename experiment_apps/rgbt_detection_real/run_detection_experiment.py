@@ -138,7 +138,7 @@ def main() -> None:
             output_dir / "resource_usage.json",
             {"duration_seconds": 0.0, "validate_only": True},
         )
-    elif mode in {"smoke_train", "fast_eval"}:
+    elif mode in {"smoke_train", "fast_eval", "full_train"}:
         if backend == "dfine":
             from train_dfine import run_dfine_train
 

@@ -10,7 +10,7 @@ from scientist_lab.agents.models import (
     PlannerOutput,
     RoundFeedbackSummary,
 )
-from scientist_lab.agents.planner import MockPlanner, Planner
+from scientist_lab.agents.legacy_planner import MockPlanner, Planner
 from scientist_lab.agents.service import AgentPlanningService
 
 __all__ = [

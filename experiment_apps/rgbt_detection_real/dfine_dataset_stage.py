@@ -10,6 +10,27 @@ from typing import Any
 from fusion_names import is_early_concat, is_gated_multiscale, normalize_fusion_method
 
 
+def _subset_coco(payload: dict[str, Any], max_images: int | None) -> dict[str, Any]:
+    """Keep a stable prefix of images. Formal runs pass max_images=None."""
+    if max_images is None or int(max_images) <= 0:
+        return payload
+    images = sorted(
+        list(payload.get("images") or []),
+        key=lambda im: str(im.get("file_name") or im.get("id") or ""),
+    )
+    keep = images[: int(max_images)]
+    keep_ids = {int(im["id"]) for im in keep}
+    anns = [
+        ann
+        for ann in (payload.get("annotations") or [])
+        if int(ann.get("image_id")) in keep_ids
+    ]
+    out = dict(payload)
+    out["images"] = keep
+    out["annotations"] = anns
+    return out
+
+
 def stage_coco_for_dfine(
     data_root: Path,
     stage_root: Path,
@@ -17,6 +38,8 @@ def stage_coco_for_dfine(
     input_mode: str = "rgb",
     fusion_method: str = "none",
     label_map_path: Path | None = None,
+    max_train_images: int | None = None,
+    max_val_images: int | None = None,
 ) -> dict[str, Path | dict[str, Any]]:
     """Create train/val image folders + annotation copies DFINE can consume."""
     data_root = Path(data_root)
@@ -48,6 +71,7 @@ def stage_coco_for_dfine(
         fusion=early,
         data_root=data_root,
         split="train",
+        max_images=max_train_images,
     )
     val_map = _copy_split(
         src_images=data_root / "images" / "val" / modality,
@@ -57,6 +81,7 @@ def stage_coco_for_dfine(
         fusion=early,
         data_root=data_root,
         split="val",
+        max_images=max_val_images,
     )
     if gated:
         thermal_train_img.mkdir(parents=True, exist_ok=True)
@@ -65,11 +90,13 @@ def stage_coco_for_dfine(
             src_images=data_root / "images" / "train" / "thermal",
             dst_images=thermal_train_img,
             src_ann=data_root / "annotations" / "instances_train.json",
+            max_images=max_train_images,
         )
         _copy_modality_images(
             src_images=data_root / "images" / "val" / "thermal",
             dst_images=thermal_val_img,
             src_ann=data_root / "annotations" / "instances_val.json",
+            max_images=max_val_images,
         )
     if train_map != val_map:
         raise ValueError(
@@ -95,6 +122,8 @@ def stage_coco_for_dfine(
             if gated
             else ("early_concat_blend" if early else "single_modality")
         ),
+        "max_train_images": max_train_images,
+        "max_val_images": max_val_images,
     }
     if gated:
         out["thermal_train_img"] = thermal_train_img
@@ -121,10 +150,11 @@ def _copy_modality_images(
     src_images: Path,
     dst_images: Path,
     src_ann: Path,
+    max_images: int | None = None,
 ) -> None:
     if not src_ann.is_file():
         raise FileNotFoundError(f"missing annotation: {src_ann}")
-    payload = json.loads(src_ann.read_text(encoding="utf-8"))
+    payload = _subset_coco(json.loads(src_ann.read_text(encoding="utf-8")), max_images)
     for image in payload.get("images") or []:
         name = str(image["file_name"])
         src = src_images / name
@@ -142,10 +172,11 @@ def _copy_split(
     fusion: bool,
     data_root: Path,
     split: str,
+    max_images: int | None = None,
 ) -> dict[str, Any]:
     if not src_ann.is_file():
         raise FileNotFoundError(f"missing annotation: {src_ann}")
-    payload = json.loads(src_ann.read_text(encoding="utf-8"))
+    payload = _subset_coco(json.loads(src_ann.read_text(encoding="utf-8")), max_images)
     from PIL import Image
     import numpy as np
 

@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0.0",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_v1",
+  "protocol_version": 1,
+  "title": "RGB-T small-object improvement under D-FINE (Scientist Lab Autonomous Loop v1)",
+  "goal": {
+    "improve": "small_object_detection",
+    "task_type": "rgbt_detection",
+    "notes": "Constitution for autonomous loop; historical replay baseline A2→K→A4→P01."
+  },
+  "baseline": {
+    "model": "DFINE-S",
+    "dataset": "dataset:rgbt_tiny_v1",
+    "adapter": "dfine",
+    "reference_run_id": null
+  },
+  "objective": {
+    "primary": { "metric": "APS", "direction": "maximize" },
+    "secondary": [
+      { "metric": "mAP50_95", "direction": "maximize" },
+      { "metric": "mAP50", "direction": "maximize" }
+    ]
+  },
+  "editable_scope": [
+    "fusion",
+    "neck",
+    "loss",
+    "optimizer",
+    "hyperparameter",
+    "augmentation"
+  ],
+  "frozen_scope": [
+    "dataset_split",
+    "evaluator",
+    "metric_definition",
+    "baseline_result",
+    "gate_rule",
+    "human_permission_policy"
+  ],
+  "constraints": {
+    "params_m": { "max": 20 },
+    "flops_g": { "max": 65 },
+    "gpu_memory_gb": { "max": 24 },
+    "max_runtime": "12h"
+  },
+  "experiment_budget": {
+    "probe": "10min",
+    "validation": "60min",
+    "formal": "approval_required"
+  },
+  "risk_policy": {
+    "probe_training": "auto",
+    "full_training": "approval_required",
+    "install_dependency": "approval_required",
+    "dataset_change": "forbidden",
+    "evaluator_change": "forbidden",
+    "code_outside_editable": "forbidden"
+  },
+  "decision_policy": {
+    "keep_requires": { "primary_not_worse_than": -0.1 },
+    "validate_if": { "primary_gain_at_least": 0.5 },
+    "discard_if": { "primary_worse_than": -0.5 }
+  },
+  "stop_rules": {
+    "max_rounds": 5,
+    "max_consecutive_discards": 3,
+    "max_execution_failures": 2,
+    "stop_if_no_improvement_for": 3,
+    "max_duplicate_plan_rejects": 3
+  },
+  "fingerprint_id": "FP-RGBT-DFINE-V1",
+  "claim_policy": {
+    "allow_scientific_claims": false,
+    "allow_significance_claim": false,
+    "allow_sota_claim": false,
+    "default_claim_level": "exploratory_comparison"
+  },
+  "notes": "Human Gate may approve approval_required only. Forbidden/frozen require Protocol Amendment."
+}

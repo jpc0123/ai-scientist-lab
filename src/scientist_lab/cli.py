@@ -6,10 +6,15 @@ import sys
 from pathlib import Path
 
 from scientist_lab import __version__
-from scientist_lab.iteration.service import IterationService
 from scientist_lab.iteration.workflow import InvalidIterationTransition
 from scientist_lab.protocols.verifier import ProtocolViolationError
-from scientist_lab.services.experiment_service import ExperimentService, load_contract
+
+
+def _experiment_service():
+    """Lazy: ExperimentService imports docker. Freeze manager-run must not."""
+    from scientist_lab.services.experiment_service import ExperimentService
+
+    return ExperimentService()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1066,6 +1071,94 @@ def build_parser() -> argparse.ArgumentParser:
         help="When executing, do not wait for completion",
     )
 
+    dfine_adapter = sub.add_parser(
+        "dfine-adapter-run",
+        help=(
+            "Freeze GateEngine + DFINEAdapter (default dry-run). "
+            "--execute wires live_runner to CUDA orchestrator; GPU not used unless --execute"
+        ),
+    )
+    dfine_adapter.add_argument("--protocol", required=True, type=Path)
+    dfine_adapter.add_argument("--plan", required=True, type=Path)
+    dfine_adapter.add_argument("--output-dir", required=True, type=Path)
+    dfine_adapter.add_argument(
+        "--execute",
+        action="store_true",
+        help="Call CUDA Fast Eval orchestrator (requires live_ready / image)",
+    )
+    dfine_adapter.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail live execute if doctor live_ready is false",
+    )
+
+    manager_run = sub.add_parser(
+        "manager-run",
+        help=(
+            "Freeze Manager state machine (default dry-run / REPLAY). "
+            "--execute uses make_cuda_live_runner after Gate APPROVED; "
+            "--require-live-ready refuses GPU and forged metrics when doctor is false"
+        ),
+    )
+    manager_run.add_argument("--protocol", required=True, type=Path)
+    manager_run.add_argument("--plan", required=True, type=Path)
+    manager_run.add_argument("--output-dir", required=True, type=Path)
+    manager_run.add_argument(
+        "--execute",
+        action="store_true",
+        help="REAL GPU via Manager → make_cuda_live_runner (not a direct Adapter bypass)",
+    )
+    manager_run.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail (exit 1) if CUDA doctor live_ready is false; do not forge metrics",
+    )
+    manager_run.add_argument(
+        "--max-steps",
+        type=int,
+        default=32,
+        help="Hard cap for Manager.run_until (default 32)",
+    )
+    manager_run.add_argument(
+        "--max-extra-rounds",
+        type=int,
+        default=0,
+        help="Extra rounds after the seed plan (default 0 = single round). 1 = two GPU rounds.",
+    )
+    manager_run.add_argument(
+        "--baseline-metrics",
+        type=Path,
+        default=None,
+        help="Optional JSON of baseline metrics for Rubric delta (does not invent APS)",
+    )
+
+    claim_gate = sub.add_parser(
+        "claim-gate",
+        help=(
+            "Deterministic ClaimGate on an existing run directory (no GPU). "
+            "KEEP ≠ Claim. Does not overwrite review_decision."
+        ),
+    )
+    claim_gate.add_argument("--run-dir", required=True, type=Path)
+    claim_gate.add_argument(
+        "--claim",
+        type=Path,
+        default=None,
+        help="Candidate claim JSON; default derives C0/C1 from plan+baseline",
+    )
+    claim_gate.add_argument(
+        "--baseline-run-dir",
+        type=Path,
+        default=None,
+        help="Optional matched baseline Manager run directory for C1 pairing",
+    )
+    claim_gate.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Optional path to write claim_gate.json",
+    )
+
     dfine_cuda_evidence = sub.add_parser(
         "dfine-cuda-record-evidence",
         help="Record Vendor/stand-in Fast Eval evidence from an execution (v2.3.3)",
@@ -1688,9 +1781,45 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.command == "manager-run":
+        from scientist_lab.core.manager_cli import run_manager_from_files
+
+        result = run_manager_from_files(
+            args.protocol,
+            args.plan,
+            output_dir=args.output_dir,
+            execute=bool(args.execute),
+            require_live_ready=bool(args.require_live_ready),
+            max_steps=int(args.max_steps),
+            max_extra_rounds=int(args.max_extra_rounds),
+            baseline_metrics_path=getattr(args, "baseline_metrics", None),
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        return int(result.get("exit_code") or 0)
+
+    if args.command == "claim-gate":
+        from scientist_lab.core.claim_gate import evaluate_run_dir
+        from scientist_lab.core.schema_registry import load_json
+
+        claim = load_json(args.claim) if getattr(args, "claim", None) else None
+        verdict = evaluate_run_dir(
+            args.run_dir,
+            claim=claim,
+            baseline_run_dir=getattr(args, "baseline_run_dir", None),
+        )
+        out = getattr(args, "output", None)
+        if out is not None:
+            Path(out).parent.mkdir(parents=True, exist_ok=True)
+            Path(out).write_text(
+                json.dumps(verdict, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        print(json.dumps(verdict, ensure_ascii=False, indent=2))
+        return 0
+
     if args.command in {"doctor", "system-doctor"}:
         try:
-            service = ExperimentService()
+            service = _experiment_service()
             report = service.system_doctor()
             print(json.dumps(report, ensure_ascii=False, indent=2))
             overall = str(report.get("overall") or "ok")
@@ -1701,7 +1830,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "recover":
         try:
-            service = ExperimentService()
+            service = _experiment_service()
             dry_run = not bool(getattr(args, "apply", False))
             report = service.recover(dry_run=dry_run)
             print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -1712,7 +1841,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "demo-create":
         try:
-            service = ExperimentService()
+            service = _experiment_service()
             result = service.demos.create(
                 args.kind, force=bool(getattr(args, "force", False))
             )
@@ -2033,7 +2162,6 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     if args.command == "workbench":
-        from pathlib import Path
         import subprocess
 
         from scientist_lab.workbench.config import (
@@ -2113,7 +2241,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    service = ExperimentService()
+    from scientist_lab.iteration.service import IterationService
+    from scientist_lab.services.experiment_service import load_contract
+
+    service = _experiment_service()
     iteration = IterationService(service)
 
     if args.command == "run":
@@ -3470,6 +3601,29 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         status = str((data.get("run") or {}).get("status") or data.get("status") or "")
         return 0 if status == "completed" else 1
+
+    if args.command == "dfine-adapter-run":
+        from scientist_lab.adapters.dfine.run_loop import run_gated_dfine_from_files
+
+        try:
+            data = run_gated_dfine_from_files(
+                args.protocol,
+                args.plan,
+                output_dir=args.output_dir,
+                execute=bool(args.execute),
+                require_live_ready=bool(args.require_live_ready),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        gate = str((data.get("gate") or {}).get("status") or "")
+        if gate != "APPROVED":
+            return 2
+        if args.execute:
+            status = str((data.get("handle") or {}).get("status") or "")
+            return 0 if status == "completed" else 1
+        return 0
 
     if args.command == "dfine-cuda-record-evidence":
         try:

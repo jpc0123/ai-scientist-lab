@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/experiment_run.schema.json",
+  "title": "ExperimentRun",
+  "description": "Aggregate root for one round: holds three-field state and references Plan/Contract/Result/Review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "project_id",
+    "protocol_id",
+    "protocol_version",
+    "run_state",
+    "evidence_status",
+    "review_decision"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "run_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "project_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "protocol_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "protocol_version": { "type": "integer", "minimum": 1 },
+    "round_index": { "type": "integer", "minimum": 0 },
+    "plan_id": { "type": ["string", "null"] },
+    "parent_run_id": { "type": ["string", "null"] },
+    "run_state": { "$ref": "common.schema.json#/$defs/run_state" },
+    "evidence_status": { "$ref": "common.schema.json#/$defs/evidence_status" },
+    "review_decision": { "$ref": "common.schema.json#/$defs/review_decision" },
+    "experiment_sha": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/sha" },
+        { "type": "null" }
+      ]
+    },
+    "best_sha_at_start": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/sha" },
+        { "type": "null" }
+      ]
+    },
+    "contract_ref": { "type": ["string", "null"] },
+    "result_ref": { "type": ["string", "null"] },
+    "review_ref": { "type": ["string", "null"] },
+    "scientific_outcome": {
+      "$ref": "common.schema.json#/$defs/scientific_outcome",
+      "description": "Read-only projection; do not treat as a second reviewer."
+    },
+    "fingerprint_id": { "type": ["string", "null"] },
+    "last_error": { "type": ["string", "null"] },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}
