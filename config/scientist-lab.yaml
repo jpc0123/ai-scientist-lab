@@ -16,12 +16,27 @@ artifacts:
 web:
   enabled: true
   host: 127.0.0.1
-  port: 5173
+  # 5173 reserved for other local projects; Lab UI uses 5174.
+  port: 5174
   open_browser: true
 
 llm:
   default_provider: mock
   require_quality_gate: true
+
+# v2.5-A: LLM Planner is opt-in. Default remains the freeze rules Planner.
+# Opening llm does not bypass Gate, does not change Adapter HOW, and does not
+# unfreeze MVP. API keys stay in environment variables (never this file).
+planner:
+  backend: rules
+
+# v2.5-C: LLM Reviewer is opt-in. Default remains the freeze rules Reviewer.
+# Opening llm does not overwrite DecisionRubric, ClaimGate, or MemoryWriter.
+reviewer:
+  backend: rules
+
+# v2.5-D: Human-gated probe REAL loop. manager-run defaults remain rules.
+# llm-real-loop is the opt-in closed loop. GPU (--execute) is independent of LLM --live.
 
 security:
   allow_network_by_default: false

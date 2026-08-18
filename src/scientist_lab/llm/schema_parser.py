@@ -126,8 +126,17 @@ def parse_and_validate(
     content: str,
     schema: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
-    """Extract JSON and optionally validate. Returns (data, errors)."""
-    data = extract_json_object(content)
+    """Extract JSON and optionally validate. Returns (data, errors).
+
+    Plain chat replies are not JSON. Skip parsing unless a schema was requested,
+    and never raise JSONDecodeError for free-form text.
+    """
+    if not schema:
+        return {}, []
+    try:
+        data = extract_json_object(content)
+    except (ValueError, json.JSONDecodeError) as exc:
+        return {}, [str(exc)]
     errors = validate_against_schema(data, schema)
     return data, errors
 

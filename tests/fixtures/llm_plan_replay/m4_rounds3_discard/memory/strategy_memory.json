@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "strategies": {
+    "STRATEGY-run_plan_round1_neck_hr-001": {
+      "strategy_id": "STRATEGY-run_plan_round1_neck_hr-001",
+      "action": "deprioritize",
+      "target": "neck",
+      "reason_lesson_ids": [
+        "LESSON-run_plan_round1_neck_hr-001"
+      ],
+      "status": "active"
+    }
+  }
+}

@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from scientist_lab.agents.critic import MockCritic
 from scientist_lab.agents.models import PlanningContext, PlannerOutput
-from scientist_lab.agents.planner import MockPlanner
+from scientist_lab.agents.legacy_planner import MockPlanner
 from scientist_lab.planning.candidate_verifier import CandidateVerifier
 from scientist_lab.storage.artifact_store import write_json
 

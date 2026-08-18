@@ -27,6 +27,11 @@ def run_manager_from_files(
     baseline_metrics: Mapping[str, Any] | None = None,
     baseline_metrics_path: Path | str | None = None,
     max_extra_rounds: int = 0,
+    planner_backend: str | None = None,
+    reviewer_backend: str | None = None,
+    llm_provider: Any | None = None,
+    llm_live: bool = False,
+    fallback_to_rules: bool = False,
 ) -> dict[str, Any]:
     """Walk the Manager state machine. Default is dry-run / REPLAY.
 
@@ -34,6 +39,9 @@ def run_manager_from_files(
     ``make_cuda_live_runner`` after CUDA doctor ``live_ready``. Does not bypass
     Gate. Does not forge metrics.json. ``max_extra_rounds`` default 0 keeps
     a single seed round.
+
+    v2.5-D: ``planner_backend`` / ``reviewer_backend`` default rules (None →
+    Planner()/Reviewer() constructors, still rules unless env opens llm).
     """
     protocol = load_json(protocol_path)
     plan = load_json(plan_path)
@@ -58,6 +66,11 @@ def run_manager_from_files(
         doctor_root=root,
         baseline_metrics=seeded_baseline or None,
         max_extra_rounds=max(0, int(max_extra_rounds)),
+        planner_backend=planner_backend,
+        reviewer_backend=reviewer_backend,
+        llm_provider=llm_provider,
+        llm_live=bool(llm_live),
+        fallback_to_rules=bool(fallback_to_rules),
     )
     shutil.copyfile(plan_path, mgr.plan_path)
     doctor = mgr.probe_doctor()

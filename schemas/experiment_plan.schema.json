@@ -103,6 +103,36 @@
     },
     "rationale": { "type": "string" },
     "decision_summary": { "$ref": "common.schema.json#/$defs/decision_summary" },
-    "notes": { "type": "string" }
+    "notes": { "type": "string" },
+    "llm_trace": {
+      "type": "object",
+      "description": "v2.5-A attachment. Not a fifth Agent. Gate still evaluates this Plan's scientific fields only.",
+      "additionalProperties": false,
+      "properties": {
+        "backend": { "type": "string" },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "prompt_hash": { "type": "string" },
+        "raw_output": { "type": "string" },
+        "parsed": { "type": "object" },
+        "selected_candidate_id": { "type": "string" },
+        "memory_refs": { "$ref": "common.schema.json#/$defs/memory_refs" }
+      }
+    },
+    "candidate_experiments": {
+      "type": "array",
+      "description": "Non-selected LLM candidates as attachments. Only the selected Plan is sent to Gate.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "candidate_id": { "type": "string" },
+          "requested_module": { "$ref": "common.schema.json#/$defs/scope_token" },
+          "hypothesis": { "type": "string" },
+          "summary": { "type": "string" }
+        }
+      },
+      "default": []
+    }
   }
 }

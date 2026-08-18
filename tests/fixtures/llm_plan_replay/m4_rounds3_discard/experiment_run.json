@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "run_plan_round1_neck_hr",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_v1",
+  "protocol_version": 1,
+  "round_index": 1,
+  "plan_id": "plan_round1_neck_hr",
+  "parent_run_id": "EXP-007",
+  "run_state": "MEMORY_WRITTEN",
+  "evidence_status": "VALID",
+  "review_decision": "DISCARD",
+  "fingerprint_id": "FP-RGBT-DFINE-V1",
+  "updated_at": "2026-08-15T06:01:32.314316+00:00",
+  "contract_ref": "contract.json",
+  "result_ref": "result.json",
+  "scientific_outcome": "INCONCLUSIVE",
+  "review_ref": "review.json"
+}

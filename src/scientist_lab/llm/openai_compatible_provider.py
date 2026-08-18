@@ -269,11 +269,13 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         mapped = map_http_error(http_resp.status_code, http_resp.body)
         if mapped is not None:
             raise mapped
+        raw_body = (http_resp.body or "").strip() or "{}"
         try:
-            payload = json.loads(http_resp.body or "{}")
+            payload = json.loads(raw_body)
         except json.JSONDecodeError as exc:
+            snippet = raw_body[:180].replace("\n", " ")
             raise StructuredOutputValidationError(
-                "provider returned non-JSON body"
+                f"provider returned non-JSON body ({exc}); snippet={snippet!r}"
             ) from exc
         if not isinstance(payload, dict):
             raise StructuredOutputValidationError("provider JSON root must be an object")

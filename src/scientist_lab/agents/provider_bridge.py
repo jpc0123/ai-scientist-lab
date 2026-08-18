@@ -16,7 +16,7 @@ from pydantic import SecretStr
 
 from scientist_lab.agents.critic import Critic, CriticReview, MockCritic
 from scientist_lab.agents.models import CandidateExperiment, PlanningContext, PlannerOutput
-from scientist_lab.agents.planner import MockPlanner, Planner
+from scientist_lab.agents.legacy_planner import MockPlanner, Planner
 from scientist_lab.llm.audit import AuditingProvider
 from scientist_lab.llm.context_codec import planning_context_to_planner_request
 from scientist_lab.llm.context_sanitizer import sanitize_planning_context

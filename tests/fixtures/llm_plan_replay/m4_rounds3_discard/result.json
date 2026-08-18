@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "run_plan_round1_neck_hr",
+  "metrics": {
+    "APS": 0.0,
+    "mAP50_95": 0.0,
+    "mAP50": 0.0,
+    "params_m": null,
+    "flops_g": null,
+    "gpu_memory_gb": null
+  },
+  "artifacts": {
+    "paths": [
+      "metrics.json",
+      "checkpoint_selection.json"
+    ],
+    "missing_expected": []
+  },
+  "execution": {
+    "status": "success",
+    "exit_code": 0,
+    "runtime_seconds": null,
+    "error_type": null,
+    "error_message": null
+  },
+  "raw_metric_refs": [
+    "omitted_from_fixture: .run/real_fast_eval_m4_rounds3/run/metrics.json",
+    "omitted_from_fixture: .run/real_fast_eval_m4_rounds3/run/combined.log"
+  ]
+}

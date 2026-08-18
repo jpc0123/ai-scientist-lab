@@ -54,6 +54,32 @@ _FALLBACK_HOW = {
     "existing_capability": "rgb_hybrid_encoder",
 }
 
+# Modules with a distinct existing HOW mapping. LLM Planner may request only these.
+HOW_MODULES = frozenset({"neck", "fusion"})
+
+
+def list_adapter_capabilities() -> list[dict[str, Any]]:
+    """Existing Adapter HOW surface. Not a new operator catalog; no FDPN invention."""
+    return [
+        {
+            "module": "neck",
+            "input_mode": _NECK_HOW["input_mode"],
+            "fusion_method": _NECK_HOW["fusion_method"],
+            "neck_type": _NECK_HOW["neck_type"],
+            "existing_capability": _NECK_HOW["existing_capability"],
+            "invented_operators": [],
+        },
+        {
+            "module": "fusion",
+            "input_mode": _FUSION_HOW["input_mode"],
+            "fusion_method": _FUSION_HOW["fusion_method"],
+            "neck_type": _FUSION_HOW["neck_type"],
+            "existing_capability": _FUSION_HOW["existing_capability"],
+            "invented_operators": [],
+        },
+    ]
+
+
 # Minimum formal that ClaimGate can accept: full split, non-probe subset,
 # enough steps that APS is not a 16/8 untrained observation. Not 640/20ep.
 _FORMAL_TRAIN_KNOBS = {

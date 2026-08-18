@@ -65,6 +65,45 @@ class MemoryWriter:
         self._dump(self.lessons_path, {"schema_version": "1.0.0", "lessons": lessons})
         return dict(lesson)
 
+    def persist_semantic_proposal(
+        self,
+        proposal: Mapping[str, Any],
+        *,
+        run_id: str,
+        review_decision: str,
+        lesson_type: str = "negative_evidence",
+        module: str = "unknown",
+        task: str = "rgbt_detection",
+        metric: str = "APS",
+        delta: float | None = None,
+    ) -> dict[str, Any]:
+        """Accept an LLM Reviewer lesson proposal only after evidence_refs validate.
+
+        LLM does not write Memory. Missing evidence_refs is a hard refuse.
+        Does not persist strategies (Reviewer LLM is not HOW / not Rubric).
+        """
+        from scientist_lab.llm.reviewer_contract import (
+            ReviewerContractError,
+            proposal_to_research_lesson,
+        )
+
+        if not list(proposal.get("evidence_refs") or []):
+            raise InvariantError("semantic proposal refused: missing evidence_refs")
+        try:
+            lesson = proposal_to_research_lesson(
+                proposal,
+                run_id=str(run_id),
+                review_decision=str(review_decision),
+                lesson_type=str(lesson_type),
+                module=str(module),
+                task=str(task),
+                metric=str(metric),
+                delta=delta,
+            )
+        except ReviewerContractError as exc:
+            raise InvariantError(str(exc)) from exc
+        return self.persist_lesson(lesson)
+
     def persist_strategy(self, strategy: Mapping[str, Any]) -> dict[str, Any]:
         validate_named("strategy", dict(strategy))
         lessons = self.load_lessons()

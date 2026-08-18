@@ -8,7 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-LLMPurpose = Literal["planner", "critic", "other"]
+LLMPurpose = Literal["planner", "critic", "reviewer", "other"]
 
 
 class TokenUsage(BaseModel):

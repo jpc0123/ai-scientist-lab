@@ -1,8 +1,8 @@
 """Deterministic N→N+1 Plan construction. Not a Planner.
 
-Planner (WHAT/WHY, LLM) is out of scope. This helper only proves that
-Round N MemoryWriter output is citable by a following ExperimentPlan.
-Adapter still does HOW and must not invent modules.
+Planner (WHAT/WHY) may use rules or an explicit LLM backend; this helper
+only proves that Round N MemoryWriter output is citable by a following
+ExperimentPlan. Adapter still does HOW and must not invent modules.
 """
 
 from __future__ import annotations

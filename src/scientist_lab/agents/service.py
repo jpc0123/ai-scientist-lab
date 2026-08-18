@@ -15,7 +15,7 @@ from scientist_lab.agents.models import (
     PlanningContext,
     PlannerOutput,
 )
-from scientist_lab.agents.planner import MockPlanner, Planner
+from scientist_lab.agents.legacy_planner import MockPlanner, Planner
 from scientist_lab.agents.ranker import rank_candidates
 from scientist_lab.agents.repository import AgentPlanRepository
 from scientist_lab.domain.models import new_id

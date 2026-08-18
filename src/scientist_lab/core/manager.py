@@ -25,7 +25,7 @@ from scientist_lab.core.exception_handler import next_exception_action
 from scientist_lab.core.gate_engine import GateEngine, GateStatus
 from scientist_lab.core.git_manager import GitManager, GitManagerError, is_git_repo
 from scientist_lab.release.git_adapter import GitAdapterError
-from scientist_lab.core.invariants import evaluate_stop_rules
+from scientist_lab.core.invariants import InvariantError, evaluate_stop_rules
 from scientist_lab.core.memory_writer import MemoryWriter
 from scientist_lab.core.planner import PlanRefused, Planner
 from scientist_lab.core.result_parser import ResultParser
@@ -135,6 +135,13 @@ class Manager:
         git_manager: GitManager | None = None,
         git_root: Path | str | None = None,
         git_record_paths: Sequence[str] | None = None,
+        planner: Any | None = None,
+        reviewer: Any | None = None,
+        planner_backend: str | None = None,
+        reviewer_backend: str | None = None,
+        llm_provider: Any | None = None,
+        llm_live: bool = False,
+        fallback_to_rules: bool = False,
     ) -> None:
         self.root = Path(project_dir)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -173,8 +180,18 @@ class Manager:
         if baseline_file:
             self.baseline_metrics.update(baseline_file)
         self.adapter = adapter
-        self.planner = Planner()
-        self.reviewer = Reviewer()
+        self.planner = planner if planner is not None else Planner(
+            backend=planner_backend,
+            provider=llm_provider,
+            live=bool(llm_live),
+            fallback_to_rules=bool(fallback_to_rules),
+        )
+        self.reviewer = reviewer if reviewer is not None else Reviewer(
+            backend=reviewer_backend,
+            provider=llm_provider,
+            live=bool(llm_live),
+            fallback_to_rules=bool(fallback_to_rules),
+        )
         self.parser = ResultParser()
         self.evidence = EvidenceValidator()
         self.gate = GateEngine()
@@ -670,9 +687,9 @@ class Manager:
         self, doc: dict[str, Any], state: ExperimentRunState, status: dict[str, Any]
     ) -> ManagerStep:
         existing = _load_optional(self.plan_path)
-        lessons = self.memory.load_lessons()
-        if existing is not None and not lessons:
-            # Seed / human-provided first Plan. Do not call Planner to invent refs.
+        if existing is not None and state.run_state == RunState.CREATED:
+            # Seed / human-provided Plan for this run. Preloaded Memory is allowed
+            # (v2.5-D cites historical lessons). Do not call Planner to replace it.
             validate_named("experiment_plan", existing)
             doc["plan_id"] = existing.get("plan_id")
             doc["round_index"] = int(existing.get("round_index") or doc.get("round_index") or 0)
@@ -1063,7 +1080,9 @@ class Manager:
             protocol=self.protocol,
             plan=plan,
             memory={"lessons": self.memory.load_lessons(), "strategies": self.memory.load_strategies()},
+            events=self.events,
         )
+        semantic_write = self._persist_semantic_proposal(packet, result=result, plan=plan)
         rd = ReviewDecisionValue(packet.review_decision)
         state = transition(state, review_decision=rd)
         _dump(self.review_path, packet.document)
@@ -1096,8 +1115,69 @@ class Manager:
                 "review": packet.document,
                 "git": git_report,
                 "claim_gate": claim_gate_doc,
+                "semantic_proposal": packet.semantic_proposal,
+                "semantic_write": semantic_write,
+                "reviewer_backend": getattr(self.reviewer, "backend", "rules"),
+                "review_source": packet.source,
             },
         )
+
+    def _persist_semantic_proposal(
+        self,
+        packet: Any,
+        *,
+        result: Mapping[str, Any],
+        plan: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """LLM Reviewer only proposes. MemoryWriter writes after evidence_refs."""
+        proposal = getattr(packet, "semantic_proposal", None)
+        if not proposal:
+            return {"attempted": False, "accepted": False}
+        lesson = packet.research_lessons[0] if packet.research_lessons else {}
+        primary = ((self.protocol.get("objective") or {}).get("primary") or {})
+        try:
+            written = self.memory.persist_semantic_proposal(
+                proposal,
+                run_id=str(result.get("run_id") or ""),
+                review_decision=str(packet.review_decision),
+                lesson_type=str(lesson.get("type") or "negative_evidence"),
+                module=str((lesson.get("scope") or {}).get("module") or "unknown"),
+                task=str((lesson.get("scope") or {}).get("task") or "rgbt_detection"),
+                metric=str(primary.get("metric") or "APS"),
+                delta=(packet.document.get("primary_metric_judgment") or {}).get("delta"),
+            )
+        except InvariantError as exc:
+            self._emit(
+                event_type="memory_write",
+                phase="review",
+                payload={
+                    "source": "memory_writer",
+                    "accepted": False,
+                    "reason": str(exc),
+                    "proposal_only_until_refs_validated": True,
+                },
+                run_id=str(result.get("run_id") or ""),
+                plan_id=plan.get("plan_id"),
+            )
+            return {"attempted": True, "accepted": False, "refused": str(exc)}
+        self._emit(
+            event_type="memory_write",
+            phase="review",
+            payload={
+                "source": "memory_writer",
+                "accepted": True,
+                "lesson_ids": [written.get("lesson_id")],
+                "proposal_only_until_refs_validated": True,
+            },
+            run_id=str(result.get("run_id") or ""),
+            plan_id=plan.get("plan_id"),
+            evidence_refs=[str(result.get("run_id") or "")],
+        )
+        return {
+            "attempted": True,
+            "accepted": True,
+            "lesson_id": written.get("lesson_id"),
+        }
 
     def _attach_claim_gate(
         self,

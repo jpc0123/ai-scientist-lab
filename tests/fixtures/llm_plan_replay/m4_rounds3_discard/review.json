@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "run_plan_round1_neck_hr",
+  "hypothesis_status": "REJECTED",
+  "review_decision": "DISCARD",
+  "reasoning_summary": "DISCARD from DecisionRubric: APS delta=-0.6, discard=True, validate=False, keep_ok=False, constraints_ok=True.",
+  "objective_check": {
+    "APS": {
+      "baseline": 0.6,
+      "current": 0.0,
+      "delta": -0.6
+    }
+  },
+  "constraint_check": {
+    "params_m": "NOT_CHECKED",
+    "flops_g": "NOT_CHECKED",
+    "gpu_memory_gb": "NOT_CHECKED"
+  },
+  "research_lessons": [
+    {
+      "lesson_id": "LESSON-run_plan_round1_neck_hr-001",
+      "type": "negative_evidence",
+      "statement": "Primary APS declined (-0.6) past discard_if; DISCARD candidate targeting neck.",
+      "status": "active",
+      "evidence": [
+        {
+          "run_id": "run_plan_round1_neck_hr",
+          "metric": "APS",
+          "delta": -0.6
+        }
+      ],
+      "scope": {
+        "task": "rgbt_detection",
+        "module": "neck"
+      },
+      "confidence": "medium",
+      "created_from": [
+        "run_plan_round1_neck_hr"
+      ],
+      "contradicted_by": [],
+      "supersedes": [],
+      "expires_when": []
+    }
+  ],
+  "strategies": [
+    {
+      "strategy_id": "STRATEGY-run_plan_round1_neck_hr-001",
+      "action": "deprioritize",
+      "target": "neck",
+      "reason_lesson_ids": [
+        "LESSON-run_plan_round1_neck_hr-001"
+      ],
+      "status": "active"
+    }
+  ],
+  "primary_metric_judgment": {
+    "metric": "APS",
+    "before": 0.6,
+    "after": 0.0,
+    "delta": -0.6,
+    "within_constraints": true
+  }
+}

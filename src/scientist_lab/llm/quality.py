@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from scientist_lab.agents.critic import CriticReview, MockCritic
 from scientist_lab.agents.models import CandidateExperiment, PlanningContext, PlannerOutput
-from scientist_lab.agents.planner import MockPlanner
+from scientist_lab.agents.legacy_planner import MockPlanner
 from scientist_lab.llm.context_codec import planning_context_to_planner_request
 from scientist_lab.llm.limits import ProviderLimits, estimate_cost_usd
 from scientist_lab.llm.models import TokenUsage

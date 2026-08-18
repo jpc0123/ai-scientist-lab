@@ -14,5 +14,9 @@ backups/*
 !backups/.gitkeep
 .scientist-worktrees/
 .run/
+.llm_plan_replay/
+.llm_review_replay/
 .env
 .DS_Store
+datasets/registered/
+experiment_apps/rgbt_detection_real/_bench_infer_*/

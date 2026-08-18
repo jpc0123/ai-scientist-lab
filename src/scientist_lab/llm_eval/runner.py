@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from scientist_lab.agents.critic import MockCritic
 from scientist_lab.agents.models import CandidateExperiment, PlanningContext
-from scientist_lab.agents.planner import MockPlanner
+from scientist_lab.agents.legacy_planner import MockPlanner
 from scientist_lab.domain.models import new_id
 from scientist_lab.llm.eval_suite import real_eval_gates
 from scientist_lab.llm_eval.aggregator import aggregate_scorecard, write_evaluation_artifacts

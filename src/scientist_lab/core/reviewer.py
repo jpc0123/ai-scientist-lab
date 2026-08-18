@@ -4,21 +4,27 @@ DecisionRubric computes objective/constraint checks. Reviewer maps those
 checks to review_decision + structured lessons/strategy. Not CoT.
 Does not recompute primary metrics. Does not run on non-VALID evidence.
 Does not start Planner.
+
+v2.5-C: optional LLM Gateway backend (same Gateway as Planner, Reviewer role
+prompt). Default remains rules. LLM may attach a semantic proposal; it must
+not overwrite review_decision or ClaimGate, and must not write Memory.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
 from scientist_lab.core.decision_rubric import RubricResult
 from scientist_lab.core.evidence_validator import EvidenceVerdict
 from scientist_lab.core.schema_registry import validate_named
 from scientist_lab.core.state_machine import ReviewDecisionValue
+from scientist_lab.instrumentation.appender import EventAppender
 
 
 class ReviewRefused(ValueError):
-    """Raised when Reviewer is asked to judge non-VALID evidence."""
+    """Raised when Reviewer is asked to judge non-VALID evidence or LLM fails closed."""
 
 
 @dataclass(frozen=True)
@@ -28,6 +34,9 @@ class ReviewPacket:
     decision_summary: dict[str, Any]
     research_lessons: list[dict[str, Any]]
     strategies: list[dict[str, Any]]
+    source: str = "rules_first"
+    semantic_proposal: dict[str, Any] | None = None
+    llm_trace: dict[str, Any] | None = None
 
     def to_memory_review(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -169,8 +178,37 @@ def _statement(
     )
 
 
+def resolve_reviewer_backend(explicit: str | None = None) -> str:
+    """Default is rules. llm only when constructor/CLI/env explicitly opens it."""
+    if explicit is not None and str(explicit).strip():
+        name = str(explicit).strip().lower()
+    else:
+        name = str(os.environ.get("SCIENTIST_LAB_REVIEWER_BACKEND") or "rules").strip().lower()
+    if name not in {"rules", "llm"}:
+        raise ReviewRefused(f"unknown reviewer_backend={name!r}; expected rules|llm")
+    return name
+
+
 class Reviewer:
-    """Thin Reviewer role. Rules-first; no LLM; no Planner."""
+    """Thin Reviewer role. Default rules-first; optional LLM Gateway backend.
+
+    LLM is not a fifth Agent. DecisionRubric still emits KEEP/DISCARD/REPLICATE.
+    Fail closed: bad JSON / review override / module-ineffective claims do not
+    silently fall back to rules unless fallback_to_rules=True.
+    """
+
+    def __init__(
+        self,
+        *,
+        backend: str | None = None,
+        provider: Any | None = None,
+        fallback_to_rules: bool = False,
+        live: bool = False,
+    ) -> None:
+        self.backend = resolve_reviewer_backend(backend)
+        self.provider = provider
+        self.fallback_to_rules = bool(fallback_to_rules)
+        self.live = bool(live)
 
     def review(
         self,
@@ -182,8 +220,44 @@ class Reviewer:
         protocol: Mapping[str, Any],
         plan: Mapping[str, Any] | None = None,
         memory: Mapping[str, Any] | None = None,
+        events: EventAppender | None = None,
     ) -> ReviewPacket:
-        del memory  # read-only context reserved for later; unused in rules-first MVP
+        packet = self._review_rules(
+            result=result,
+            evidence=evidence,
+            rubric=rubric,
+            contract=contract,
+            protocol=protocol,
+            plan=plan,
+        )
+        if self.backend != "llm":
+            return packet
+        try:
+            return self._attach_llm_semantics(
+                packet,
+                result=result,
+                evidence=evidence,
+                rubric=rubric,
+                protocol=protocol,
+                plan=plan or {},
+                memory=memory,
+                events=events,
+            )
+        except ReviewRefused:
+            if not self.fallback_to_rules:
+                raise
+            return packet
+
+    def _review_rules(
+        self,
+        *,
+        result: Mapping[str, Any],
+        evidence: EvidenceVerdict | Mapping[str, Any],
+        rubric: RubricResult | Mapping[str, Any],
+        contract: Mapping[str, Any],
+        protocol: Mapping[str, Any],
+        plan: Mapping[str, Any] | None = None,
+    ) -> ReviewPacket:
         status = _evidence_status(evidence)
         if status != "VALID" or not _review_allowed(evidence):
             raise ReviewRefused(
@@ -295,4 +369,173 @@ class Reviewer:
             decision_summary=decision_summary,
             research_lessons=[lesson],
             strategies=[strategy],
+            source="rules_first",
+        )
+
+    def _attach_llm_semantics(
+        self,
+        packet: ReviewPacket,
+        *,
+        result: Mapping[str, Any],
+        evidence: EvidenceVerdict | Mapping[str, Any],
+        rubric: RubricResult | Mapping[str, Any],
+        protocol: Mapping[str, Any],
+        plan: Mapping[str, Any],
+        memory: Mapping[str, Any] | None,
+        events: EventAppender | None,
+    ) -> ReviewPacket:
+        from scientist_lab.llm.config import redact_secrets
+        from scientist_lab.llm.errors import MissingAPIKeyError, RealProviderNotEnabledError
+        from scientist_lab.llm.gateway import complete_chat
+        from scientist_lab.llm.reviewer_contract import (
+            ReviewerContractError,
+            build_contract_input,
+            build_reviewer_request,
+            parse_reviewer_completion,
+            prompt_hash,
+        )
+
+        rubric_obj = _as_rubric(rubric)
+        evidence_dict = evidence.to_dict() if isinstance(evidence, EvidenceVerdict) else dict(evidence)
+        payload = build_contract_input(
+            protocol=protocol,
+            plan=plan,
+            result=result,
+            evidence=evidence_dict,
+            rubric={
+                "objective_check": rubric_obj.objective_check,
+                "constraint_check": rubric_obj.constraint_check,
+                "primary_delta": rubric_obj.primary_delta,
+                "constraints_ok": rubric_obj.constraints_ok,
+                "suggest_validate": rubric_obj.suggest_validate,
+                "suggest_discard_threshold": rubric_obj.suggest_discard_threshold,
+                "keep_threshold_ok": rubric_obj.keep_threshold_ok,
+            },
+            locked_review_decision=packet.review_decision,
+            document_hypothesis_status=str(packet.document.get("hypothesis_status") or ""),
+            memory=memory,
+        )
+        request = build_reviewer_request(payload)
+        hashed = prompt_hash(request.messages)
+        response = None
+        raw = ""
+        try:
+            response = complete_chat(
+                request,
+                provider=self.provider,
+                live=self.live,
+            )
+            raw = redact_secrets(response.content or "")
+            proposal = parse_reviewer_completion(response, payload)
+        except (MissingAPIKeyError, RealProviderNotEnabledError):
+            raise
+        except ReviewerContractError as exc:
+            self._emit_llm_failure(
+                protocol=protocol,
+                run_id=payload.run_id,
+                events=events,
+                prompt_hash=hashed,
+                raw=raw,
+                response=response,
+                reason=str(exc),
+                fallback=self.fallback_to_rules,
+            )
+            raise ReviewRefused(str(exc)) from exc
+        except Exception as exc:  # noqa: BLE001 — fail closed, do not invent semantics
+            self._emit_llm_failure(
+                protocol=protocol,
+                run_id=payload.run_id,
+                events=events,
+                prompt_hash=hashed,
+                raw=raw,
+                response=response,
+                reason=f"fail_closed: gateway error: {exc}",
+                fallback=self.fallback_to_rules,
+            )
+            raise ReviewRefused(f"fail_closed: gateway error: {exc}") from exc
+
+        if proposal.get("locked_review_decision") != packet.review_decision:
+            raise ReviewRefused("fail_closed: LLM must not override review_decision")
+
+        provider_name = response.provider if response is not None else "unknown"
+        model_name = response.model if response is not None else "unknown"
+        trace = {
+            "backend": "llm",
+            "provider": provider_name,
+            "model": model_name,
+            "prompt_hash": hashed,
+            "raw_output": raw,
+            "parsed": dict(proposal),
+            "rubric_locked": True,
+            "review_decision": packet.review_decision,
+        }
+        if events is not None:
+            events.append(
+                {
+                    "project_id": protocol["project_id"],
+                    "run_id": payload.run_id,
+                    "plan_id": plan.get("plan_id"),
+                    "protocol_version": protocol.get("protocol_version"),
+                    "fingerprint_id": protocol.get("fingerprint_id"),
+                    "event_type": "review_decision",
+                    "actor_role": "reviewer",
+                    "phase": "review",
+                    "evidence_refs": [payload.run_id],
+                    "decision_summary": dict(packet.decision_summary),
+                    "payload": {
+                        "source": "llm",
+                        "review_decision": packet.review_decision,
+                        "document_hypothesis_status": packet.document.get("hypothesis_status"),
+                        "semantic_hypothesis_status": proposal.get("hypothesis_status"),
+                        "provider": provider_name,
+                        "model": model_name,
+                        "prompt_hash": hashed,
+                        "raw_output": raw[:8000],
+                        "fail_closed": False,
+                        "fallback_to_rules": False,
+                        "proposal_only": True,
+                    },
+                }
+            )
+        return replace(
+            packet,
+            source="llm",
+            semantic_proposal=proposal,
+            llm_trace=trace,
+        )
+
+    def _emit_llm_failure(
+        self,
+        *,
+        protocol: Mapping[str, Any],
+        run_id: str,
+        events: EventAppender | None,
+        prompt_hash: str,
+        raw: str,
+        response: Any,
+        reason: str,
+        fallback: bool = False,
+    ) -> None:
+        if events is None:
+            return
+        events.append(
+            {
+                "project_id": protocol["project_id"],
+                "run_id": run_id,
+                "protocol_version": protocol.get("protocol_version"),
+                "fingerprint_id": protocol.get("fingerprint_id"),
+                "event_type": "review_decision",
+                "actor_role": "reviewer",
+                "phase": "review",
+                "payload": {
+                    "source": "llm",
+                    "fail_closed": True,
+                    "fallback_to_rules": bool(fallback),
+                    "reason": reason,
+                    "provider": getattr(response, "provider", None),
+                    "model": getattr(response, "model", None),
+                    "prompt_hash": prompt_hash,
+                    "raw_output": (raw or "")[:8000],
+                },
+            }
         )

@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "strategies": {
+    "STRATEGY-DEPRIORITIZE-NECK": {
+      "strategy_id": "STRATEGY-DEPRIORITIZE-NECK",
+      "action": "deprioritize",
+      "target": "neck",
+      "reason_lesson_ids": ["LESSON-NECK-DISCARD"],
+      "status": "active"
+    }
+  }
+}

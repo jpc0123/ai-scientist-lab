@@ -10,6 +10,13 @@ from scientist_lab.core.planner import (
     Planner,
     PlanRefused,
     propose_and_gate_next,
+    resolve_planner_backend,
 )
 
-__all__ = ["Planner", "PlanPacket", "PlanRefused", "propose_and_gate_next"]
+__all__ = [
+    "Planner",
+    "PlanPacket",
+    "PlanRefused",
+    "propose_and_gate_next",
+    "resolve_planner_backend",
+]

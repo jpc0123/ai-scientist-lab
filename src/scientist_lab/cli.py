@@ -1131,6 +1131,28 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional JSON of baseline metrics for Rubric delta (does not invent APS)",
     )
+    manager_run.add_argument(
+        "--planner-backend",
+        choices=["rules", "llm"],
+        default="rules",
+        help="v2.5-D: Planner cognitive backend. Default rules (freeze-safe). llm is opt-in.",
+    )
+    manager_run.add_argument(
+        "--reviewer-backend",
+        choices=["rules", "llm"],
+        default="rules",
+        help="v2.5-D: Reviewer cognitive backend. Default rules. Same Gateway, not a fifth Agent.",
+    )
+    manager_run.add_argument(
+        "--llm-live",
+        action="store_true",
+        help="Call a real OpenAI-compatible API for Planner/Reviewer. Independent of --execute GPU.",
+    )
+    manager_run.add_argument(
+        "--fallback-to-rules",
+        action="store_true",
+        help="Opt-in: on fail-closed LLM, fall back to rules Planner/Reviewer. Default off.",
+    )
 
     claim_gate = sub.add_parser(
         "claim-gate",
@@ -1157,6 +1179,137 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Optional path to write claim_gate.json",
+    )
+
+    llm_plan_replay = sub.add_parser(
+        "llm-plan-replay",
+        help=(
+            "v2.5-A: replay LLM Planner against a historical/stub run-dir. "
+            "Never executes GPU. Default provider=mock (no API key)."
+        ),
+    )
+    llm_plan_replay.add_argument("--run-dir", required=True, type=Path)
+    llm_plan_replay.add_argument(
+        "--live",
+        action="store_true",
+        help="Call a real OpenAI-compatible API (LLM_API_KEY/LLM_BASE_URL/LLM_MODEL). Still no GPU.",
+    )
+    llm_plan_replay.add_argument(
+        "--provider",
+        default="mock",
+        help="Offline provider when --live is not set (mock/fake). Default mock.",
+    )
+    llm_plan_replay.add_argument(
+        "--fallback-to-rules",
+        action="store_true",
+        help="Opt-in: on fail-closed LLM, record an event then use rules Planner. Default off.",
+    )
+    llm_plan_replay.add_argument(
+        "--ab",
+        action="store_true",
+        default=True,
+        help="A/B rules vs LLM into replay_report.json (default on; no GPU).",
+    )
+    llm_plan_replay.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Optional JSON report path (default: <run-dir>/.llm_plan_replay/replay_report.json)",
+    )
+
+    llm_review_replay = sub.add_parser(
+        "llm-review-replay",
+        help=(
+            "v2.5-C: replay LLM Reviewer against a historical/stub run-dir. "
+            "Never executes GPU. Default provider=mock (no API key). "
+            "Does not overwrite DecisionRubric KEEP/DISCARD."
+        ),
+    )
+    llm_review_replay.add_argument("--run-dir", required=True, type=Path)
+    llm_review_replay.add_argument(
+        "--live",
+        action="store_true",
+        help="Call a real OpenAI-compatible API (LLM_API_KEY/LLM_BASE_URL/LLM_MODEL). Still no GPU.",
+    )
+    llm_review_replay.add_argument(
+        "--provider",
+        default="mock",
+        help="Offline provider when --live is not set (mock/fake). Default mock.",
+    )
+    llm_review_replay.add_argument(
+        "--fallback-to-rules",
+        action="store_true",
+        help="Opt-in: on fail-closed LLM, keep the rules Rubric packet. Default off.",
+    )
+    llm_review_replay.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Optional JSON report path (default: <run-dir>/.llm_review_replay/replay_report.json)",
+    )
+
+    llm_real_loop = sub.add_parser(
+        "llm-real-loop",
+        help=(
+            "v2.5-D: Human-gated probe REAL loop. Historical DISCARD → LLM Reviewer "
+            "→ MemoryWriter → LLM Planner → Gate → optional --execute GPU. "
+            "Default dry-run. Does not bypass Gate. probe ≠ C1."
+        ),
+    )
+    llm_real_loop.add_argument(
+        "--run-dir",
+        type=Path,
+        default=None,
+        help="Historical Evidence pack (default: tests/fixtures/llm_plan_replay/m4_rounds3_discard)",
+    )
+    llm_real_loop.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Loop output (default: .run/v25d_llm_real_loop). gitignored.",
+    )
+    llm_real_loop.add_argument(
+        "--execute",
+        action="store_true",
+        help="Probe REAL GPU after Gate APPROVED. Human Gate for this probe only; formal still forbidden.",
+    )
+    llm_real_loop.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail (exit 1) if CUDA doctor live_ready is false; do not forge metrics",
+    )
+    llm_real_loop.add_argument(
+        "--planner-backend",
+        choices=["rules", "llm"],
+        default="llm",
+        help="This command defaults to llm (opt-in loop). manager-run still defaults rules.",
+    )
+    llm_real_loop.add_argument(
+        "--reviewer-backend",
+        choices=["rules", "llm"],
+        default="llm",
+        help="This command defaults to llm. Same Gateway, not a fifth Agent.",
+    )
+    llm_real_loop.add_argument(
+        "--live",
+        action="store_true",
+        help="LLM live API (LLM_API_KEY). Independent of --execute GPU.",
+    )
+    llm_real_loop.add_argument(
+        "--provider",
+        default="mock",
+        help="Offline LLM provider when --live is not set. Default mock.",
+    )
+    llm_real_loop.add_argument(
+        "--fallback-to-rules",
+        action="store_true",
+        help="Opt-in: on fail-closed LLM, fall back to rules. Default off.",
+    )
+    llm_real_loop.add_argument(
+        "--max-steps",
+        type=int,
+        default=32,
+        help="Hard cap for Manager.run_until (default 32)",
     )
 
     dfine_cuda_evidence = sub.add_parser(
@@ -1793,6 +1946,10 @@ def main(argv: list[str] | None = None) -> int:
             max_steps=int(args.max_steps),
             max_extra_rounds=int(args.max_extra_rounds),
             baseline_metrics_path=getattr(args, "baseline_metrics", None),
+            planner_backend=str(getattr(args, "planner_backend", "rules") or "rules"),
+            reviewer_backend=str(getattr(args, "reviewer_backend", "rules") or "rules"),
+            llm_live=bool(getattr(args, "llm_live", False)),
+            fallback_to_rules=bool(getattr(args, "fallback_to_rules", False)),
         )
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return int(result.get("exit_code") or 0)
@@ -1816,6 +1973,52 @@ def main(argv: list[str] | None = None) -> int:
             )
         print(json.dumps(verdict, ensure_ascii=False, indent=2))
         return 0
+
+    if args.command == "llm-plan-replay":
+        from scientist_lab.llm.plan_replay import run_llm_plan_replay
+
+        report = run_llm_plan_replay(
+            args.run_dir,
+            live=bool(args.live),
+            provider=str(args.provider or "mock"),
+            fallback_to_rules=bool(getattr(args, "fallback_to_rules", False)),
+            output=getattr(args, "output", None),
+            ab=bool(getattr(args, "ab", True)),
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
+        return 0 if report.get("ok") else 1
+
+    if args.command == "llm-review-replay":
+        from scientist_lab.llm.review_replay import run_llm_review_replay
+
+        report = run_llm_review_replay(
+            args.run_dir,
+            live=bool(args.live),
+            provider=str(args.provider or "mock"),
+            fallback_to_rules=bool(getattr(args, "fallback_to_rules", False)),
+            output=getattr(args, "output", None),
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
+        return 0 if report.get("ok") else 1
+
+    if args.command == "llm-real-loop":
+        from scientist_lab.llm.real_loop import run_v25d_real_loop
+
+        report = run_v25d_real_loop(
+            source_run_dir=getattr(args, "run_dir", None),
+            output_dir=getattr(args, "output_dir", None),
+            execute=bool(args.execute),
+            require_live_ready=bool(args.require_live_ready),
+            planner_backend=str(getattr(args, "planner_backend", "llm") or "llm"),
+            reviewer_backend=str(getattr(args, "reviewer_backend", "llm") or "llm"),
+            llm_live=bool(getattr(args, "live", False)),
+            provider=str(args.provider or "mock"),
+            fallback_to_rules=bool(getattr(args, "fallback_to_rules", False)),
+            max_steps=int(getattr(args, "max_steps", 32) or 32),
+            human_probe_permission=bool(args.execute),
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
+        return 0 if report.get("ok") else 1
 
     if args.command in {"doctor", "system-doctor"}:
         try:
