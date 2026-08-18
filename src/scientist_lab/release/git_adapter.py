@@ -30,6 +30,7 @@ _ALLOWED_VERBS = frozenset(
         "revert",
         "branch",
         "log",
+        "switch",
     }
 )
 
@@ -233,13 +234,29 @@ class GitAdapter:
             raise GitAdapterError("git add requires at least one path")
         return self._run(["add", "--", *cleaned], cwd=cwd, check=True)
 
-    def commit_message_file(self, message_file: Path, *, cwd: Path) -> str:
+    def commit_message_file(
+        self,
+        message_file: Path,
+        *,
+        cwd: Path,
+        allow_empty: bool = False,
+    ) -> str:
         """Create a commit; returns new commit SHA. Message comes from a file."""
         message_file = Path(message_file).resolve()
         if not message_file.is_file():
             raise GitAdapterError(f"commit message file missing: {message_file}")
-        self._run(["commit", "-F", str(message_file)], cwd=cwd, check=True)
+        args = ["commit", "-F", str(message_file)]
+        if allow_empty:
+            args.append("--allow-empty")
+        self._run(args, cwd=cwd, check=True)
         return self._run(["rev-parse", "HEAD"], cwd=cwd, check=True).stdout
+
+    def switch_detach(self, sha: str, *, cwd: Path | None = None) -> str:
+        """Move worktree to sha without deleting other commits. Not reset --hard."""
+        if not sha or sha.startswith("-"):
+            raise GitAdapterError("invalid switch sha")
+        self._run(["switch", "--detach", sha], cwd=cwd or self.repo_root, check=True)
+        return self.rev_parse("HEAD")
 
     def merge_no_ff(self, commit_sha: str, message_file: Path) -> str:
         """Merge commit into current HEAD with --no-ff. Returns merge commit SHA."""

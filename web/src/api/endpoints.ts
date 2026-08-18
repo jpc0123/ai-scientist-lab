@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./client";
 import type {
   ExecutionAttempt,
   Page,
@@ -567,5 +567,116 @@ export const api = {
     apiPost<Record<string, unknown>>(
       `/api/v1/real-loops/${sessionId}/export`,
       body || {},
+    ),
+
+  consoleSnapshot: () =>
+    apiGet<Record<string, unknown>>("/api/v1/console/snapshot"),
+  consoleAgents: (workspaceId?: string) =>
+    apiGet<Record<string, unknown>>(
+      workspaceId
+        ? `/api/v1/console/agents?workspace_id=${encodeURIComponent(workspaceId)}`
+        : "/api/v1/console/agents",
+    ),
+  consoleWorkspaces: () =>
+    apiGet<{ items: Array<Record<string, unknown>>; active_id?: string; total?: number }>(
+      "/api/v1/console/workspaces",
+    ),
+  consoleCreateWorkspace: (body?: {
+    title?: string;
+    kind?: string;
+    project_id?: string;
+    pack_id?: string;
+  }) => apiPost<Record<string, unknown>>("/api/v1/console/workspaces", body || {}),
+  consolePatchWorkspace: (
+    id: string,
+    body: {
+      title?: string;
+      kind?: string;
+      project_id?: string;
+      pack_id?: string;
+      active?: boolean;
+    },
+  ) => apiPatch<Record<string, unknown>>(`/api/v1/console/workspaces/${encodeURIComponent(id)}`, body),
+  consoleDeleteWorkspace: (id: string) =>
+    apiDelete<Record<string, unknown>>(`/api/v1/console/workspaces/${encodeURIComponent(id)}`),
+  consoleAddWorkspaceMemory: (id: string, text: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/console/workspaces/${encodeURIComponent(id)}/memory`,
+      { text },
+    ),
+  consoleDeleteWorkspaceMemory: (id: string, noteId: string) =>
+    apiDelete<Record<string, unknown>>(
+      `/api/v1/console/workspaces/${encodeURIComponent(id)}/memory/${encodeURIComponent(noteId)}`,
+    ),
+  consoleSessions: (workspaceId?: string) =>
+    apiGet<{ items: Array<Record<string, unknown>>; total?: number }>(
+      workspaceId
+        ? `/api/v1/console/sessions?workspace_id=${encodeURIComponent(workspaceId)}`
+        : "/api/v1/console/sessions",
+    ),
+  consoleCreateSession: (title?: string, workspaceId?: string) =>
+    apiPost<Record<string, unknown>>("/api/v1/console/sessions", {
+      ...(title ? { title } : {}),
+      ...(workspaceId ? { workspace_id: workspaceId } : {}),
+    }),
+  consoleSession: (id: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/console/sessions/${encodeURIComponent(id)}`),
+  consolePatchSession: (
+    id: string,
+    body: { title?: string; pinned?: boolean; active_agent?: string; workspace_id?: string },
+  ) => apiPatch<Record<string, unknown>>(`/api/v1/console/sessions/${encodeURIComponent(id)}`, body),
+  consoleDeleteSession: (id: string) =>
+    apiDelete<Record<string, unknown>>(`/api/v1/console/sessions/${encodeURIComponent(id)}`),
+  consoleAddMemory: (id: string, text: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/console/sessions/${encodeURIComponent(id)}/memory`,
+      { text },
+    ),
+  consoleDeleteMemory: (id: string, noteId: string) =>
+    apiDelete<Record<string, unknown>>(
+      `/api/v1/console/sessions/${encodeURIComponent(id)}/memory/${encodeURIComponent(noteId)}`,
+    ),
+  consoleSessionChat: (
+    id: string,
+    body: {
+      message: string;
+      agent?: string;
+      live?: boolean;
+    },
+  ) =>
+    apiPost<{ reply: Record<string, unknown>; session: Record<string, unknown> }>(
+      `/api/v1/console/sessions/${encodeURIComponent(id)}/chat`,
+      body,
+    ),
+  consoleChat: (body: {
+    message: string;
+    history?: Array<{ role: string; content?: string; text?: string }>;
+    live?: boolean;
+    agent?: string;
+  }) => apiPost<Record<string, unknown>>("/api/v1/console/chat", body),
+
+  localRuns: () => apiGet<Record<string, unknown>>("/api/v1/local-runs"),
+  localRun: (runId: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/local-runs/${encodeURIComponent(runId)}`,
+    ),
+  localRunFile: (runId: string, name: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/local-runs/${encodeURIComponent(runId)}/file?name=${encodeURIComponent(name)}`,
+    ),
+  localRunAction: (
+    runId: string,
+    body: {
+      action: "llm_plan_replay" | "llm_review_replay" | "manager_run";
+      live?: boolean;
+      execute?: boolean;
+      confirm_live?: boolean;
+      confirm_execute?: boolean;
+      provider?: string;
+    },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/local-runs/${encodeURIComponent(runId)}/actions`,
+      body,
     ),
 };

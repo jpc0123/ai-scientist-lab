@@ -102,6 +102,7 @@ export function LlmConfigPage() {
       setConn((s) => ({ ...s, api_key: "", clear_api_key: false }));
       await qc.invalidateQueries({ queryKey: ["llm-config"] });
       await qc.invalidateQueries({ queryKey: ["health"] });
+      await qc.invalidateQueries({ queryKey: ["console-snapshot"] });
     },
   });
 
@@ -172,6 +173,14 @@ export function LlmConfigPage() {
           <h2>{t("llm.connection")}</h2>
           <MetaGrid
             items={[
+              {
+                label: t("llm.provider"),
+                value: String(cfg.provider || "mock"),
+              },
+              {
+                label: t("llm.model"),
+                value: String(cfg.model || "—"),
+              },
               {
                 label: t("llm.keyStatus"),
                 value: keyPresent ? t("llm.keyConfigured") : t("llm.keyMissing"),
@@ -286,7 +295,7 @@ export function LlmConfigPage() {
 
           <button
             type="button"
-            className="btn"
+            className="btn-primary"
             disabled={saveConn.isPending}
             onClick={() => {
               setMessage("");

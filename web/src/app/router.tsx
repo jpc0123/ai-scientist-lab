@@ -37,12 +37,15 @@ import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
 import { LlmConfigPage } from "../pages/LlmConfigPage";
 import { RealLoopDetailPage, RealLoopsPage } from "../pages/RealLoopsPage";
 import { TrainingMonitorPage } from "../pages/TrainingMonitorPage";
+import { ClosedLoopPage } from "../pages/ClosedLoopPage";
 
 export function AppRouter() {
   return (
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/assistant" replace />} />
+        <Route path="loop" element={<ClosedLoopPage />} />
+        <Route path="loop/:runId" element={<ClosedLoopPage />} />
         <Route path="assistant" element={<ChatWorkspacePage />} />
         <Route path="guide" element={<GuidePage />} />
         <Route path="dashboard" element={<DashboardPage />} />

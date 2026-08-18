@@ -77,3 +77,40 @@ export async function apiPost<T>(
   }
   return body as T;
 }
+
+export async function apiPatch<T>(
+  path: string,
+  payload?: unknown,
+): Promise<T> {
+  const res = await fetch(path, {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  });
+  const body = await parseBody(res);
+  if (!res.ok) {
+    throw new ApiClientError(
+      res.status,
+      (body as ApiError) || res.statusText || "request failed",
+    );
+  }
+  return body as T;
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  const body = await parseBody(res);
+  if (!res.ok) {
+    throw new ApiClientError(
+      res.status,
+      (body as ApiError) || res.statusText || "request failed",
+    );
+  }
+  return body as T;
+}

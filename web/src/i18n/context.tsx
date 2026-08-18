@@ -33,7 +33,7 @@ function readInitialLocale(): Locale {
     /* ignore */
   }
   const nav = typeof navigator !== "undefined" ? navigator.language : "zh";
-  return nav.toLowerCase().startsWith("zh") ? "zh" : "en";
+  return nav.toLowerCase().startsWith("en") ? "en" : "zh";
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {

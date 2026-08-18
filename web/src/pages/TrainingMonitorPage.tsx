@@ -24,6 +24,11 @@ type MonitorRow = {
   stage?: string | null;
   epoch?: number | null;
   epochs_total?: number | null;
+  step?: number | null;
+  steps_total?: number | null;
+  loss?: number | null;
+  eta?: string | null;
+  status_line?: string | null;
   mAP50_95?: number | null;
   best_mAP50_95?: number | null;
   error_message?: string | null;
@@ -36,6 +41,7 @@ type MonitorRow = {
   started_at?: string | null;
   completed_at?: string | null;
   failure_classification?: FailureClass | null;
+  resume_note?: string | null;
 };
 
 type Campaign = {
@@ -44,6 +50,7 @@ type Campaign = {
   failed?: boolean;
   updated_at?: string | null;
   log_tail?: string;
+  note?: string | null;
   meta?: Record<string, unknown>;
 };
 
@@ -55,6 +62,19 @@ function pct(value: number | null | undefined): string {
 function fmtMap(value: number | null | undefined): string {
   if (value == null || Number.isNaN(Number(value))) return "—";
   return Number(value).toFixed(4);
+}
+
+function fmtLoss(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  return Number(value).toFixed(3);
+}
+
+function shortNode(node: string | undefined): string {
+  if (!node) return "—";
+  return node
+    .replace(/^rgbt_v25_/, "")
+    .replace(/_a2_seed43_/, " · ")
+    .replace(/_/g, " ");
 }
 
 function statusPill(row: MonitorRow): string {
@@ -77,18 +97,22 @@ function ProgressBar({ value }: { value: number | null | undefined }) {
   );
 }
 
-function RunCard({ row }: { row: MonitorRow }) {
-  const [openLog, setOpenLog] = useState(false);
+function RunCard({ row, emphasize }: { row: MonitorRow; emphasize?: boolean }) {
+  const [openLog, setOpenLog] = useState(Boolean(emphasize));
   return (
-    <article className={`panel monitor-card ${row.is_failed ? "monitor-card-fail" : ""}`}>
+    <article
+      className={`panel monitor-card ${row.is_failed ? "monitor-card-fail" : ""} ${
+        emphasize ? "monitor-card-live" : ""
+      }`}
+    >
       <div className="monitor-card-head">
         <div>
+          <p className="muted" style={{ margin: 0 }}>
+            {shortNode(row.node_id)}
+          </p>
           <Link className="mono" to={row.href || `/executions/${row.execution_id}`}>
             {row.execution_id}
           </Link>
-          <p className="muted mono" style={{ margin: "0.25rem 0 0" }}>
-            {row.node_id || "—"}
-          </p>
         </div>
         <span className={statusPill(row)}>
           {row.status || "—"}
@@ -100,7 +124,7 @@ function RunCard({ row }: { row: MonitorRow }) {
 
       <div className="monitor-metrics">
         <div>
-          <span className="stat-label">进度</span>
+          <span className="stat-label">总进度</span>
           <strong>{pct(row.progress)}</strong>
         </div>
         <div>
@@ -111,6 +135,17 @@ function RunCard({ row }: { row: MonitorRow }) {
           </strong>
         </div>
         <div>
+          <span className="stat-label">Step</span>
+          <strong>
+            {row.step != null ? row.step : "—"}
+            {row.steps_total != null ? ` / ${row.steps_total}` : ""}
+          </strong>
+        </div>
+        <div>
+          <span className="stat-label">Loss</span>
+          <strong>{fmtLoss(row.loss)}</strong>
+        </div>
+        <div>
           <span className="stat-label">mAP50-95</span>
           <strong>{fmtMap(row.mAP50_95)}</strong>
         </div>
@@ -118,17 +153,35 @@ function RunCard({ row }: { row: MonitorRow }) {
           <span className="stat-label">Best</span>
           <strong>{fmtMap(row.best_mAP50_95)}</strong>
         </div>
+        <div>
+          <span className="stat-label">ETA</span>
+          <strong className="mono">{row.eta || "—"}</strong>
+        </div>
+        <div>
+          <span className="stat-label">Job</span>
+          <strong className="mono" style={{ fontSize: "0.78rem" }}>
+            {row.job_id || "—"}
+          </strong>
+        </div>
       </div>
+
+      {row.status_line ? (
+        <p className="mono muted" style={{ marginTop: "0.65rem", marginBottom: 0 }}>
+          {row.status_line.length > 160
+            ? `${row.status_line.slice(0, 160)}…`
+            : row.status_line}
+        </p>
+      ) : null}
+
+      {row.resume_note && row.is_active ? (
+        <p className="muted" style={{ marginTop: "0.55rem", marginBottom: 0 }}>
+          {row.resume_note}
+        </p>
+      ) : null}
 
       {row.stage ? (
         <p className="muted" style={{ marginTop: "0.5rem" }}>
           stage: <span className="mono">{row.stage}</span>
-          {row.job_id ? (
-            <>
-              {" · "}
-              job: <span className="mono">{row.job_id}</span>
-            </>
-          ) : null}
         </p>
       ) : null}
 
@@ -147,30 +200,17 @@ function RunCard({ row }: { row: MonitorRow }) {
               {row.failure_classification.kind}/{row.failure_classification.action}
             </span>{" "}
             <span className="mono">{row.failure_classification.reason_code}</span>
-            {typeof row.failure_classification.confidence === "number"
-              ? ` · conf=${row.failure_classification.confidence.toFixed(2)}`
-              : ""}
           </p>
           <p className="muted" style={{ margin: 0 }}>
             {row.failure_classification.summary}
           </p>
-          {row.failure_classification.action === "wait_user" ? (
-            <p className="muted" style={{ marginTop: "0.35rem" }}>
-              需人工确认后才能重跑（科学/未知失败不会自动开 GPU）。
-            </p>
-          ) : null}
-          {row.failure_classification.action === "auto_recover_wait_worker" ? (
-            <p className="muted" style={{ marginTop: "0.35rem" }}>
-              工程故障：可自动等 Worker / 回收 metrics，不重开训练。
-            </p>
-          ) : null}
         </div>
       ) : null}
 
       {row.error_message ? (
         <div className="error-panel" style={{ marginTop: "0.75rem" }}>
           <strong>失败原因</strong>
-          <pre className="log-block" style={{ maxHeight: 160 }}>
+          <pre className="log-block" style={{ maxHeight: 120 }}>
             {row.error_message}
           </pre>
         </div>
@@ -183,7 +223,7 @@ function RunCard({ row }: { row: MonitorRow }) {
             className="chip"
             onClick={() => setOpenLog((v) => !v)}
           >
-            {openLog ? "收起日志尾" : "展开日志尾"}
+            {openLog ? "收起日志摘要" : "展开日志摘要"}
           </button>
           {openLog ? <pre className="log-block">{row.log_tail}</pre> : null}
         </div>
@@ -195,12 +235,14 @@ function RunCard({ row }: { row: MonitorRow }) {
 export function TrainingMonitorPage() {
   const [search, setSearch] = useSearchParams();
   const projectId = search.get("project_id") || "project_rgbt_cuda_001";
+  const focus = search.get("focus") || "all";
 
   const projects = useQuery({ queryKey: ["projects"], queryFn: () => api.projects() });
   const monitor = useQuery({
     queryKey: ["training-monitor", projectId],
-    queryFn: () => api.trainingMonitor({ project_id: projectId || undefined, limit: 40 }),
-    refetchInterval: 3000,
+    queryFn: () => api.trainingMonitor({ project_id: projectId || undefined, limit: 30 }),
+    refetchInterval: 5000,
+    staleTime: 2000,
   });
 
   const data = monitor.data;
@@ -222,6 +264,22 @@ export function TrainingMonitorPage() {
     [data],
   );
 
+  const matchFocus = (row: MonitorRow) => {
+    if (focus === "all") return true;
+    const n = String(row.node_id || "");
+    if (focus === "k2b") return n.includes("gate_k2b");
+    if (focus === "k2a") return n.includes("gate_k2a");
+    if (focus === "gate_k") return n.includes("gate_k");
+    if (focus === "j3b") return n.includes("gate_j3b");
+    if (focus === "j3") return n.includes("gate_j_") && !n.includes("gate_j3b");
+    return true;
+  };
+
+  const activeView = active.filter(matchFocus);
+  const failedView = failed.filter(matchFocus);
+  const recentView = recent.filter(matchFocus);
+  const j3bCampaign = campaigns.find((c) => c.campaign === "GATE_J3B");
+
   if (monitor.isLoading && !data) return <Loading label="加载训练监控…" />;
 
   return (
@@ -231,7 +289,7 @@ export function TrainingMonitorPage() {
           <p className="eyebrow">Live Training</p>
           <h1>训练监控</h1>
           <p className="lede">
-            每 3 秒自动刷新。失败会标红并显示错误；运行中显示 epoch / mAP / 进度条。
+            每 5 秒刷新。上方是当前 live 训练；下方有战役状态、失败列表与最近执行表。
           </p>
         </div>
         <div className="action-row">
@@ -280,6 +338,24 @@ export function TrainingMonitorPage() {
               ) : null}
             </select>
           </label>
+          <label className="field">
+            聚焦
+            <select
+              value={focus}
+              onChange={(e) => {
+                const next = new URLSearchParams(search);
+                next.set("focus", e.target.value);
+                setSearch(next);
+              }}
+            >
+              <option value="all">全部</option>
+              <option value="k2b">Gate K2-B</option>
+              <option value="k2a">Gate K2-A</option>
+              <option value="gate_k">Gate K (all)</option>
+              <option value="j3b">Gate J3b</option>
+              <option value="j3">Gate J3</option>
+            </select>
+          </label>
           <p className="muted" style={{ margin: 0 }}>
             更新于 {String(data?.generated_at || "—")} · 活跃 {counts.active ?? 0} · 失败{" "}
             {counts.failed ?? 0} · 完成 {counts.completed ?? 0}
@@ -287,83 +363,80 @@ export function TrainingMonitorPage() {
         </div>
       </section>
 
-      <section className="stat-grid">
-        <div className="stat">
-          <span className="stat-label">运行中</span>
-          <strong className="stat-value">{counts.active ?? 0}</strong>
+      {active.length > 0 && activeView.length === 0 ? (
+        <div className="error-panel" style={{ marginBottom: "1rem" }}>
+          当前有 {active.length} 个运行中的训练，但被「聚焦={focus}」过滤掉了。
+          请把聚焦改成「全部」或对应 Gate（例如 K2-A）。
         </div>
-        <div className="stat">
-          <span className="stat-label">近期失败</span>
-          <strong className="stat-value">{counts.failed ?? 0}</strong>
-        </div>
-        <div className="stat">
-          <span className="stat-label">已完成</span>
-          <strong className="stat-value">{counts.completed ?? 0}</strong>
-        </div>
-        <div className="stat">
-          <span className="stat-label">总览条数</span>
-          <strong className="stat-value">{counts.total ?? 0}</strong>
-        </div>
-      </section>
+      ) : null}
 
-      {campaigns.length > 0 ? (
-        <section className="panel">
-          <h2>研究战役 / Gate 自动链</h2>
-          <div className="monitor-grid">
-            {campaigns.map((c) => (
-              <div
-                key={String(c.campaign)}
-                className={`monitor-campaign ${c.failed ? "monitor-card-fail" : ""}`}
-              >
-                <div className="monitor-card-head">
-                  <strong>{c.campaign}</strong>
-                  <span className={c.failed ? "pill bad" : "pill"}>{c.status || "—"}</span>
-                </div>
-                {c.updated_at ? (
-                  <p className="muted mono" style={{ margin: "0.35rem 0" }}>
-                    {c.updated_at}
-                  </p>
-                ) : null}
-                {typeof c.meta?.error === "string" ? (
-                  <div className="error-panel">
-                    <pre className="log-block" style={{ maxHeight: 120 }}>
-                      {c.meta.error}
-                    </pre>
-                  </div>
-                ) : null}
-                {c.log_tail ? (
-                  <pre className="log-block" style={{ maxHeight: 140 }}>
-                    {c.log_tail}
-                  </pre>
-                ) : null}
-              </div>
-            ))}
+      {j3bCampaign && (focus === "j3b" || focus === "all") ? (
+        <section className="panel monitor-campaign" style={{ marginBottom: "1rem" }}>
+          <div className="monitor-card-head">
+            <div>
+              <strong>GATE_J3B · RNG Hunt</strong>
+              <p className="muted" style={{ margin: "0.25rem 0 0" }}>
+                {j3bCampaign.note}
+              </p>
+            </div>
+            <span className={j3bCampaign.failed ? "pill bad" : "pill"}>
+              {j3bCampaign.status || "—"}
+            </span>
+          </div>
+          <div className="monitor-metrics" style={{ marginTop: "0.75rem" }}>
+            <div>
+              <span className="stat-label">rep1</span>
+              <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                {String(j3bCampaign.meta?.j3b_rep1_execution_id || "—")}
+              </strong>
+            </div>
+            <div>
+              <span className="stat-label">rep2</span>
+              <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                {String(j3bCampaign.meta?.j3b_rep2_execution_id || "—")}
+              </strong>
+            </div>
+            <div>
+              <span className="stat-label">此前取消</span>
+              <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                {String(j3bCampaign.meta?.previous_cancelled_rep2 || "—")}
+              </strong>
+            </div>
+            <div>
+              <span className="stat-label">更新</span>
+              <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                {String(j3bCampaign.updated_at || "—")}
+              </strong>
+            </div>
           </div>
         </section>
       ) : null}
 
       <section>
-        <h2>正在训练</h2>
-        {active.length === 0 ? (
+        <h2>正在训练 {activeView.length ? `(${activeView.length})` : ""}</h2>
+        {activeView.length === 0 ? (
           <EmptyState
-            title="当前没有运行中的训练"
-            description="新实验启动后会出现在这里；失败会出现在下方。"
+            title={focus === "all" ? "当前没有运行中的训练" : "当前聚焦范围内没有运行中的训练"}
+            description="可把「聚焦」改成「全部」，或去实验中心查看历史。"
             secondaryAction={{ label: "去实验中心", to: "/executions" }}
           />
         ) : (
           <div className="monitor-grid">
-            {active.map((row) => (
-              <RunCard key={String(row.execution_id)} row={row} />
+            {activeView.map((row) => (
+              <RunCard key={String(row.execution_id)} row={row} emphasize />
             ))}
           </div>
         )}
       </section>
 
-      {failed.length > 0 ? (
+      {failedView.length > 0 ? (
         <section style={{ marginTop: "1.25rem" }}>
-          <h2>失败（需关注）</h2>
+          <h2>失败 / 取消（{failedView.length}）</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            取消不会接着上次 epoch 续跑；重新启动会新开一条 execution。
+          </p>
           <div className="monitor-grid">
-            {failed.map((row) => (
+            {failedView.map((row) => (
               <RunCard key={`fail-${row.execution_id}`} row={row} />
             ))}
           </div>
@@ -371,25 +444,28 @@ export function TrainingMonitorPage() {
       ) : null}
 
       <section style={{ marginTop: "1.25rem" }} className="panel">
-        <h2>最近执行</h2>
-        {recent.length === 0 ? (
-          <p className="muted">暂无执行记录</p>
+        <h2>最近执行 {recentView.length ? `(${recentView.length})` : ""}</h2>
+        {recentView.length === 0 ? (
+          <p className="muted">暂无执行记录（或被聚焦过滤）</p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
+                  <th>节点</th>
                   <th>ID</th>
                   <th>状态</th>
                   <th>进度</th>
                   <th>Epoch</th>
+                  <th>Step</th>
                   <th>mAP</th>
                   <th>错误</th>
                 </tr>
               </thead>
               <tbody>
-                {recent.map((row) => (
+                {recentView.map((row) => (
                   <tr key={`recent-${row.execution_id}`}>
+                    <td>{shortNode(row.node_id)}</td>
                     <td>
                       <Link className="mono" to={row.href || `/executions/${row.execution_id}`}>
                         {row.execution_id}
@@ -403,10 +479,14 @@ export function TrainingMonitorPage() {
                       {row.epoch != null ? row.epoch : "—"}
                       {row.epochs_total != null ? `/${row.epochs_total}` : ""}
                     </td>
+                    <td className="mono">
+                      {row.step != null ? row.step : "—"}
+                      {row.steps_total != null ? `/${row.steps_total}` : ""}
+                    </td>
                     <td className="mono">{fmtMap(row.mAP50_95)}</td>
-                    <td className="muted" style={{ maxWidth: 280 }}>
+                    <td className="muted" style={{ maxWidth: 220 }}>
                       {row.error_message
-                        ? String(row.error_message).slice(0, 120)
+                        ? String(row.error_message).slice(0, 100)
                         : "—"}
                     </td>
                   </tr>

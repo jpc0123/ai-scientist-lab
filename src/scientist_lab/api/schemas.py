@@ -317,3 +317,55 @@ class LlmProfileRegisterBody(BaseModel):
     max_output_tokens: int = 2048
     enabled: bool = True
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class LocalRunActionBody(BaseModel):
+    """Demo UI: replay / dry-run. --live / --execute stay off unless confirmed."""
+
+    action: Literal["llm_plan_replay", "llm_review_replay", "manager_run"]
+    live: bool = False
+    execute: bool = False
+    confirm_live: bool = False
+    confirm_execute: bool = False
+    provider: str = "mock"
+
+
+class ConsoleChatBody(BaseModel):
+    """Command-center chat. GPU stays off. Keys never echo."""
+
+    message: str = Field(min_length=1, max_length=8000)
+    history: list[dict[str, Any]] = Field(default_factory=list)
+    live: bool = False
+    agent: str = "planner"
+    session_id: str | None = None
+
+
+class ConsoleSessionCreateBody(BaseModel):
+    title: str | None = None
+    workspace_id: str | None = None
+
+
+class ConsoleSessionPatchBody(BaseModel):
+    title: str | None = None
+    pinned: bool | None = None
+    active_agent: str | None = None
+    workspace_id: str | None = None
+
+
+class ConsoleMemoryBody(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class ConsoleWorkspaceCreateBody(BaseModel):
+    title: str | None = None
+    kind: str | None = "project"
+    project_id: str | None = None
+    pack_id: str | None = None
+
+
+class ConsoleWorkspacePatchBody(BaseModel):
+    title: str | None = None
+    kind: str | None = None
+    project_id: str | None = None
+    pack_id: str | None = None
+    active: bool | None = None

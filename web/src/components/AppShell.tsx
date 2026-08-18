@@ -1,22 +1,24 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { ConnectionBar } from "./ConnectionBar";
 import { LanguageSwitch } from "./LanguageSwitch";
 
 type NavItem = { to: string; labelKey: string; hintKey: string };
 
-const groupDefs: Array<{ titleKey: string; items: NavItem[] }> = [
+const primaryNav: NavItem[] = [
+  { to: "/assistant", labelKey: "nav.assistant", hintKey: "nav.assistantHint" },
+  { to: "/loop", labelKey: "nav.loop", hintKey: "nav.loopHint" },
+  { to: "/llm-config", labelKey: "nav.llmConfig", hintKey: "nav.llmConfigHint" },
+];
+
+const moreNav: Array<{ titleKey: string; items: NavItem[] }> = [
   {
     titleKey: "nav.overview",
     items: [
       { to: "/dashboard", labelKey: "nav.dashboard", hintKey: "nav.dashboardHint" },
-      { to: "/assistant", labelKey: "nav.assistant", hintKey: "nav.assistantHint" },
       { to: "/guide", labelKey: "nav.guide", hintKey: "nav.guideHint" },
+      { to: "/projects", labelKey: "nav.projects", hintKey: "nav.projectsHint" },
     ],
-  },
-  {
-    titleKey: "nav.projectsGroup",
-    items: [{ to: "/projects", labelKey: "nav.projects", hintKey: "nav.projectsHint" }],
   },
   {
     titleKey: "nav.experiments",
@@ -51,61 +53,79 @@ const groupDefs: Array<{ titleKey: string; items: NavItem[] }> = [
   },
   {
     titleKey: "nav.systemGroup",
-    items: [
-      { to: "/settings", labelKey: "nav.settings", hintKey: "nav.settingsHint" },
-      { to: "/llm-config", labelKey: "nav.llmConfig", hintKey: "nav.llmConfigHint" },
-    ],
+    items: [{ to: "/settings", labelKey: "nav.settings", hintKey: "nav.settingsHint" }],
   },
 ];
 
+function NavEntry({ link, showHint }: { link: NavItem; showHint?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <NavLink
+      to={link.to}
+      className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
+    >
+      <span className="nav-label">{t(link.labelKey)}</span>
+      {showHint ? <span className="nav-hint">{t(link.hintKey)}</span> : null}
+    </NavLink>
+  );
+}
+
 export function AppShell() {
   const { t } = useI18n();
+  const location = useLocation();
+  const isChat = location.pathname === "/" || location.pathname.startsWith("/assistant");
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
+    <div className={`shell ${isChat ? "shell-chat" : ""}`}>
+      <aside className={`sidebar ${isChat ? "sidebar-rail" : ""}`}>
         <div className="brand">
           <span className="brand-mark">SL</span>
-          <div>
-            <strong>Scientist Lab</strong>
-            <small>{t("brand.subtitle")}</small>
-          </div>
-        </div>
-        <nav className="sidebar-nav" aria-label={t("nav.overview")}>
-          {groupDefs.map((group) => (
-            <div key={group.titleKey} className="nav-group">
-              <p className="nav-group-title">{t(group.titleKey)}</p>
-              {group.items.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    isActive ? "nav-link active" : "nav-link"
-                  }
-                >
-                  <span className="nav-label">{t(link.labelKey)}</span>
-                  <span className="nav-hint">{t(link.hintKey)}</span>
-                </NavLink>
-              ))}
+          {isChat ? null : (
+            <div>
+              <strong>Scientist Lab</strong>
+              <small>{t("brand.subtitle")}</small>
             </div>
-          ))}
+          )}
+        </div>
+        <nav className="sidebar-nav" aria-label={t("nav.command")}>
+          <div className="nav-group">
+            {isChat ? null : <p className="nav-group-title">{t("nav.command")}</p>}
+            {primaryNav.map((link) => (
+              <NavEntry key={link.to} link={link} showHint={!isChat} />
+            ))}
+          </div>
+          {isChat ? null : (
+            <details className="nav-more">
+              <summary>{t("nav.more")}</summary>
+              {moreNav.map((group) => (
+                <div key={group.titleKey} className="nav-group">
+                  <p className="nav-group-title">{t(group.titleKey)}</p>
+                  {group.items.map((link) => (
+                    <NavEntry key={link.to} link={link} />
+                  ))}
+                </div>
+              ))}
+            </details>
+          )}
         </nav>
         <div className="sidebar-footer">
           <LanguageSwitch compact />
-          <p className="sidebar-note">
-            {t("brand.note")
-              .split("\n")
-              .map((line) => (
-                <span key={line}>
-                  {line}
-                  <br />
-                </span>
-              ))}
-          </p>
+          {isChat ? null : (
+            <p className="sidebar-note">
+              {t("brand.note")
+                .split("\n")
+                .map((line) => (
+                  <span key={line}>
+                    {line}
+                    <br />
+                  </span>
+                ))}
+            </p>
+          )}
         </div>
       </aside>
       <div className="workspace">
-        <ConnectionBar />
+        {isChat ? null : <ConnectionBar />}
         <main className="main main-fill">
           <Outlet />
         </main>

@@ -23,6 +23,8 @@ export function GuidePage() {
   ];
 
   const menus = [
+    { name: t("nav.assistant"), to: "/assistant", desc: t("nav.assistantHint") },
+    { name: t("nav.loop"), to: "/loop", desc: t("nav.loopHint") },
     { name: t("nav.dashboard"), to: "/dashboard", desc: t("nav.dashboardHint") },
     { name: t("nav.approvals"), to: "/approvals", desc: t("nav.approvalsHint") },
     { name: t("nav.executions"), to: "/executions", desc: t("nav.executionsHint") },
@@ -42,8 +44,8 @@ export function GuidePage() {
           <h1>{t("guide.title")}</h1>
           <p className="lede">{t("guide.lede")}</p>
         </div>
-        <Link className="btn-primary" to="/dashboard">
-          {t("guide.backDashboard")}
+        <Link className="btn-primary" to="/assistant">
+          {t("nav.assistant")}
         </Link>
       </header>
 

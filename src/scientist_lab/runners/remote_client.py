@@ -35,7 +35,11 @@ class WorkerHttpClient:
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         url = f"{self.endpoint}{path}"
         try:
-            with httpx.Client(timeout=self.timeout_seconds) as client:
+            # Local worker endpoints must not inherit Windows/system HTTP proxies
+            # (httpx trust_env=True can yield 502 for 127.0.0.1 while curl works).
+            with httpx.Client(
+                timeout=self.timeout_seconds, trust_env=False
+            ) as client:
                 response = client.request(
                     method, url, headers=self._headers(), **kwargs
                 )

@@ -1907,4 +1907,9 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except (RealLoopValidationError, RealLoopError, ValueError) as exc:
             raise http_error(409, code="conflict", message=str(exc)) from exc
 
+    from scientist_lab.api.v1.console import build_console_router
+    from scientist_lab.api.v1.local_runs import build_local_runs_router
+
+    router.include_router(build_local_runs_router(get_service))
+    router.include_router(build_console_router(get_service))
     return router

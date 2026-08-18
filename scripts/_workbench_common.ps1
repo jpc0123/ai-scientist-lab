@@ -1,4 +1,4 @@
-﻿# Shared helpers for Scientist Lab Windows workbench scripts.
+# Shared helpers for Scientist Lab Windows workbench scripts.
 
 function Get-LabRoot {
   return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -10,7 +10,7 @@ function Get-WorkbenchConfig {
   $apiHost = "127.0.0.1"
   $apiPort = 8787
   $webHost = "127.0.0.1"
-  $webPort = 5173
+  $webPort = 5174
   $openBrowser = $true
 
   if (Test-Path $cfgPath) {
@@ -38,6 +38,26 @@ function Get-WorkbenchConfig {
     ApiUrl      = "http://${apiHost}:${apiPort}"
     WebUrl      = "http://${webHost}:${webPort}"
   }
+}
+
+function Resolve-NpmCmd {
+  $cmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { return $cmd.Source }
+
+  $node = Get-Command node.exe -ErrorAction SilentlyContinue
+  if ($node -and $node.Source) {
+    $candidate = Join-Path (Split-Path $node.Source) "npm.cmd"
+    if (Test-Path $candidate) { return $candidate }
+  }
+
+  foreach ($p in @(
+      "D:\node\npm.cmd",
+      (Join-Path ${env:ProgramFiles} "nodejs\npm.cmd"),
+      (Join-Path ${env:ProgramFiles(x86)} "nodejs\npm.cmd")
+    )) {
+    if ($p -and (Test-Path $p)) { return $p }
+  }
+  return $null
 }
 
 function Test-PortListening {
