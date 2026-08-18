@@ -38,4 +38,4 @@ LLM 已接入、Web 已有、RGB-T 方法已冻，最危险的是这些成果还
 
 ## Next direction
 
-完整 tests 通过后，第二步做 LLM 比赛版 Demo 验收：Evidence → LLM Reviewer → Memory → LLM Planner → Plan → Gate → REAL。Formal E 仅在比赛规则明确需要时另开。
+第二步 Demo 已验收：见 `docs/V25D_DEMO_ACCEPTANCE.md`。probe REAL `exec_824958918784` APS=0.0 是工程闭环负结果，ClaimGate BLOCKED，不是 C1。Formal E 仅在比赛规则明确需要时另开。
