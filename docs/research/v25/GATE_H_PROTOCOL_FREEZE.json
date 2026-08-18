@@ -1,0 +1,46 @@
+{
+  "gate": "GATE_H_A2_CURVE_HEALTH",
+  "claim_authority": "baseline_probe",
+  "matched_to_gate_g_execution": "exec_a14287829eeb",
+  "docker_image": "scientist-rgbt-detection:v2-cuda",
+  "code_sha256": {
+    "train_dfine.py": "8f01298d017f828a0a5a1a4fc878437d3cec734beccb3b799e391d9765c9c440",
+    "run_detection_experiment.py": "c59d6d3f95a5744bb5078496d7a12f17efc3f2411297bec0d9a6615a7c13186b"
+  },
+  "invariants": {
+    "fusion_method": "early_concat",
+    "baseline": "dfine_s",
+    "pretrained": true,
+    "image_size": [
+      640,
+      640
+    ],
+    "num_queries": 300,
+    "scale_queries_to_tokens": false,
+    "batch_size": 1,
+    "learning_rate": 0.0002,
+    "mixed_precision": true,
+    "category_map": {
+      "1": 0,
+      "2": 1,
+      "3": 2,
+      "4": 3,
+      "5": 4,
+      "6": 5,
+      "7": 6
+    }
+  },
+  "changed": {
+    "epochs": {
+      "from": 10,
+      "to": 20
+    },
+    "subset": "expanded_sequence_level"
+  },
+  "blocked": [
+    "A4",
+    "P01",
+    "fdpn",
+    "gated_multiscale"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "gate": "F",
+  "status": "waiting_for_raw",
+  "opened_after": "V25_GATE_E_DEBUG40",
+  "dataset_name": "RGBT-Tiny",
+  "configured_raw": "D:/datasets/RGBT-Tiny/raw",
+  "registered_root": "datasets/registered/rgbt_tiny_v1",
+  "phases": {
+    "F0": {
+      "name": "registration_no_train",
+      "status": "waiting_for_raw",
+      "policy": {
+        "split_method": "sequence_level",
+        "path_policy": "hardlink_or_symlink_no_copy",
+        "default_subset": {
+          "max_sequences": 12,
+          "max_frames_per_seq": 40,
+          "frame_stride": 5,
+          "seed": 42
+        }
+      }
+    },
+    "F1": {
+      "name": "readonly_cuda_probe",
+      "status": "blocked_until_f0",
+      "train_pairs": "40-100",
+      "val_pairs": "15-30",
+      "forbidden": ["formal_metrics", "A4", "P01", "full_train"]
+    }
+  },
+  "download": {
+    "project": "https://github.com/XinyiYing/RGBT-Tiny",
+    "google_form": "https://forms.gle/EeRooNEYzXXporQt9",
+    "microsoft_form": "https://forms.cloud.microsoft/r/nN7JmKn4eJ"
+  },
+  "categories_expected": [
+    "ship",
+    "car",
+    "cyclist",
+    "pedestrian",
+    "bus",
+    "drone",
+    "plane"
+  ],
+  "cli": {
+    "f0": "python scripts/register_rgbt_tiny_gate_f.py f0",
+    "f1": "python scripts/register_rgbt_tiny_gate_f.py f1",
+    "status": "python scripts/register_rgbt_tiny_gate_f.py status"
+  },
+  "fixture_verified": {
+    "path": "tests/fixtures/rgbt_tiny_mini",
+    "f0": "registered_subset",
+    "f1": "passed_host_dataloader",
+    "note": "Host CUDA may be unavailable; Docker worker CUDA probe runs after real raw lands."
+  }
+}

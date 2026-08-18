@@ -1,0 +1,41 @@
+{
+  "gate": "F1",
+  "registered_root": "datasets\\registered\\rgbt_tiny_v1",
+  "checks": {
+    "train_rows_loaded": 40,
+    "val_rows_loaded": 15,
+    "decode_ok": 55,
+    "align_mismatch": 0,
+    "missing_files": 0,
+    "boxes_in_probe": 405,
+    "illegal_or_oob_bbox": 0,
+    "unknown_category": 0,
+    "category_ids_seen": [
+      2,
+      3,
+      4,
+      5,
+      7
+    ],
+    "dataloader_samples": 4,
+    "dataloader_shape": [
+      640,
+      640,
+      4
+    ]
+  },
+  "errors": [],
+  "cuda_probe": {
+    "attempted": true,
+    "cuda_available": false,
+    "forward_ok": false,
+    "reason": "cuda unavailable or no samples"
+  },
+  "status": "passed",
+  "claim_authority": "probe_only",
+  "forbidden": [
+    "formal metrics",
+    "A4/P01",
+    "full-corpus training"
+  ]
+}

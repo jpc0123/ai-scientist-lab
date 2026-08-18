@@ -1,0 +1,21 @@
+{
+  "status": "resumed",
+  "resumed_at": "2026-07-30T02:34:36.791226+08:00",
+  "gate": "GATE_I_A2_FORMAL_MULTISEED",
+  "seed42": {
+    "status": "completed",
+    "execution_id": "exec_4088755cafc6",
+    "policy": "reuse_gate_h"
+  },
+  "seed43": {
+    "status": "running",
+    "execution_id": "exec_a6f6dff68971",
+    "job_id": "job_11060883750b",
+    "previous_cancelled": "exec_a36b54f68731",
+    "note": "Re-run from scratch after pause"
+  },
+  "seed44": {
+    "status": "queued_watchdog"
+  },
+  "watchdog_active": true
+}

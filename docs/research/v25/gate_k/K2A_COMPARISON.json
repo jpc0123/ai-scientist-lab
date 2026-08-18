@@ -1,0 +1,111 @@
+{
+  "gate": "GATE_K2A_LR_HALF",
+  "completed_at": "2026-08-02T12:13:31.726293+00:00",
+  "factor": "learning_rate_x0.5",
+  "reporting_protocol": "a2_baseline_checkpoint_v2",
+  "baseline": {
+    "43": {
+      "execution_id": "exec_a6f6dff68971",
+      "best": 0.10817447410080037,
+      "last": 0.037971074226580484,
+      "gap": 0.07020339987421989,
+      "best_epoch": 3
+    },
+    "44": {
+      "execution_id": "exec_373196093d79",
+      "best": 0.04143016439577045,
+      "last": 0.022242537998124878,
+      "gap": 0.019187626397645572,
+      "best_epoch": 15
+    }
+  },
+  "k2a": {
+    "43": {
+      "execution_id": "exec_50a5179ac3db",
+      "best_epoch": 20,
+      "best": 0.03945653131694295,
+      "last": 0.03945653131694295,
+      "gap": 0.0,
+      "late_cliff": false,
+      "pre_last_max": 0.03893215017107908,
+      "ep1_5_mean": 0.027059077256196478,
+      "ep17_20": [
+        0.03893215017107908,
+        0.03889944567841621,
+        0.037393175408528566,
+        0.03945653131694295
+      ],
+      "preds_ge_0_1": 16682
+    },
+    "44": {
+      "execution_id": "exec_7b7d225e749a",
+      "best_epoch": 4,
+      "best": 0.08159592984284147,
+      "last": 0.06023719831194385,
+      "gap": 0.021358731530897623,
+      "late_cliff": false,
+      "pre_last_max": 0.0625486243254723,
+      "ep1_5_mean": 0.061599553042263853,
+      "ep17_20": [
+        0.05805307898734114,
+        0.05332614050945277,
+        0.05307790862682601,
+        0.06023719831194385
+      ],
+      "preds_ge_0_1": 3643
+    }
+  },
+  "comparison_table": [
+    {
+      "seed": 43,
+      "old_best": 0.10817447410080037,
+      "new_best": 0.03945653131694295,
+      "old_last": 0.037971074226580484,
+      "new_last": 0.03945653131694295,
+      "old_gap": 0.07020339987421989,
+      "new_gap": 0.0,
+      "old_best_epoch": 3,
+      "new_best_epoch": 20,
+      "new_late_cliff": false,
+      "new_preds_ge_0_1": 16682
+    },
+    {
+      "seed": 44,
+      "old_best": 0.04143016439577045,
+      "new_best": 0.08159592984284147,
+      "old_last": 0.022242537998124878,
+      "new_last": 0.06023719831194385,
+      "old_gap": 0.019187626397645572,
+      "new_gap": 0.021358731530897623,
+      "old_best_epoch": 15,
+      "new_best_epoch": 4,
+      "new_late_cliff": false,
+      "new_preds_ge_0_1": 3643
+    }
+  ],
+  "judgements": {
+    "43": {
+      "improved": false,
+      "signals": {
+        "no_late_cliff": true,
+        "last_up": 0.001485457090362463,
+        "gap_down": 0.07020339987421989
+      }
+    },
+    "44": {
+      "improved": true,
+      "signals": {
+        "early_mean_up": 0.03829955304226385,
+        "last_up": 0.03799466031381897,
+        "best_up": 0.040165765447071025,
+        "preds_ge_0_1": 3643
+      }
+    }
+  },
+  "decision": "only_44_improve__go_k2b_or_scheduler",
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "next": "Lower LR helps early start; seed43 collapse may be overfit/schedule/data \u2192 K2-B or scheduler review."
+}

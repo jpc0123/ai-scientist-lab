@@ -1,0 +1,29 @@
+{
+  "decision_id": "decision_a2_checkpoint_v2_2026-08-02",
+  "question": "Freeze last@20 reporting protocol and reaggregate A2 multiseed without unconditional retrain?",
+  "verdict": "protocol_v2_frozen__await_seed_sensitivity_review",
+  "action": "freeze_reporting_protocol_and_review_seed_sensitivity",
+  "rejected_alternatives": [
+    "unconditional_retrain_all_seeds_for_rule_change",
+    "unblock_A4_P01_now",
+    "treat_last20_as_already_stable_formal_baseline"
+  ],
+  "reason": "J3b/J4 justify freezing primary=last@20 to avoid best-on-val spike allergy. Existing Gate I runs already have last.pt and epoch-20 logged evals, so reaggregation needs no full retrain. However last@20 three-seed range remains large (~0.060) and seed44 stays low at the fixed endpoint, so formal baseline freeze / A4-P01 unblock is not justified yet.",
+  "evidence_paths": [
+    "docs/research/v25/protocols/a2_baseline_checkpoint_v2.json",
+    "docs/research/v25/A2_BASELINE_V2_REPORT.md",
+    "docs/research/v25/A2_BASELINE_V2_STABILITY.json",
+    "docs/research/v25/gate_j/J4_REPORT.md",
+    "docs/research/v25/gate_j/DECISION_J3B_J4_CASE_C.json"
+  ],
+  "key_numbers": {
+    "seed42_last20": 0.08218,
+    "seed43_last20": 0.03797,
+    "seed44_last20": 0.02224,
+    "last20_range": 0.05994,
+    "best_range": 0.06674
+  },
+  "blocked": ["A4", "P01"],
+  "next_stage": "a2_seed_sensitivity_review",
+  "next_direction": "Diagnose why fixed-endpoint last@20 still spreads (especially seed43 collapse from best and seed44 low). Candidate levers: data scale, LR/warmup, epoch budget. Keep method comparisons blocked until noise << expected gain under v2."
+}

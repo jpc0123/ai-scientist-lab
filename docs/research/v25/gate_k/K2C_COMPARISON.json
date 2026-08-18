@@ -1,0 +1,45 @@
+{
+  "gate": "K2-C",
+  "decision": "seed44_partial__manual_review",
+  "next_action": "seed44 \u672a\u8fbe\u5730\u677f\uff1b\u4eba\u5de5\u590d\u6838\u66f2\u7ebf\u540e\u518d\u5b9a\u662f\u5426\u4ecd\u8dd1 seed43\u3002",
+  "dataset_version": "v1_gate_k2c_seq_expand",
+  "seed44": {
+    "execution_id": "exec_4f4151310027",
+    "best": 0.14317638008409922,
+    "last": 0.07284228851267373,
+    "gap": 0.07033409157142549,
+    "best_epoch": 2,
+    "mid_max": 0.11951651111913271,
+    "late_cliff": false,
+    "ep1_5_mean": 0.12711486309548703,
+    "ep17_20": [
+      0.05695163348222529,
+      0.05001784218381824,
+      0.06070314281077763,
+      0.07284228851267373
+    ],
+    "success": false,
+    "checks": {
+      "last_ge_0_05": true,
+      "gap_le_0_03": false,
+      "not_early_persistently_low": true,
+      "mid_retained": true,
+      "above_gate_h_last": true,
+      "no_late_cliff": true
+    }
+  },
+  "seed43": null,
+  "baselines_gate_h": {
+    "43": {
+      "last": 0.037971074226580484,
+      "best": 0.10817447410080037,
+      "gap": 0.07020339987421989
+    },
+    "44": {
+      "last": 0.022242537998124878,
+      "best": 0.04143016439577045,
+      "gap": 0.019187626397645572
+    }
+  },
+  "created_at": "2026-08-04T12:31:43.527603+00:00"
+}

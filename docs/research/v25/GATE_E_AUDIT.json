@@ -1,0 +1,75 @@
+{
+  "experiment_id": "V25_GATE_E_DEBUG40",
+  "claim_authority": "debug_only",
+  "execution_id": "exec_d774fd58d6dc",
+  "overall_pass": true,
+  "gates": {
+    "data": {
+      "pass": true,
+      "train_rgb": 40,
+      "train_thermal": 40,
+      "val_rgb": 15,
+      "val_thermal": 15,
+      "pairing_errors": 0,
+      "missing_images": 0,
+      "illegal_bbox": 0,
+      "unknown_category": 0,
+      "duplicate_sample_ids": 0,
+      "pair_audit_ok": true
+    },
+    "model": {
+      "pass": true,
+      "input_size": [
+        640,
+        640
+      ],
+      "eval_spatial_size": [
+        640,
+        640
+      ],
+      "effective_num_queries": 300,
+      "scale_queries_to_tokens": false,
+      "trained": true,
+      "device": "cuda"
+    },
+    "artifacts": {
+      "pass": true,
+      "dfine_fast_config_yml": true,
+      "contract_json": true,
+      "rgbt_pair_audit": true,
+      "best_weights": true,
+      "last_checkpoint": true,
+      "metrics_per_epoch": true,
+      "combined_log": true,
+      "checkpoint_selection": true,
+      "disk_gate": true
+    },
+    "metrics": {
+      "pass": true,
+      "mAP50_95": 0.40102946517108196,
+      "mAP50": 0.5036678667866787,
+      "prediction_count_score_ge_0_1": 944.0,
+      "map_changed_across_epochs": true,
+      "best_epoch": 18,
+      "best_present": true,
+      "last_present": true
+    },
+    "resources": {
+      "peak_gpu_memory_mb": 832.90771484375,
+      "duration_seconds": 336.50687408447266,
+      "best_checkpoint_mb": 157.44324779510498,
+      "last_checkpoint_mb": 157.30356311798096,
+      "exec_dir_mb": 1510.56,
+      "disk_free_gb_at_start": 106.9659538269043,
+      "disk_ok_to_start": true,
+      "n_epochs_logged": 20
+    }
+  },
+  "forbidden_claims": [
+    "formal superiority",
+    "A4/P01 comparison from Gate E",
+    "ready for real-dataset formal training without Gate F"
+  ],
+  "next_if_pass": "Freeze Gate E and proceed to Gate F real RGB-T dataset registration (read-only + one-batch only).",
+  "next_if_fail": "Fix failing gate before real-data registration; do not start Gate F."
+}

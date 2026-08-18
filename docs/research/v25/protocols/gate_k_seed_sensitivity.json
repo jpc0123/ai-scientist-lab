@@ -1,0 +1,135 @@
+{
+  "protocol_id": "gate_k_a2_seed_sensitivity_review",
+  "title": "Gate K \u2014 A2 Seed Sensitivity Review",
+  "parent": "a2_baseline_checkpoint_v2",
+  "reporting_protocol": "a2_baseline_checkpoint_v2",
+  "status": "k2c_seed43_running_after_audit_pass",
+  "k3a_decision": "neither_success__manual_review",
+  "k2c_note": "seed44 audit pass (reeval+curve B); seed43 launching identical A2 despite gap diagnostic",
+  "k2c_decision": "audit_pass__seed43_running",
+  "k2c_seed44_exec": "exec_4f4151310027",
+  "k2c_seed43_exec": "exec_077e753b6e1a",
+  "problem_reframed": "Why does the same A2 protocol yield healthy convergence (42), peak-then-collapse (43), and low trajectory (44)?",
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "phases": {
+    "K1": {
+      "name": "curve_audit_no_retrain",
+      "status": "completed",
+      "artifacts": [
+        "docs/research/v25/gate_k/K1_REPORT.md",
+        "docs/research/v25/gate_k/K1_CURVE_AUDIT.json"
+      ]
+    },
+    "K2": {
+      "name": "single_factor_sensitivity",
+      "status": "k2c_launching_seed44",
+      "seeds": [
+        43,
+        44
+      ],
+      "skip_seeds": [
+        42
+      ],
+      "order": [
+        "K2-A",
+        "K2-B",
+        "K2-C"
+      ],
+      "matrix": [
+        {
+          "id": "K2-A",
+          "change": "learning_rate x0.5",
+          "status": "completed",
+          "fixed": [
+            "warmup",
+            "epochs",
+            "data",
+            "checkpoint_v2"
+          ],
+          "seeds": [
+            43,
+            44
+          ]
+        },
+        {
+          "id": "K2-B",
+          "change": "warmup x2",
+          "status": "completed",
+          "fixed": [
+            "learning_rate",
+            "epochs",
+            "data",
+            "checkpoint_v2"
+          ],
+          "seeds": [
+            43,
+            44
+          ]
+        },
+        {
+          "id": "K2-C",
+          "change": "expand independent train/val sequences (not only denser frame stride)",
+          "status": "launching_seed44",
+          "dataset_version": "v1_gate_k2c_seq_expand",
+          "optimizer": "original_A2",
+          "fixed": [
+            "learning_rate",
+            "warmup",
+            "epochs",
+            "checkpoint_v2",
+            "scheduler"
+          ],
+          "seeds": [
+            44,
+            43
+          ],
+          "seed_order": [
+            44,
+            43
+          ]
+        }
+      ]
+    },
+    "K3": {
+      "name": "late_lr_cooling_and_followups",
+      "status": "paused__scheduler_chasing_stopped",
+      "K3-S0": "completed",
+      "K3-A": {
+        "change": "MultiStep milestones [500] -> [14]",
+        "status": "completed_neither_success",
+        "fixed": ["warmup=500", "peak_lr=2e-4", "epochs=20", "data", "checkpoint_v2"],
+        "seeds": [43, 44],
+        "lr_trace": "docs/research/v25/gate_k/K3A_LR_TRACE.json",
+        "decision": "neither_success__manual_review"
+      },
+      "K3-B": {
+        "status": "blocked_until_k2c"
+      },
+      "cosine": {
+        "status": "deferred",
+        "condition": "only after expanded-data seeds learn stably but share mild consistent late decay"
+      },
+      "rule": "Do not jump 20\u219240 unless evidence of unfinished growth; if extended, retune scheduler. Do not resume scheduler chasing before K2-C data verdict."
+    }
+  },
+  "selection_criteria_for_formal_a2_baseline_v3": {
+    "primary_stability": [
+      "seed43 and seed44 both produce non-collapsing last@20",
+      "cross-seed last@20 range clearly below current ~0.060",
+      "no best-last collapse at ~0.07 scale"
+    ],
+    "secondary_performance": [
+      "mean last@20 not clearly worse than current protocol"
+    ],
+    "retrain_rule": "If a factor wins on 43/44, freeze formal_a2_baseline_v3 and fully rerun 42/43/44 under that protocol; never mix old seed42 with new-protocol 43/44."
+  },
+  "current_lr": 0.0002,
+  "current_backbone_lr": 0.0001,
+  "current_epochs": 20,
+  "k2b_decision": "only_44_improve__43_not_cliff__scheduler_or_lr_schedule_review",
+  "k3s0_decision": "k3s0_complete__prefer_k3a_earlier_decay__not_more_warmup_or_lr025",
+  "k3s0_note": "MultiStep[500] never fires in 20ep; late cliffs at constant peak LR"
+}

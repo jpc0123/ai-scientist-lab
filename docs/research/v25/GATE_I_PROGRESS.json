@@ -1,0 +1,18 @@
+﻿{
+    "seed42":  {
+                   "status":  "completed",
+                   "exec":  "exec_4088755cafc6",
+                   "mAP50_95":  0.08335
+               },
+    "checked_at":  "2026-07-29T21:41:31.0662208+08:00",
+    "eta_hours_remaining":  5,
+    "seed43":  {
+                   "status":  "running",
+                   "exec":  "exec_a36b54f68731",
+                   "epoch_approx":  "7.7/20",
+                   "note":  "loss decreasing ~22.9-\u003e18.8"
+               },
+    "seed44":  {
+                   "status":  "queued_watchdog"
+               }
+}

@@ -1,0 +1,525 @@
+{
+  "gate": "K3-A",
+  "created_at": "2026-08-03T08:47:21.841564+00:00",
+  "protocol_intent": {
+    "semantic": "complete_epoch14_then_decay_at_start_of_epoch15",
+    "user_written_milestones": [
+      14
+    ],
+    "gamma": 0.1,
+    "warmup_steps": 500,
+    "steps_per_epoch": 1830,
+    "base_lr": 0.0002,
+    "backbone_lr": 0.0001,
+    "dfine_scheduler_step_timing": "after_each_epoch_when_warmup_finished"
+  },
+  "candidates": [
+    {
+      "milestones": [
+        14
+      ],
+      "acceptance": {
+        "pass": true,
+        "checks": {
+          "warmup_done_by_epoch2_peak_backbone": true,
+          "warmup_done_by_epoch2_peak_non_backbone": true,
+          "epoch14_peak_backbone": true,
+          "epoch14_peak_non_backbone": true,
+          "epoch15_decayed_backbone": true,
+          "epoch15_decayed_non_backbone": true,
+          "epoch20_still_decayed_backbone": true,
+          "epoch20_still_decayed_non_backbone": true
+        },
+        "epoch14_lrs": {
+          "backbone": 0.0001,
+          "non_backbone": 0.0002
+        },
+        "epoch15_lrs": {
+          "backbone": 1e-05,
+          "non_backbone": 2e-05
+        }
+      },
+      "epoch_table": [
+        {
+          "epoch": 1,
+          "backbone_lr": 2.0000000000000002e-07,
+          "non_backbone_lr": 4.0000000000000003e-07,
+          "scheduler_last_epoch_after_step": 1,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 2,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 2,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 3,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 3,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 4,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 4,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 5,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 5,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 6,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 6,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 7,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 7,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 8,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 8,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 9,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 9,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 10,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 10,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 11,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 11,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 12,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 12,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 13,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 13,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 14,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 14,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 15,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 15,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 16,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 16,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 17,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 17,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 18,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 18,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 19,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 19,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 20,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 20,
+          "multistep_stepped": true
+        }
+      ]
+    },
+    {
+      "milestones": [
+        13
+      ],
+      "acceptance": {
+        "pass": false,
+        "checks": {
+          "warmup_done_by_epoch2_peak_backbone": true,
+          "warmup_done_by_epoch2_peak_non_backbone": true,
+          "epoch14_peak_backbone": false,
+          "epoch14_peak_non_backbone": false,
+          "epoch15_decayed_backbone": true,
+          "epoch15_decayed_non_backbone": true,
+          "epoch20_still_decayed_backbone": true,
+          "epoch20_still_decayed_non_backbone": true
+        },
+        "epoch14_lrs": {
+          "backbone": 1e-05,
+          "non_backbone": 2e-05
+        },
+        "epoch15_lrs": {
+          "backbone": 1e-05,
+          "non_backbone": 2e-05
+        }
+      },
+      "epoch_table": [
+        {
+          "epoch": 1,
+          "backbone_lr": 2.0000000000000002e-07,
+          "non_backbone_lr": 4.0000000000000003e-07,
+          "scheduler_last_epoch_after_step": 1,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 2,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 2,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 3,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 3,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 4,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 4,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 5,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 5,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 6,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 6,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 7,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 7,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 8,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 8,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 9,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 9,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 10,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 10,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 11,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 11,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 12,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 12,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 13,
+          "backbone_lr": 0.0001,
+          "non_backbone_lr": 0.0002,
+          "scheduler_last_epoch_after_step": 13,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 14,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 14,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 15,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 15,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 16,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 16,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 17,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 17,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 18,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 18,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 19,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 19,
+          "multistep_stepped": true
+        },
+        {
+          "epoch": 20,
+          "backbone_lr": 1e-05,
+          "non_backbone_lr": 2e-05,
+          "scheduler_last_epoch_after_step": 20,
+          "multistep_stepped": true
+        }
+      ]
+    }
+  ],
+  "chosen": {
+    "pytorch_milestones": [
+      14
+    ],
+    "reason": "PyTorch MultiStepLR (this env) initializes last_epoch=0; DFINE steps MultiStepLR after each epoch once warmup finished. After completing history epoch14, last_epoch reaches 14 and gamma applies, so history epoch15 starts decayed. Verified: pytorch_milestones=[14] passes epoch14=peak / epoch15=0.1\u00d7 acceptance. Candidate [13] fails (decays one epoch too early).",
+    "acceptance": {
+      "pass": true,
+      "checks": {
+        "warmup_done_by_epoch2_peak_backbone": true,
+        "warmup_done_by_epoch2_peak_non_backbone": true,
+        "epoch14_peak_backbone": true,
+        "epoch14_peak_non_backbone": true,
+        "epoch15_decayed_backbone": true,
+        "epoch15_decayed_non_backbone": true,
+        "epoch20_still_decayed_backbone": true,
+        "epoch20_still_decayed_non_backbone": true
+      },
+      "epoch14_lrs": {
+        "backbone": 0.0001,
+        "non_backbone": 0.0002
+      },
+      "epoch15_lrs": {
+        "backbone": 1e-05,
+        "non_backbone": 2e-05
+      }
+    },
+    "step_timing": "after_epoch_when_warmup_finished",
+    "epoch_table": [
+      {
+        "epoch": 1,
+        "backbone_lr": 2.0000000000000002e-07,
+        "non_backbone_lr": 4.0000000000000003e-07,
+        "scheduler_last_epoch_after_step": 1,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 2,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 2,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 3,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 3,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 4,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 4,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 5,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 5,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 6,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 6,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 7,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 7,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 8,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 8,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 9,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 9,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 10,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 10,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 11,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 11,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 12,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 12,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 13,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 13,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 14,
+        "backbone_lr": 0.0001,
+        "non_backbone_lr": 0.0002,
+        "scheduler_last_epoch_after_step": 14,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 15,
+        "backbone_lr": 1e-05,
+        "non_backbone_lr": 2e-05,
+        "scheduler_last_epoch_after_step": 15,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 16,
+        "backbone_lr": 1e-05,
+        "non_backbone_lr": 2e-05,
+        "scheduler_last_epoch_after_step": 16,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 17,
+        "backbone_lr": 1e-05,
+        "non_backbone_lr": 2e-05,
+        "scheduler_last_epoch_after_step": 17,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 18,
+        "backbone_lr": 1e-05,
+        "non_backbone_lr": 2e-05,
+        "scheduler_last_epoch_after_step": 18,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 19,
+        "backbone_lr": 1e-05,
+        "non_backbone_lr": 2e-05,
+        "scheduler_last_epoch_after_step": 19,
+        "multistep_stepped": true
+      },
+      {
+        "epoch": 20,
+        "backbone_lr": 1e-05,
+        "non_backbone_lr": 2e-05,
+        "scheduler_last_epoch_after_step": 20,
+        "multistep_stepped": true
+      }
+    ]
+  },
+  "pass": true
+}

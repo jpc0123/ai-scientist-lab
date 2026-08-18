@@ -17,7 +17,7 @@ Pinned vendor commit: see `third_party/VENDOR.md` (`7fe2f888…`).
 - `rgbt-detection-v2-cuda` → `scientist-rgbt-detection:v2-cuda` (CUDA torch + DFINE deps)
 
 ```bat
-docker build -t scientist-rgbt-detection:v2-cuda -f docker/rgbt-detection-v2-cuda/Dockerfile .
+docker build -t scientist-rgbt-detection:v2-cuda -f dockerfiles/rgbt-detection-v2-cuda/Dockerfile .
 scientist-lab run examples\rgbt_remote_cuda_dfine_rgb_contract.json
 ```
 

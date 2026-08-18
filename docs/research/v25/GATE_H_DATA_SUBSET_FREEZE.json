@@ -1,0 +1,160 @@
+{
+  "gate": "GATE_H_A2_CURVE_HEALTH",
+  "registered_key": "rgbt_tiny_v1",
+  "version": "v1_gate_h_expand",
+  "split_method": "sequence_level",
+  "seed": 42,
+  "frame_stride": 5,
+  "max_frames_per_seq": 50,
+  "train_sequences": [
+    "DJI_0028_4",
+    "DJI_0030_9",
+    "DJI_0032_5",
+    "DJI_0043_2",
+    "DJI_0047_3",
+    "DJI_0075_3",
+    "DJI_0077_2",
+    "DJI_0083_2",
+    "DJI_0095_3",
+    "DJI_0101_2",
+    "DJI_0111_2",
+    "DJI_0113_3",
+    "DJI_0117_2",
+    "DJI_0121_2",
+    "DJI_0133_2",
+    "DJI_0135_1",
+    "DJI_0143_1",
+    "DJI_0167_1",
+    "DJI_0177_2",
+    "DJI_0179_2",
+    "DJI_0217_2",
+    "DJI_0227_1",
+    "DJI_0253_1",
+    "DJI_0253_2",
+    "DJI_0253_3",
+    "DJI_0257_5",
+    "DJI_0265_1",
+    "DJI_0271_2",
+    "DJI_0275_3",
+    "DJI_0277_1",
+    "DJI_0285_3",
+    "DJI_0287_1",
+    "DJI_0291_2",
+    "DJI_0305_3",
+    "DJI_0305_7",
+    "DJI_0309_2",
+    "DJI_0317_2",
+    "DJI_0319_2",
+    "DJI_0341_5",
+    "DJI_0343_5"
+  ],
+  "val_sequences": [
+    "DJI_0085_2",
+    "DJI_0089_2",
+    "DJI_0125_1",
+    "DJI_0157_2",
+    "DJI_0273_1",
+    "DJI_0273_3",
+    "DJI_0279_2",
+    "DJI_0287_2",
+    "DJI_0293_1",
+    "DJI_0341_2"
+  ],
+  "test_sequences": [
+    "DJI_0028_3",
+    "DJI_0051_2",
+    "DJI_0181_3",
+    "DJI_0221_2",
+    "DJI_0237_2",
+    "DJI_0309_4"
+  ],
+  "pair_count": {
+    "train": 1830,
+    "val": 500,
+    "test": 300
+  },
+  "annotation_count": {
+    "train": 30370,
+    "val": 3600,
+    "test": 2792
+  },
+  "category_count": 7,
+  "categories": [
+    {
+      "id": 1,
+      "name": "ship"
+    },
+    {
+      "id": 2,
+      "name": "car"
+    },
+    {
+      "id": 3,
+      "name": "cyclist"
+    },
+    {
+      "id": 4,
+      "name": "pedestrian"
+    },
+    {
+      "id": 5,
+      "name": "bus"
+    },
+    {
+      "id": 6,
+      "name": "drone"
+    },
+    {
+      "id": 7,
+      "name": "plane"
+    }
+  ],
+  "category_mapping": {
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 3,
+    "5": 4,
+    "6": 5,
+    "7": 6
+  },
+  "small_object_distribution": {
+    "lt_16": 29679,
+    "16_to_32": 6351,
+    "ge_32": 732
+  },
+  "per_class_instances": {
+    "ship": 2943,
+    "car": 18530,
+    "cyclist": 3478,
+    "pedestrian": 8899,
+    "bus": 992,
+    "plane": 1209,
+    "drone": 711
+  },
+  "leakage_check": "passed",
+  "manifest_hashes": {
+    "train_pairs.csv": "fd5e205583e48321709b8e9788f85d3428451ba8878b1f418bc2ad5ddca75c2c",
+    "val_pairs.csv": "a788f1c771072f1025444e25f5375e5be0e85d7175893e13d901c5720f3da731",
+    "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+  },
+  "annotation_hashes": {
+    "instances_train.json": "6850895e8230777e423ae6ae9d063e9c89a76e38f91d626d17e412a64fe1e836",
+    "instances_val.json": "ffab38ebda37063ed9fab7f3c61801cef887f5ed7c7add6ac78396731f523e00",
+    "instances_test.json": "2166f0eaf90e2aed5aab9a646a4aeef2fe7174d25f75919b033f2342928d729d"
+  },
+  "path_policy": "hardlink_or_symlink_no_copy",
+  "raw_root": "D:\\BaiduNetdiskDownload\\RGBT-Tiny",
+  "vs_gate_g_pairs": {
+    "gate_g": {
+      "train": 304,
+      "val": 80,
+      "test": 80
+    },
+    "gate_h": {
+      "train": 1830,
+      "val": 500,
+      "test": 300
+    }
+  }
+}

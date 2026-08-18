@@ -1,0 +1,47 @@
+{
+  "annotation_modality_priority": "thermal",
+  "pairing_missing": 0,
+  "size_mismatch": 0,
+  "duplicate_sample_ids": 0,
+  "illegal_bbox": 0,
+  "oob_bbox": 26,
+  "unknown_category": 0,
+  "empty_annotation_frames": 0,
+  "per_class_instances": {
+    "car": 8699,
+    "cyclist": 717,
+    "pedestrian": 1577,
+    "bus": 436,
+    "plane": 64,
+    "drone": 233,
+    "ship": 475
+  },
+  "target_size_distribution": {
+    "16_to_32": 1984,
+    "lt_16": 9916,
+    "ge_32": 301
+  },
+  "split_sequence_counts": {
+    "train": 8,
+    "val": 2,
+    "test": 2
+  },
+  "split_frame_counts": {
+    "train": 304,
+    "val": 80,
+    "test": 80
+  },
+  "cross_split_sequence_leakage": [],
+  "leakage_check": "passed",
+  "link_mode_counts": {
+    "hardlink": 928
+  },
+  "discovery_layout": "official_images_seq_00_01",
+  "discovery_notes": [
+    "official 00/01 layout: 115 sequences (COCO load deferred until subset selection)",
+    "official data_split used; carved val; subset seqs={'train': 8, 'val': 2, 'test': 2}",
+    "using modality=01 COCO files: ['instances_01_test2017.json', 'instances_01_train2017.json']",
+    "instances_01_test2017.json: matched 8776 annotation rows",
+    "instances_01_train2017.json: matched 83423 annotation rows"
+  ]
+}

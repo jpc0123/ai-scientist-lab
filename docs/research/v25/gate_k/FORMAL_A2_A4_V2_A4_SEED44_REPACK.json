@@ -1,0 +1,13 @@
+{
+  "execution_id": "exec_8bffa02fe333",
+  "job_id": "job_589eeb3cbd4f",
+  "seed": 44,
+  "last": 0.12173926971762812,
+  "best": 0.15500920868359724,
+  "best_epoch": 7,
+  "gap": 0.03326993896596912,
+  "a2_last": 0.07284228851267373,
+  "delta_vs_a2": 0.04889698120495439,
+  "status": "repacked_completed",
+  "repacked_at": "2026-08-06T06:33:40.943055+00:00"
+}

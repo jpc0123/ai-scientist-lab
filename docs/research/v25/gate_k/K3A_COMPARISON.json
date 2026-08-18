@@ -1,0 +1,76 @@
+{
+  "gate": "K3-A",
+  "decision": "neither_success__manual_review",
+  "next_action": "\u4eba\u5de5\u590d\u6838\u66f2\u7ebf\u540e\u518d\u9009 K3-B / cosine / K2-C",
+  "baseline_status": "diagnostic_candidate_not_formal_v3",
+  "seed43": {
+    "execution_id": "exec_85444f45f087",
+    "best": 0.1128813512409433,
+    "last": 0.06588250126174305,
+    "gap": 0.046998849979200244,
+    "best_epoch": 5,
+    "mid_max": 0.1128813512409433,
+    "late_cliff": false,
+    "ep16": 0.0805581270968445,
+    "ep17_20": [
+      0.07603181791779406,
+      0.07162467413381288,
+      0.06787542368049497,
+      0.06588250126174305
+    ],
+    "success": false,
+    "checks": {
+      "best_ge_0_08": true,
+      "last_ge_0_07": false,
+      "gap_le_0_03": false,
+      "no_late_cliff": true
+    }
+  },
+  "seed44": {
+    "execution_id": "exec_c06151212ba2",
+    "best": 0.06912088715948411,
+    "last": 0.015609247776055537,
+    "gap": 0.05351163938342857,
+    "best_epoch": 4,
+    "mid_max": 0.04175555375943931,
+    "late_cliff": false,
+    "ep16": 0.026681925286059865,
+    "ep17_20": [
+      0.023196834303565048,
+      0.020850926495789242,
+      0.01722571346581475,
+      0.015609247776055537
+    ],
+    "success": false,
+    "checks": {
+      "best_ge_0_06": true,
+      "last_ge_0_05": false,
+      "gap_le_0_03": false,
+      "no_late_cliff": true
+    }
+  },
+  "references": {
+    "a2_baseline": {
+      "43": {
+        "execution_id": "exec_a6f6dff68971",
+        "best": 0.10817447410080037,
+        "last": 0.037971074226580484,
+        "gap": 0.07020339987421989,
+        "best_epoch": 3
+      },
+      "44": {
+        "execution_id": "exec_373196093d79",
+        "best": 0.04143016439577045,
+        "last": 0.022242537998124878,
+        "gap": 0.019187626397645572,
+        "best_epoch": 15
+      }
+    },
+    "k2b_seed44_note": {
+      "execution_id": "exec_1bdc6e7cb416",
+      "best": 0.0896,
+      "last": 0.033
+    }
+  },
+  "created_at": "2026-08-03T20:54:41.614935+00:00"
+}

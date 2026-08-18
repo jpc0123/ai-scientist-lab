@@ -1,0 +1,108 @@
+{
+  "dataset_name": "RGBT-Tiny",
+  "registered_key": "rgbt_tiny_v1",
+  "version": "v1",
+  "split_method": "sequence_level",
+  "raw_root": "D:\\BaiduNetdiskDownload\\RGBT-Tiny",
+  "registered_root": "D:\\AI Scientist_tiao\\scientist-lab\\datasets\\registered\\rgbt_tiny_v1",
+  "subset_policy": {
+    "max_sequences": 12,
+    "max_frames_per_seq": 40,
+    "frame_stride": 5,
+    "seed": 42,
+    "full_corpus": false,
+    "official_split": true,
+    "source_raw": "D:\\BaiduNetdiskDownload\\RGBT-Tiny"
+  },
+  "rgb_count": {
+    "train": 304,
+    "val": 80,
+    "test": 80
+  },
+  "thermal_count": {
+    "train": 304,
+    "val": 80,
+    "test": 80
+  },
+  "annotation_count": {
+    "train": 11211,
+    "val": 182,
+    "test": 808
+  },
+  "categories": [
+    {
+      "id": 1,
+      "name": "ship"
+    },
+    {
+      "id": 2,
+      "name": "car"
+    },
+    {
+      "id": 3,
+      "name": "cyclist"
+    },
+    {
+      "id": 4,
+      "name": "pedestrian"
+    },
+    {
+      "id": 5,
+      "name": "bus"
+    },
+    {
+      "id": 6,
+      "name": "drone"
+    },
+    {
+      "id": 7,
+      "name": "plane"
+    }
+  ],
+  "category_mapping": {
+    "dataset_category_to_model_label": {
+      "1": 0,
+      "2": 1,
+      "3": 2,
+      "4": 3,
+      "5": 4,
+      "6": 5,
+      "7": 6
+    },
+    "num_classes": 7
+  },
+  "manifest_hashes": {
+    "train_pairs.csv": "360048eb1b350ef21a836291117d1b14a98fe325eb0c557a6fb915583cb6ae0a",
+    "val_pairs.csv": "b454a85ba4721d6b4afc7c60f0e487d5d982e2bf0fe6f9166239bbb1396a04b8",
+    "test_pairs.csv": "9516a92877e282059c9ee7c6c9efe6cdc33920d21a069e4595a277bea9053263"
+  },
+  "annotation_hashes": {
+    "instances_train.json": "b53e26ab075af581b4486d784cf1457aea1db95fc5bde5ff719695d76f3bd935",
+    "instances_val.json": "956c3466374bdaacd16002cd6122eb3b3f231822963e6921fa95c2a1cc78cc83",
+    "instances_test.json": "30f116ed9754c1d970c65f04aa27fd995e44ebf533fb79d35aa4113c1d33c3b3"
+  },
+  "sequence_split": {
+    "train": [
+      "DJI_0032_5",
+      "DJI_0075_3",
+      "DJI_0083_2",
+      "DJI_0101_2",
+      "DJI_0135_1",
+      "DJI_0143_1",
+      "DJI_0253_1",
+      "DJI_0257_5"
+    ],
+    "val": [
+      "DJI_0287_2",
+      "DJI_0341_2"
+    ],
+    "test": [
+      "DJI_0028_3",
+      "DJI_0237_2"
+    ]
+  },
+  "leakage_check": "passed",
+  "path_policy": "hardlink_or_symlink_no_copy",
+  "gate": "F0",
+  "claim_authority": "registration_only"
+}

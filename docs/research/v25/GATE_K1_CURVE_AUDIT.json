@@ -1,0 +1,255 @@
+{
+  "gate": "GATE_K1_SEED_SENSITIVITY_CURVE_AUDIT",
+  "completed_at": "2026-08-02T03:23:04.858881+00:00",
+  "parent": "a2_baseline_checkpoint_v2 + protocol_v2_frozen__await_seed_sensitivity_review",
+  "status_one_liner": "Checkpoint reporting rule is isolated; A2 core seed instability remains \u2014 seed42 healthy, seed43 peak-then-collapse, seed44 persistently low.",
+  "profiles": {
+    "42": {
+      "execution_id": "exec_4088755cafc6",
+      "trajectory": {
+        "kind": "healthy_convergence",
+        "best_epoch": 19,
+        "best_mAP50_95": 0.08334684868325494,
+        "last_mAP50_95": 0.08218029641794485,
+        "best_minus_last": 0.0011665522653100946,
+        "early_max_mAP": 0.07089996445997432,
+        "mid_max_mAP": 0.06639242371603081,
+        "late_max_mAP": 0.08334684868325494,
+        "late_cliff": false,
+        "pre_last_max_mAP": 0.08334684868325494
+      },
+      "loss_trend": {
+        "ep1_5_mean_train_loss": 20.65176148909067,
+        "ep16_20_mean_train_loss": 17.242744143543653,
+        "train_loss_improved": true,
+        "ep1_5_mean_bbox": 0.10869090645227968,
+        "ep16_20_mean_bbox": 0.033357085335307596,
+        "bbox_rebound_late": false,
+        "giou_rebound_late": false,
+        "vfl_continues_down": true
+      },
+      "val_trend": {
+        "ep1_5_mean_mAP": 0.052929274432457096,
+        "ep16_20_mean_mAP": 0.07029056520787422,
+        "map_declines_while_loss_improves": false,
+        "ar100_ep1": 0.2981976278492602,
+        "ar100_best_ep": 0.24261391834879162,
+        "ar100_last": 0.2424587344027968
+      },
+      "endpoint_prediction_audit": {
+        "prediction_count": 150000,
+        "preds_score_ge_0_1": 12698,
+        "nonzero_box_count": 149851,
+        "note": "endpoint/exported audit; metrics.json precision/recall currently logged as 0.0 placeholders"
+      },
+      "metrics_json_primary": {
+        "mAP50_95": 0.08334684868325494,
+        "preds_ge_0_1": 12698.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "missing_for_k1": [
+        "per_epoch_precision",
+        "per_epoch_recall",
+        "per_epoch_preds@0.1",
+        "matched_positive_count",
+        "gradient_norm",
+        "per_class_AP_curves",
+        "per_sequence_AP"
+      ]
+    },
+    "43": {
+      "execution_id": "exec_a6f6dff68971",
+      "trajectory": {
+        "kind": "early_or_late_peak_then_collapse",
+        "best_epoch": 3,
+        "best_mAP50_95": 0.10817447410080037,
+        "last_mAP50_95": 0.037971074226580484,
+        "best_minus_last": 0.07020339987421989,
+        "early_max_mAP": 0.10817447410080037,
+        "mid_max_mAP": 0.10208260386579743,
+        "late_max_mAP": 0.10319333848007754,
+        "late_cliff": true,
+        "pre_last_max_mAP": 0.10319333848007754
+      },
+      "loss_trend": {
+        "ep1_5_mean_train_loss": 20.77858516839371,
+        "ep16_20_mean_train_loss": 17.344258279071234,
+        "train_loss_improved": true,
+        "ep1_5_mean_bbox": 0.11575776961698232,
+        "ep16_20_mean_bbox": 0.03417710004226798,
+        "bbox_rebound_late": false,
+        "giou_rebound_late": false,
+        "vfl_continues_down": true
+      },
+      "val_trend": {
+        "ep1_5_mean_mAP": 0.06837349601739463,
+        "ep16_20_mean_mAP": 0.06521502365244884,
+        "map_declines_while_loss_improves": true,
+        "ar100_ep1": 0.24332842179234895,
+        "ar100_best_ep": 0.32912486994210877,
+        "ar100_last": 0.2590357343610057
+      },
+      "endpoint_prediction_audit": {
+        "prediction_count": 150000,
+        "preds_score_ge_0_1": 17125,
+        "nonzero_box_count": 150000,
+        "note": "endpoint/exported audit; metrics.json precision/recall currently logged as 0.0 placeholders"
+      },
+      "metrics_json_primary": {
+        "mAP50_95": 0.10817447410080037,
+        "preds_ge_0_1": 17125.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "missing_for_k1": [
+        "per_epoch_precision",
+        "per_epoch_recall",
+        "per_epoch_preds@0.1",
+        "matched_positive_count",
+        "gradient_norm",
+        "per_class_AP_curves",
+        "per_sequence_AP"
+      ]
+    },
+    "44": {
+      "execution_id": "exec_373196093d79",
+      "trajectory": {
+        "kind": "mixed_unstable",
+        "best_epoch": 15,
+        "best_mAP50_95": 0.04143016439577045,
+        "last_mAP50_95": 0.022242537998124878,
+        "best_minus_last": 0.019187626397645572,
+        "early_max_mAP": 0.03329204334718606,
+        "mid_max_mAP": 0.04143016439577045,
+        "late_max_mAP": 0.03509670251242088,
+        "late_cliff": false,
+        "pre_last_max_mAP": 0.04143016439577045
+      },
+      "loss_trend": {
+        "ep1_5_mean_train_loss": 20.669030423832172,
+        "ep16_20_mean_train_loss": 17.27227401448078,
+        "train_loss_improved": true,
+        "ep1_5_mean_bbox": 0.10726394720879368,
+        "ep16_20_mean_bbox": 0.03340727240376459,
+        "bbox_rebound_late": false,
+        "giou_rebound_late": false,
+        "vfl_continues_down": true
+      },
+      "val_trend": {
+        "ep1_5_mean_mAP": 0.023272772732397466,
+        "ep16_20_mean_mAP": 0.027095924278814767,
+        "map_declines_while_loss_improves": false,
+        "ar100_ep1": 0.24040743685208435,
+        "ar100_best_ep": 0.1610340870408647,
+        "ar100_last": 0.11231805105723512
+      },
+      "endpoint_prediction_audit": {
+        "prediction_count": 150000,
+        "preds_score_ge_0_1": 3769,
+        "nonzero_box_count": 150000,
+        "note": "endpoint/exported audit; metrics.json precision/recall currently logged as 0.0 placeholders"
+      },
+      "metrics_json_primary": {
+        "mAP50_95": 0.04143016439577045,
+        "preds_ge_0_1": 3769.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "missing_for_k1": [
+        "per_epoch_precision",
+        "per_epoch_recall",
+        "per_epoch_preds@0.1",
+        "matched_positive_count",
+        "gradient_norm",
+        "per_class_AP_curves",
+        "per_sequence_AP"
+      ]
+    }
+  },
+  "cross_seed": {
+    "seed42_vs_44_ep1_map_diff": 0.03130138564826003,
+    "seed43_vs_44_ep1_map_diff": 0.015627660459244533,
+    "seed44_early_lag": 0.07488243075361431,
+    "train_loss_pearson_42_43": 0.9994714897739816,
+    "train_loss_pearson_42_44": 0.9992395431668254,
+    "map_pearson_42_43": 0.04209299236546856,
+    "map_pearson_42_44": -0.18401231131405654,
+    "endpoint_preds_ge_0_1": {
+      "42": 12698,
+      "43": 17125,
+      "44": 3769
+    }
+  },
+  "hypotheses": {
+    "seed43_collapse": {
+      "supported": true,
+      "evidence": [
+        "best@ep3=0.1082",
+        "last=0.0380",
+        "pre_last_max=0.1032",
+        "train_loss continues down: True",
+        "bbox late rebound: False",
+        "endpoint preds@0.1=17125 (higher than seed42=12698)"
+      ],
+      "working_hypothesis": "Overfit / late instability: train losses keep improving while val mAP suffers a late cliff; higher endpoint preds@0.1 suggests confidence/quantity drift, not under-activation.",
+      "favors_next": [
+        "K2-A_lower_lr",
+        "K2-C_more_independent_sequences"
+      ]
+    },
+    "seed44_low": {
+      "supported": true,
+      "evidence": [
+        "ep1 mAP=0.0126 vs 42=0.0439",
+        "early_max=0.0333",
+        "best=0.0414@ep15",
+        "endpoint preds@0.1=3769 (much lower than 42/43)",
+        "train_loss trajectory still similar to seed42 (pearson=0.9992395431668254)"
+      ],
+      "working_hypothesis": "Under-activated detection head / weak early matching: losses look globally similar, but val mAP and preds@0.1 stay suppressed from early epochs \u2014 favors warmup/init/matching sensitivity and/or insufficient diverse data, not only late LR.",
+      "favors_next": [
+        "K2-B_longer_warmup",
+        "K2-C_more_independent_sequences",
+        "K2-A_lower_lr"
+      ]
+    }
+  },
+  "k2_recommendation": {
+    "run_seeds": [
+      43,
+      44
+    ],
+    "skip_first": [
+      42
+    ],
+    "skip_reason": "seed42 already demonstrates protocol can succeed; save compute.",
+    "order": [
+      "K2-A_lr_x0.5",
+      "K2-B_warmup_x2",
+      "K2-C_expand_independent_sequences"
+    ],
+    "do_not": [
+      "change multiple factors at once",
+      "extend to 40ep without nonconvergence evidence",
+      "mix old seed42 with new-protocol 43/44 in one summary",
+      "unblock A4/P01"
+    ],
+    "stability_targets": {
+      "primary": [
+        "seed43/44 both produce non-collapsing last@20",
+        "three-seed last@20 range clearly below current ~0.060",
+        "no best-last gap at 0.07 collapse scale"
+      ],
+      "secondary": [
+        "mean last@20 not clearly worse than current"
+      ]
+    }
+  },
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "decision": "proceed_k2_single_factor_sensitivity",
+  "next": "Launch K2-A (LR\u00d70.5) on seeds 43/44 only; keep all else fixed; evaluate on last@20 + collapse diagnostics before warmup/data slices."
+}

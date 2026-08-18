@@ -1,0 +1,31 @@
+{
+  "gate": "K3-A",
+  "status": "frozen_ready_to_launch",
+  "frozen_at": "2026-08-03",
+  "single_factor": "lr_scheduler.milestones [500] -> [14]",
+  "pytorch_milestones": [14],
+  "gamma": 0.1,
+  "warmup_duration": 500,
+  "learning_rate": 0.0002,
+  "backbone_lr": 0.0001,
+  "epochs": 20,
+  "seeds_order": [43, 44],
+  "lr_trace": "docs/research/v25/gate_k/K3A_LR_TRACE.json",
+  "lr_trace_pass": true,
+  "expected_lr": {
+    "epoch14": {"backbone": 1e-4, "non_backbone": 2e-4},
+    "epoch15": {"backbone": 1e-5, "non_backbone": 2e-5}
+  },
+  "success_criteria": {
+    "43": {"best_ge": 0.08, "last_ge": 0.07, "gap_le": 0.03},
+    "44": {"best_ge": 0.06, "last_ge": 0.05, "gap_le": 0.03}
+  },
+  "baseline_label_if_pass": "formal_a2_baseline_v3_candidate",
+  "requires_seed42_rematch": true,
+  "blocked": ["A4", "P01"],
+  "contracts": [
+    "examples/rgbt_v25_gate_k3a_seed43_contract.json",
+    "examples/rgbt_v25_gate_k3a_seed44_contract.json"
+  ],
+  "protocol": "examples/rgbt_protocol_v25_gate_k3a_late_decay.json"
+}

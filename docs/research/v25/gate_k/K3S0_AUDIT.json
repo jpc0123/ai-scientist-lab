@@ -1,0 +1,413 @@
+{
+  "gate": "GATE_K3_S0",
+  "title": "LR Schedule and Horizon Audit (zero-cost, no retrain)",
+  "completed_at": "2026-08-03T07:58:17.924484+00:00",
+  "parent": [
+    "K2-A",
+    "K2-B"
+  ],
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "logging_convention": {
+    "history_lr_column": "optimizer.param_groups[0] = backbone LR (= 0.5 * base_lr)",
+    "non_backbone_lr": "base_lr (= 2 * logged lr after shared warmup factor)",
+    "steps_per_epoch": 1830
+  },
+  "scheduler_facts": {
+    "configured_lr_scheduler": "MultiStepLR",
+    "milestones_epochs": [
+      500
+    ],
+    "gamma": 0.1,
+    "fires_in_20_epoch_budget": false,
+    "implication": "After warmup, LR is constant through ep20 for original/K2-A/K2-B. Late cliffs are NOT coincident with a MultiStep decay kink."
+  },
+  "warmup_facts": {
+    "original_and_k2a_warmup_steps": 500,
+    "k2b_warmup_steps": 1000,
+    "original_warmup_end": "step 500/1830 \u2248 0.27 into epoch 1",
+    "k2b_warmup_end": "step 1000/1830 \u2248 0.55 into epoch 1",
+    "effective_peak_lr_time_lost_epochs": 0.273,
+    "implication": "warmup\u00d72 only shortens peak-LR exposure by ~0.27 epoch inside ep1; cannot explain a full-run ~0.04 cap on seed43 by time-budget alone."
+  },
+  "answers": {
+    "seed43_orig_lr_during_ep17_20_cliff": {
+      "backbone_lr": 0.0001,
+      "non_backbone_lr": 0.0002,
+      "note": "Constant peak; cliff while LR is high, not after decay."
+    },
+    "k2b_warmup_ends_which_epoch": "Within epoch 1 at step 1000/1830.",
+    "warmup_x2_compresses_peak_lr_time": "Only ~0.27 epoch; not multi-epoch.",
+    "scheduler_inflection_near_ep16_17": false,
+    "backbone_and_other_groups_sync": "Yes during LinearWarmup (shared factor). Ratio backbone:other stays 1:2."
+  },
+  "fixed_epoch16_table": [
+    {
+      "run": "orig_42",
+      "protocol": "original",
+      "seed": 42,
+      "execution_id": "exec_4088755cafc6",
+      "best": 0.08334684868325494,
+      "best_epoch": 19,
+      "mAP_at_16": 0.05517649829929882,
+      "mAP_at_20": 0.08218029641794485,
+      "delta_16_to_20": 0.027003798118646026,
+      "last": 0.08218029641794485,
+      "gap_best_last": 0.0011665522653100946,
+      "preds_ge_0_1_final": 12698,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958
+    },
+    {
+      "run": "orig_43",
+      "protocol": "original",
+      "seed": 43,
+      "execution_id": "exec_a6f6dff68971",
+      "best": 0.10817447410080037,
+      "best_epoch": 3,
+      "mAP_at_16": 0.10319333848007754,
+      "mAP_at_20": 0.037971074226580484,
+      "delta_16_to_20": -0.06522226425349706,
+      "last": 0.037971074226580484,
+      "gap_best_last": 0.07020339987421989,
+      "preds_ge_0_1_final": 17125,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958
+    },
+    {
+      "run": "orig_44",
+      "protocol": "original",
+      "seed": 44,
+      "execution_id": "exec_373196093d79",
+      "best": 0.04143016439577045,
+      "best_epoch": 15,
+      "mAP_at_16": 0.03509670251242088,
+      "mAP_at_20": 0.022242537998124878,
+      "delta_16_to_20": -0.012854164514296,
+      "last": 0.022242537998124878,
+      "gap_best_last": 0.019187626397645572,
+      "preds_ge_0_1_final": 3769,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958
+    },
+    {
+      "run": "k2a_43",
+      "protocol": "k2a_lr_half",
+      "seed": 43,
+      "execution_id": "exec_50a5179ac3db",
+      "best": 0.03945653131694295,
+      "best_epoch": 20,
+      "mAP_at_16": 0.0354210797936297,
+      "mAP_at_20": 0.03945653131694295,
+      "delta_16_to_20": 0.004035451523313249,
+      "last": 0.03945653131694295,
+      "gap_best_last": 0.0,
+      "preds_ge_0_1_final": 16682,
+      "lr_at_ep17_backbone": 4.999999999999895e-05,
+      "lr_at_ep17_non_backbone": 9.99999999999979e-05
+    },
+    {
+      "run": "k2a_44",
+      "protocol": "k2a_lr_half",
+      "seed": 44,
+      "execution_id": "exec_7b7d225e749a",
+      "best": 0.08159592984284147,
+      "best_epoch": 4,
+      "mAP_at_16": 0.0625486243254723,
+      "mAP_at_20": 0.06023719831194385,
+      "delta_16_to_20": -0.0023114260135284476,
+      "last": 0.06023719831194385,
+      "gap_best_last": 0.021358731530897623,
+      "preds_ge_0_1_final": 3643,
+      "lr_at_ep17_backbone": 4.999999999999895e-05,
+      "lr_at_ep17_non_backbone": 9.99999999999979e-05
+    },
+    {
+      "run": "k2b_43",
+      "protocol": "k2b_warmup_x2",
+      "seed": 43,
+      "execution_id": "exec_9c4eec74f789",
+      "best": 0.04280653170348169,
+      "best_epoch": 18,
+      "mAP_at_16": 0.03846023734824451,
+      "mAP_at_20": 0.03936315898396162,
+      "delta_16_to_20": 0.0009029216357171119,
+      "last": 0.03936315898396162,
+      "gap_best_last": 0.0034433727195200686,
+      "preds_ge_0_1_final": 2036,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958
+    },
+    {
+      "run": "k2b_44",
+      "protocol": "k2b_warmup_x2",
+      "seed": 44,
+      "execution_id": "exec_1bdc6e7cb416",
+      "best": 0.08961173744168563,
+      "best_epoch": 6,
+      "mAP_at_16": 0.0782498748642382,
+      "mAP_at_20": 0.03303498629371634,
+      "delta_16_to_20": -0.04521488857052187,
+      "last": 0.03303498629371634,
+      "gap_best_last": 0.05657675114796929,
+      "preds_ge_0_1_final": 1401,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958
+    }
+  ],
+  "original_seed_stats_at_epoch16": {
+    "values": [
+      0.05517649829929882,
+      0.10319333848007754,
+      0.03509670251242088
+    ],
+    "mean": 0.06448884643059907,
+    "sample_std": 0.03499039622977691,
+    "range": 0.06809663596765667,
+    "minimum": 0.03509670251242088,
+    "maximum": 0.10319333848007754
+  },
+  "original_seed_stats_at_epoch20": {
+    "values": [
+      0.08218029641794485,
+      0.037971074226580484,
+      0.022242537998124878
+    ],
+    "mean": 0.04746463621421673,
+    "sample_std": 0.031076188802811613,
+    "range": 0.059937758419819964,
+    "minimum": 0.022242537998124878,
+    "maximum": 0.08218029641794485
+  },
+  "decision": "k3s0_complete__prefer_k3a_earlier_decay__not_more_warmup_or_lr025",
+  "next": {
+    "recommended": "K3-A: warmup=500, peak LR=2e-4, earlier late decay (start ~ep13-15), epochs=20, seeds 43/44",
+    "avoid_now": [
+      "warmup>1000",
+      "LR\u00d70.25",
+      "stack_lr_half_with_warmup_x2"
+    ],
+    "k2c_trigger": "If multiple protocols still overfit mid/late, or best protocols remain seed-specific with large fixed-epoch range, expand independent sequences."
+  },
+  "runs": {
+    "orig_42": {
+      "run": "orig_42",
+      "protocol": "original",
+      "seed": 42,
+      "execution_id": "exec_4088755cafc6",
+      "best": 0.08334684868325494,
+      "best_epoch": 19,
+      "mAP_at_16": 0.05517649829929882,
+      "mAP_at_20": 0.08218029641794485,
+      "delta_16_to_20": 0.027003798118646026,
+      "last": 0.08218029641794485,
+      "gap_best_last": 0.0011665522653100946,
+      "preds_ge_0_1_final": 12698,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958,
+      "schedule": {
+        "base_lr_config": 0.0002,
+        "backbone_peak_lr": 0.0001,
+        "non_backbone_peak_lr": 0.0002,
+        "warmup_duration_steps": 500,
+        "steps_per_epoch": 1830,
+        "warmup_end_fraction_of_epoch1": 0.2732,
+        "multistep_milestones_epochs": [
+          500
+        ],
+        "multistep_gamma": 0.1,
+        "multistep_fires_within_20ep": false,
+        "post_warmup_lr_shape": "constant_peak_until_ep20",
+        "note": "history.csv lr = optimizer.param_groups[0] (backbone). Non-backbone peak = 2x logged lr under shared LinearWarmup factor."
+      }
+    },
+    "orig_43": {
+      "run": "orig_43",
+      "protocol": "original",
+      "seed": 43,
+      "execution_id": "exec_a6f6dff68971",
+      "best": 0.10817447410080037,
+      "best_epoch": 3,
+      "mAP_at_16": 0.10319333848007754,
+      "mAP_at_20": 0.037971074226580484,
+      "delta_16_to_20": -0.06522226425349706,
+      "last": 0.037971074226580484,
+      "gap_best_last": 0.07020339987421989,
+      "preds_ge_0_1_final": 17125,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958,
+      "schedule": {
+        "base_lr_config": 0.0002,
+        "backbone_peak_lr": 0.0001,
+        "non_backbone_peak_lr": 0.0002,
+        "warmup_duration_steps": 500,
+        "steps_per_epoch": 1830,
+        "warmup_end_fraction_of_epoch1": 0.2732,
+        "multistep_milestones_epochs": [
+          500
+        ],
+        "multistep_gamma": 0.1,
+        "multistep_fires_within_20ep": false,
+        "post_warmup_lr_shape": "constant_peak_until_ep20",
+        "note": "history.csv lr = optimizer.param_groups[0] (backbone). Non-backbone peak = 2x logged lr under shared LinearWarmup factor."
+      }
+    },
+    "orig_44": {
+      "run": "orig_44",
+      "protocol": "original",
+      "seed": 44,
+      "execution_id": "exec_373196093d79",
+      "best": 0.04143016439577045,
+      "best_epoch": 15,
+      "mAP_at_16": 0.03509670251242088,
+      "mAP_at_20": 0.022242537998124878,
+      "delta_16_to_20": -0.012854164514296,
+      "last": 0.022242537998124878,
+      "gap_best_last": 0.019187626397645572,
+      "preds_ge_0_1_final": 3769,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958,
+      "schedule": {
+        "base_lr_config": 0.0002,
+        "backbone_peak_lr": 0.0001,
+        "non_backbone_peak_lr": 0.0002,
+        "warmup_duration_steps": 500,
+        "steps_per_epoch": 1830,
+        "warmup_end_fraction_of_epoch1": 0.2732,
+        "multistep_milestones_epochs": [
+          500
+        ],
+        "multistep_gamma": 0.1,
+        "multistep_fires_within_20ep": false,
+        "post_warmup_lr_shape": "constant_peak_until_ep20",
+        "note": "history.csv lr = optimizer.param_groups[0] (backbone). Non-backbone peak = 2x logged lr under shared LinearWarmup factor."
+      }
+    },
+    "k2a_43": {
+      "run": "k2a_43",
+      "protocol": "k2a_lr_half",
+      "seed": 43,
+      "execution_id": "exec_50a5179ac3db",
+      "best": 0.03945653131694295,
+      "best_epoch": 20,
+      "mAP_at_16": 0.0354210797936297,
+      "mAP_at_20": 0.03945653131694295,
+      "delta_16_to_20": 0.004035451523313249,
+      "last": 0.03945653131694295,
+      "gap_best_last": 0.0,
+      "preds_ge_0_1_final": 16682,
+      "lr_at_ep17_backbone": 4.999999999999895e-05,
+      "lr_at_ep17_non_backbone": 9.99999999999979e-05,
+      "schedule": {
+        "base_lr_config": 0.0001,
+        "backbone_peak_lr": 5e-05,
+        "non_backbone_peak_lr": 0.0001,
+        "warmup_duration_steps": 500,
+        "steps_per_epoch": 1830,
+        "warmup_end_fraction_of_epoch1": 0.2732,
+        "multistep_milestones_epochs": [
+          500
+        ],
+        "multistep_gamma": 0.1,
+        "multistep_fires_within_20ep": false,
+        "post_warmup_lr_shape": "constant_peak_until_ep20",
+        "note": "history.csv lr = optimizer.param_groups[0] (backbone). Non-backbone peak = 2x logged lr under shared LinearWarmup factor."
+      }
+    },
+    "k2a_44": {
+      "run": "k2a_44",
+      "protocol": "k2a_lr_half",
+      "seed": 44,
+      "execution_id": "exec_7b7d225e749a",
+      "best": 0.08159592984284147,
+      "best_epoch": 4,
+      "mAP_at_16": 0.0625486243254723,
+      "mAP_at_20": 0.06023719831194385,
+      "delta_16_to_20": -0.0023114260135284476,
+      "last": 0.06023719831194385,
+      "gap_best_last": 0.021358731530897623,
+      "preds_ge_0_1_final": 3643,
+      "lr_at_ep17_backbone": 4.999999999999895e-05,
+      "lr_at_ep17_non_backbone": 9.99999999999979e-05,
+      "schedule": {
+        "base_lr_config": 0.0001,
+        "backbone_peak_lr": 5e-05,
+        "non_backbone_peak_lr": 0.0001,
+        "warmup_duration_steps": 500,
+        "steps_per_epoch": 1830,
+        "warmup_end_fraction_of_epoch1": 0.2732,
+        "multistep_milestones_epochs": [
+          500
+        ],
+        "multistep_gamma": 0.1,
+        "multistep_fires_within_20ep": false,
+        "post_warmup_lr_shape": "constant_peak_until_ep20",
+        "note": "history.csv lr = optimizer.param_groups[0] (backbone). Non-backbone peak = 2x logged lr under shared LinearWarmup factor."
+      }
+    },
+    "k2b_43": {
+      "run": "k2b_43",
+      "protocol": "k2b_warmup_x2",
+      "seed": 43,
+      "execution_id": "exec_9c4eec74f789",
+      "best": 0.04280653170348169,
+      "best_epoch": 18,
+      "mAP_at_16": 0.03846023734824451,
+      "mAP_at_20": 0.03936315898396162,
+      "delta_16_to_20": 0.0009029216357171119,
+      "last": 0.03936315898396162,
+      "gap_best_last": 0.0034433727195200686,
+      "preds_ge_0_1_final": 2036,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958,
+      "schedule": {
+        "base_lr_config": 0.0002,
+        "backbone_peak_lr": 0.0001,
+        "non_backbone_peak_lr": 0.0002,
+        "warmup_duration_steps": 1000,
+        "steps_per_epoch": 1830,
+        "warmup_end_fraction_of_epoch1": 0.5464,
+        "multistep_milestones_epochs": [
+          500
+        ],
+        "multistep_gamma": 0.1,
+        "multistep_fires_within_20ep": false,
+        "post_warmup_lr_shape": "constant_peak_until_ep20",
+        "note": "history.csv lr = optimizer.param_groups[0] (backbone). Non-backbone peak = 2x logged lr under shared LinearWarmup factor."
+      }
+    },
+    "k2b_44": {
+      "run": "k2b_44",
+      "protocol": "k2b_warmup_x2",
+      "seed": 44,
+      "execution_id": "exec_1bdc6e7cb416",
+      "best": 0.08961173744168563,
+      "best_epoch": 6,
+      "mAP_at_16": 0.0782498748642382,
+      "mAP_at_20": 0.03303498629371634,
+      "delta_16_to_20": -0.04521488857052187,
+      "last": 0.03303498629371634,
+      "gap_best_last": 0.05657675114796929,
+      "preds_ge_0_1_final": 1401,
+      "lr_at_ep17_backbone": 9.99999999999979e-05,
+      "lr_at_ep17_non_backbone": 0.0001999999999999958,
+      "schedule": {
+        "base_lr_config": 0.0002,
+        "backbone_peak_lr": 0.0001,
+        "non_backbone_peak_lr": 0.0002,
+        "warmup_duration_steps": 1000,
+        "steps_per_epoch": 1830,
+        "warmup_end_fraction_of_epoch1": 0.5464,
+        "multistep_milestones_epochs": [
+          500
+        ],
+        "multistep_gamma": 0.1,
+        "multistep_fires_within_20ep": false,
+        "post_warmup_lr_shape": "constant_peak_until_ep20",
+        "note": "history.csv lr = optimizer.param_groups[0] (backbone). Non-backbone peak = 2x logged lr under shared LinearWarmup factor."
+      }
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "protocol_id": "protocol_rgbt_v25_gate_h_a2_curve_health",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "v2.5 Gate H: A2 curve health on expanded rgbt_tiny_v1 (640x640, 20ep)",
+  "status": "frozen",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_tiny_v1",
+  "dataset_version": "v1_gate_h_expand",
+  "split_reference": "split:rgbt_tiny_v1_gate_h_seq",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [42],
+  "primary_metric": "mAP50_95",
+  "secondary_metrics": ["mAP50", "AP75", "APS", "precision", "recall"],
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "protocol": "gate_h_curve_health",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 1,
+    "image_width": 640,
+    "image_height": 640,
+    "learning_rate": 0.0002,
+    "num_workers": 0,
+    "mixed_precision": true,
+    "scale_queries_to_tokens": false,
+    "enforce_disk_gate": true,
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    }
+  },
+  "allowed_variables": ["dataset_subset_scale", "epochs"],
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "allow_significance_claim": false,
+  "allow_sota_claim": false,
+  "claim_authority": "baseline_probe",
+  "blocked": ["neck.type=fdpn", "fusion_method=gated_multiscale", "P01", "A4"],
+  "purpose": "Curve-health check vs Gate G after expanding sequence-level subset; only subset scale and epochs changed.",
+  "invariants_vs_gate_g": [
+    "same train_dfine/run_detection_experiment SHA at freeze time",
+    "same Docker image scientist-rgbt-detection:v2-cuda",
+    "same pretrained, 640x640, queries=300, batch=1, lr, AMP, early_concat, category map"
+  ],
+  "changed_vs_gate_g": [
+    "subset expanded (train~1830/val~500)",
+    "epochs 10 -> 20"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "gate": "GATE_K2B",
+  "started_at": "2026-08-03T07:12:49.918490+00:00",
+  "code_sha": "d7b7aab6c75af09833ed2d62c2702e8b4dd0fee1",
+  "image": "scientist-rgbt-detection:v2-cuda",
+  "learning_rate": 0.0002,
+  "warmup_duration": 1000,
+  "a2_reference_warmup_duration": 500,
+  "stacked_with_k2a_lr_half": false,
+  "reporting_protocol": "a2_baseline_checkpoint_v2",
+  "plan": [
+    "k2b_seed43",
+    "k2b_seed44",
+    "compare"
+  ],
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "parent_k2a_decision": "only_44_improve__go_k2b_or_scheduler",
+  "image_id": "6b4dfd4c96d4"
+}

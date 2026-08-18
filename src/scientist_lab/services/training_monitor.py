@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,12 @@ _EPOCH_RE = re.compile(
     re.IGNORECASE,
 )
 _EPOCH_BRACKET_RE = re.compile(r"Epoch:\s*\[(\d+)\s*/\s*(\d+)\]", re.IGNORECASE)
+_EPOCH_STEP_RE = re.compile(
+    r"Epoch:\s*\[\s*(\d+)\s*/\s*(\d+)\s*\]\s*\[\s*(\d+)\s*/\s*(\d+)\s*\]",
+    re.IGNORECASE,
+)
+_LOSS_RE = re.compile(r"\bloss:\s*([0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
+_ETA_RE = re.compile(r"\beta:\s*([0-9:]+)", re.IGNORECASE)
 _MAP_RE = re.compile(
     r"(?:mAP50[_-]?95|coco_eval_bbox|test_coco_eval_bbox)[^\d\[]{0,40}"
     r"(?:\[?\s*)(\d+\.?\d*(?:e[-+]?\d+)?)",
@@ -20,7 +27,7 @@ _MAP_RE = re.compile(
 )
 _ERROR_RE = re.compile(
     r"(?:RuntimeError|AttributeError|Error|Exception|Traceback|"
-    r"\[worker\] failed)[^\n]{0,240}",
+    r"\[worker\] failed|\[worker\] cancelled)[^\n]{0,240}",
     re.IGNORECASE,
 )
 
@@ -58,22 +65,61 @@ def parse_training_signals(log_text: str) -> dict[str, Any]:
         return {
             "epoch": None,
             "epochs_total": None,
+            "step": None,
+            "steps_total": None,
+            "loss": None,
+            "eta": None,
             "mAP50_95": None,
             "error_snippet": None,
             "started_training": False,
             "last_lines": "",
+            "status_line": "",
         }
     epochs: list[int] = []
     epochs_total = None
-    for m in _EPOCH_BRACKET_RE.finditer(log_text):
+    step = None
+    steps_total = None
+    loss = None
+    eta = None
+    status_line = ""
+    for m in _EPOCH_STEP_RE.finditer(log_text):
         epochs.append(int(m.group(1)))
-        try:
-            epochs_total = int(m.group(2))
-        except (TypeError, ValueError):
-            pass
+        epochs_total = int(m.group(2))
+        step = int(m.group(3))
+        steps_total = int(m.group(4))
+        status_line = m.group(0)
+        # Prefer the matching line's loss/eta when present nearby.
+    if not epochs:
+        for m in _EPOCH_BRACKET_RE.finditer(log_text):
+            epochs.append(int(m.group(1)))
+            try:
+                epochs_total = int(m.group(2))
+            except (TypeError, ValueError):
+                pass
     if not epochs:
         for m in _EPOCH_RE.finditer(log_text):
             epochs.append(int(m.group(1)))
+    # Scan from the end for a compact DFINE progress line.
+    for ln in reversed([x for x in log_text.splitlines() if x.strip()]):
+        if "Epoch:" not in ln:
+            continue
+        status_line = ln.strip()
+        lm = _LOSS_RE.search(ln)
+        if lm:
+            try:
+                loss = float(lm.group(1))
+            except ValueError:
+                pass
+        em = _ETA_RE.search(ln)
+        if em:
+            eta = em.group(1)
+        sm = _EPOCH_STEP_RE.search(ln)
+        if sm:
+            step = int(sm.group(3))
+            steps_total = int(sm.group(4))
+            if epochs_total is None:
+                epochs_total = int(sm.group(2))
+        break
     maps: list[float] = []
     for m in _MAP_RE.finditer(log_text):
         try:
@@ -83,14 +129,47 @@ def parse_training_signals(log_text: str) -> dict[str, Any]:
     err = None
     for m in _ERROR_RE.finditer(log_text):
         err = m.group(0).strip()
-    lines = [ln for ln in log_text.splitlines() if ln.strip()]
+    # Compact UI tail: keep short status markers, not 2KB DFINE metric dumps.
+    compact: list[str] = []
+    for ln in log_text.splitlines():
+        s = ln.strip()
+        if not s:
+            continue
+        if (
+            s.startswith("Epoch:")
+            or s.startswith("[worker]")
+            or "Start training" in s
+            or "mAP50" in s
+            or "Error" in s
+            or "Traceback" in s
+            or "cancelled" in s.lower()
+        ):
+            if s.startswith("Epoch:") and len(s) > 180:
+                # Keep epoch/step/loss/eta only.
+                parts = []
+                em = _EPOCH_STEP_RE.search(s) or _EPOCH_BRACKET_RE.search(s)
+                if em:
+                    parts.append(em.group(0))
+                lm = _LOSS_RE.search(s)
+                if lm:
+                    parts.append(f"loss: {lm.group(1)}")
+                et = _ETA_RE.search(s)
+                if et:
+                    parts.append(f"eta: {et.group(1)}")
+                s = "  ".join(parts) if parts else s[:180]
+            compact.append(s)
     return {
         "epoch": epochs[-1] if epochs else None,
         "epochs_total": epochs_total,
+        "step": step,
+        "steps_total": steps_total,
+        "loss": loss,
+        "eta": eta,
         "mAP50_95": maps[-1] if maps else None,
         "error_snippet": err,
         "started_training": "Start training" in log_text or bool(epochs),
-        "last_lines": "\n".join(lines[-12:]),
+        "last_lines": "\n".join(compact[-8:]),
+        "status_line": status_line[:220] if status_line else "",
     }
 
 
@@ -140,6 +219,58 @@ def discover_worker_log(runtime_dir: Path, job_id: str | None) -> Path | None:
     return path if path.is_file() else None
 
 
+def fetch_docker_job_logs(job_id: str, *, tail: int = 120, max_chars: int = 24_000) -> str:
+    """Read live container stdout when worker combined.log stops updating."""
+    if not job_id:
+        return ""
+    name = f"scientist-worker-{job_id}"
+    try:
+        proc = subprocess.run(
+            ["docker", "logs", "--tail", str(int(tail)), name],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    text = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
+    text = text.strip()
+    if not text:
+        return ""
+    if len(text) > max_chars:
+        return text[-max_chars:]
+    return text
+
+
+def prefer_fresher_log(worker_log: str, docker_log: str) -> str:
+    """Prefer docker logs when they report a newer Epoch than frozen combined.log."""
+    if not docker_log.strip():
+        return worker_log
+    if not worker_log.strip():
+        return docker_log
+    w = parse_training_signals(worker_log)
+    d = parse_training_signals(docker_log)
+    w_ep = w.get("epoch")
+    d_ep = d.get("epoch")
+    if d_ep is None:
+        return worker_log
+    if w_ep is None or int(d_ep) > int(w_ep):
+        return docker_log
+    w_step = w.get("step")
+    d_step = d.get("step")
+    if (
+        w_ep is not None
+        and int(d_ep) == int(w_ep)
+        and d_step is not None
+        and (w_step is None or int(d_step) >= int(w_step))
+    ):
+        return docker_log
+    return worker_log
+
+
 def discover_dfine_log(runtime_dir: Path, job_id: str | None, output_dir: Path | None) -> Path | None:
     candidates: list[Path] = []
     if job_id:
@@ -154,9 +285,39 @@ def discover_dfine_log(runtime_dir: Path, job_id: str | None, output_dir: Path |
 
 
 def load_gate_campaigns(outputs_dir: Path) -> list[dict[str, Any]]:
-    """Surface active Gate J / J3 campaign meta for the monitor."""
+    """Surface active Gate J / J3 / J3b campaign meta for the monitor."""
     campaigns: list[dict[str, Any]] = []
     roots = [
+        (
+            "GATE_K2C",
+            outputs_dir / "experiments" / "v25_real_rgbt" / "gate_k_seed_sensitivity",
+            "K2C_run_meta.json",
+            "GATE_K2C_AUTOCHAIN.log",
+        ),
+        (
+            "GATE_K3A",
+            outputs_dir / "experiments" / "v25_real_rgbt" / "gate_k_seed_sensitivity",
+            "K3A_run_meta.json",
+            "GATE_K3A_AUTOCHAIN.log",
+        ),
+        (
+            "GATE_K2B",
+            outputs_dir / "experiments" / "v25_real_rgbt" / "gate_k_seed_sensitivity",
+            "K2B_run_meta.json",
+            "GATE_K2B_AUTOCHAIN.log",
+        ),
+        (
+            "GATE_K2A",
+            outputs_dir / "experiments" / "v25_real_rgbt" / "gate_k_seed_sensitivity",
+            "K2A_run_meta.json",
+            "GATE_K2A_AUTOCHAIN.log",
+        ),
+        (
+            "GATE_J3B",
+            outputs_dir / "experiments" / "v25_real_rgbt" / "gate_j_seed_diagnosis",
+            "J3B_run_meta.json",
+            "GATE_J3B_AUTOCHAIN.log",
+        ),
         (
             "GATE_J3",
             outputs_dir / "experiments" / "v25_real_rgbt" / "gate_j_seed_diagnosis",
@@ -184,17 +345,25 @@ def load_gate_campaigns(outputs_dir: Path) -> list[dict[str, Any]]:
         if not meta and not log_tail:
             continue
         status = str(meta.get("status") or "")
+        note = None
+        if name == "GATE_J3B":
+            note = (
+                "战役级 resume：复用已完成的 rep1，未完成的 rep2 会新建 execution 从头训。"
+                "中断不会从 mid-run last.pth 续 epoch（确定性对照需要同起点）。"
+            )
         campaigns.append(
             {
                 "campaign": name,
                 "path": str(folder),
                 "status": status or ("unknown" if meta else "log_only"),
                 "meta": meta,
-                "log_tail": log_tail[-1500:] if log_tail else "",
+                "note": note,
+                "log_tail": log_tail[-800:] if log_tail else "",
                 "failed": bool(
                     "error" in status.lower()
                     or "failed" in status.lower()
                     or "j3_autochain_error" in log_tail
+                    or "j3b_autochain_error" in log_tail
                     or (
                         any("_EXIT=1" in ln for ln in log_tail.splitlines()[-5:])
                         if log_tail
@@ -264,13 +433,35 @@ def enrich_execution_row(
             epochs_total = int(params["epochs"])
         except (TypeError, ValueError):
             epochs_total = None
+    step = signals.get("step")
+    steps_total = signals.get("steps_total")
+    # Stale combined.log can mix an old Epoch:[0] step with a newer dfine epoch.
+    if (
+        signal_epoch is not None
+        and dfine_epoch is not None
+        and int(signal_epoch) < int(dfine_epoch)
+    ):
+        step = None
+        steps_total = None
     epoch_progress = None
     if epoch is not None and epochs_total and epochs_total > 0:
-        # DFINE logs 0-based epochs; last completed line is often (N-1)/N.
-        # While running: (epoch+1)/total, capped below 100% until terminal success.
-        # On completed: force 100% (do not leave UI stuck at 95% = 19/20).
+        # DFINE logs 0-based epochs. Prefer intra-epoch step for smoother bars.
         if status == "completed":
             epoch_progress = 1.0
+        elif (
+            step is not None
+            and steps_total
+            and int(steps_total) > 0
+            and status in ACTIVE
+        ):
+            epoch_progress = min(
+                0.99,
+                max(
+                    0.0,
+                    (float(epoch) + (float(step) / float(steps_total)))
+                    / float(epochs_total),
+                ),
+            )
         else:
             epoch_progress = min(
                 0.99, max(0.0, (float(epoch) + 1.0) / float(epochs_total))
@@ -309,6 +500,11 @@ def enrich_execution_row(
         "stage": stage,
         "epoch": display_epoch,
         "epochs_total": epochs_total,
+        "step": step,
+        "steps_total": steps_total,
+        "loss": signals.get("loss"),
+        "eta": signals.get("eta"),
+        "status_line": signals.get("status_line") or "",
         "mAP50_95": map_val,
         "best_mAP50_95": best_map,
         "started_training": bool(signals.get("started_training") or (dfine or {}).get("epochs_seen")),
@@ -319,7 +515,18 @@ def enrich_execution_row(
         "started_at": attempt.get("started_at") or attempt.get("created_at"),
         "completed_at": attempt.get("completed_at") or (live or {}).get("finished_at"),
         "created_at": attempt.get("created_at"),
-        "log_tail": signals.get("last_lines") or "",
+        # Keep UI payloads small: long DFINE lines freeze the training monitor page.
+        "log_tail": (
+            (signals.get("last_lines") or "")[-900:]
+            if status in ACTIVE or is_failed
+            else ""
+        ),
         "href": f"/executions/{attempt.get('execution_id')}",
         "updated_at": _now_iso(),
+        "resume_note": (
+            "中断/取消后再次启动会新建 execution，并从 epoch 0 重训；"
+            "不会自动加载上次 mid-run 的 last.pth（Gate J3b 确定性对照要求同起点）。"
+            if status in ACTIVE or is_failed
+            else None
+        ),
     }

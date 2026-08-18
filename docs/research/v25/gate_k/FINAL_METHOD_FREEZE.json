@@ -1,0 +1,174 @@
+{
+  "id": "FINAL_METHOD_FREEZE",
+  "status": "frozen",
+  "frozen_at": "2026-08-08T05:30:00+00:00",
+  "decision_id": "decision_accept_p01_negative__freeze_a4_final_2026-08-08",
+  "method_name": "A4",
+  "method_label": "early_concat + FDPN neck",
+  "claim_level": "exploratory_comparison",
+  "code": {
+    "repository": "scientist-lab",
+    "code_reference": "local:rgbt_detection_real",
+    "code_version": "v2.5.0-dev",
+    "git_sha": "d7b7aab6c75af09833ed2d62c2702e8b4dd0fee1",
+    "environment_key": "rgbt-detection-v2-cuda",
+    "image": "scientist-rgbt-detection:v2-cuda"
+  },
+  "dataset": {
+    "dataset_reference": "dataset:rgbt_tiny_v1",
+    "dataset_version": "v1_gate_k2c_seq_expand",
+    "split_reference": "split:rgbt_tiny_v1_gate_k2c_seq",
+    "freeze_doc": "docs/research/v25/gate_k/K2C_DATASET_FREEZE.json",
+    "manifest_hashes": {
+      "train_pairs.csv": "2b8730e1ee371bbcdc170926da96c677a32dea8c7e5feb514c75da14fa9bf395",
+      "val_pairs.csv": "bf1f3fab5b5972f14c7d25d0763a46ab60cd273bf80f499176b320028319618a",
+      "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+    },
+    "annotation_hashes": {
+      "instances_train.json": "0640b58829ad1d5eee9ec3bae5b702b661a961c45680746301b930263ffe46ea",
+      "instances_val.json": "ed818b1b04b08d32db5b5af3689a94774e2b53593e0dc84a8d0a5fd8ca6de4bd",
+      "instances_test.json": "8d83d8a71f56a140942e82d20a5a43fe2cf6922d9070a6fabd65545e856cb2cd"
+    }
+  },
+  "protocol": {
+    "comparison_protocol": "protocol_rgbt_formal_a2_a4_v2",
+    "baseline_protocol": "protocol_rgbt_v25_gate_k2c_seq_expand",
+    "reporting_protocol": "a2_baseline_checkpoint_v2",
+    "primary_metric": "mAP50_95 last@20",
+    "seeds": [42, 43, 44],
+    "epochs": 20,
+    "image_size": [640, 640],
+    "batch_size": 1,
+    "learning_rate": 0.0002,
+    "warmup_duration": 500,
+    "scheduler": "MultiStep milestones=[500] inactive in 20ep",
+    "fusion_method": "early_concat",
+    "neck": {"type": "fdpn"},
+    "explicitly_not_in_final": [
+      "residual_scale",
+      "gated_multiscale",
+      "cosine",
+      "K3-B"
+    ]
+  },
+  "baseline_a2": {
+    "role": "comparison_baseline_v3",
+    "seeds": {
+      "42": {
+        "execution_id": "exec_00cc3754ea3d",
+        "last": 0.05292580665797833,
+        "best": 0.14129048711410302,
+        "parameter_count": 10228145,
+        "peak_gpu_memory_mb": 832.17,
+        "duration_seconds": 22377.6,
+        "last_pt_sha256_16": "af8631396dcea606"
+      },
+      "43": {
+        "execution_id": "exec_d4b4feb6cfb1",
+        "last": 0.10926466873726258,
+        "best": 0.15306521940521006,
+        "parameter_count": 10228145,
+        "peak_gpu_memory_mb": 837.92,
+        "duration_seconds": 21260.0,
+        "last_pt_sha256_16": "15a67dde7e1f6391"
+      },
+      "44": {
+        "execution_id": "exec_4f4151310027",
+        "last": 0.07284228851267373,
+        "best": 0.14317638008409922,
+        "parameter_count": 10228145,
+        "peak_gpu_memory_mb": 839.07,
+        "duration_seconds": 22524.3,
+        "last_pt_sha256_16": "a23b8f6bc7d5e9c5"
+      }
+    },
+    "last_mean": 0.07834425463597154,
+    "last_range": 0.05633886207928425
+  },
+  "final_method_a4": {
+    "role": "final_method",
+    "seeds": {
+      "42": {
+        "execution_id": "exec_e5e0067e8d1b",
+        "last": 0.14834821920305924,
+        "best": 0.16308147760780506,
+        "best_epoch": 6,
+        "parameter_count": 11344049,
+        "peak_gpu_memory_mb": 814.04,
+        "duration_seconds": 20288.0,
+        "last_pt_sha256_16": "ebb0874e0cf5cf1b",
+        "checkpoint_dir": "outputs/project_rgbt_cuda_001/exec_e5e0067e8d1b/checkpoint"
+      },
+      "43": {
+        "execution_id": "exec_1f526b78bc5f",
+        "last": 0.13809443857138257,
+        "best": 0.1457225878743489,
+        "best_epoch": 18,
+        "parameter_count": 11344049,
+        "peak_gpu_memory_mb": 806.48,
+        "duration_seconds": 19567.4,
+        "last_pt_sha256_16": "9fd7dc56664995c5",
+        "checkpoint_dir": "outputs/project_rgbt_cuda_001/exec_1f526b78bc5f/checkpoint"
+      },
+      "44": {
+        "execution_id": "exec_8bffa02fe333",
+        "last": 0.12173926971762812,
+        "best": 0.15500920868359724,
+        "best_epoch": 7,
+        "parameter_count": 11344049,
+        "peak_gpu_memory_mb": 789.0,
+        "duration_seconds": 18791,
+        "last_pt_sha256_16": "95f3f2a19516ed6e",
+        "checkpoint_dir": "outputs/project_rgbt_cuda_001/exec_8bffa02fe333/checkpoint",
+        "recovery_note": "repacked after post-train disk-gate failure; metrics from dfine log"
+      }
+    },
+    "last_mean": 0.13606064249735664,
+    "last_range": 0.02660894948543112,
+    "delta_vs_a2": {
+      "42": 0.09542241254508091,
+      "43": 0.028829769834119987,
+      "44": 0.04889698120495439,
+      "mean": 0.057716387861385096,
+      "n_positive": 3
+    }
+  },
+  "ablations_closed": {
+    "P01_residual_scale_0_25": {
+      "status": "rejected_negative",
+      "protocol": "protocol_rgbt_formal_a4_p01_v1",
+      "mean_delta_vs_a4": -0.03984689294278009,
+      "n_positive": 0,
+      "executions": {
+        "42": "exec_f9589a33a3ee",
+        "43": "exec_cbcaf007f8db",
+        "44": "exec_658ff436e569"
+      },
+      "interpretation": "Full FDPN residual expression preferred under early_concat; α=0.25 under-enhances."
+    },
+    "P00_gated_plus_fdpn": {
+      "status": "rejected_prior_negative_interaction",
+      "interpretation": "Conflict is combination-specific (gated×FDPN), not a reason to weaken FDPN on A4."
+    }
+  },
+  "efficiency_table_status": {
+    "params_vram_duration": "recorded_from_run_artifacts",
+    "flops_fps_latency": "filled",
+    "table_doc": "docs/research/v25/gate_k/efficiency/EFFICIENCY_TABLE.md",
+    "table_json": "docs/research/v25/gate_k/efficiency/EFFICIENCY_TABLE.json",
+    "bench_artifacts": {
+      "A2": "docs/research/v25/gate_k/efficiency/INFER_A2_640_bs1.json",
+      "A4": "docs/research/v25/gate_k/efficiency/INFER_A4_640_bs1.json"
+    },
+    "summary": {
+      "A2": {"params_m": 10.23, "gflops": 25.01, "latency_mean_ms": 17.25, "fps": 58.0},
+      "A4": {"params_m": 11.34, "gflops": 30.12, "latency_mean_ms": 15.37, "fps": 65.1}
+    },
+    "note": "Forward-only bench; method frozen — do not retune."
+  },
+  "do_not_reopen": [
+    "P02/P03 residual scale grid",
+    "moving A2 baseline",
+    "mixing Gate-H metrics into final claims"
+  ]
+}

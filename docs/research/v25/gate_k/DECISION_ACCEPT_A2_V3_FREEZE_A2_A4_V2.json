@@ -1,0 +1,49 @@
+{
+  "decision_id": "decision_accept_a2_v3_freeze_a2_a4_v2_2026-08-05",
+  "question": "After K2-C three-seed case_A_soft, accept A2 v3 candidate and what is the next route?",
+  "verdict": "accept_a2_v3_candidate_with_notes__freeze_a2_a4_v2_protocol__open_a4_vs_a2",
+  "action": "reuse_baseline_then_launch_experiment",
+  "canonical_actions": [
+    "reuse_baseline",
+    "launch_experiment"
+  ],
+  "rejected_alternatives": [
+    "continue_tuning_A2_cosine_epoch_EMA_LR",
+    "declare_A2_fully_stable_absolute_freeze",
+    "open_P01_before_A4_vs_A2",
+    "retrain_A2_under_new_protocol",
+    "ask_whether_A4_has_highest_score"
+  ],
+  "reason": "Three seeds all clear last@20 floor (0.0529/0.1093/0.0728); mean last 0.0783; range 0.0563 slightly below Gate-H 0.060. case_A_soft is correct: usable comparison candidate, not fully stable. Moving the A2 score again would destroy the fixed reference. First freeze matched A2/A4 protocol, reuse K2-C A2 runs, then answer whether FDPN yields consistent gain.",
+  "evidence_paths": [
+    "docs/research/v25/gate_k/A2_BASELINE_V3_REPORT.md",
+    "docs/research/v25/gate_k/formal_a2_baseline_v3_candidate.json",
+    "docs/research/v25/gate_k/K2C_DATASET_FREEZE.json",
+    "docs/research/v25/gate_k/formal_a2_a4_v2_protocol.json"
+  ],
+  "claim_policy": {
+    "allowed": [
+      "Under K2-C expanded RGB-T coverage, A2 reaches non-degenerate last@20 on all three seeds; mean last@20=0.0783; lower cross-seed failure risk than Gate-H.",
+      "A2 baseline v3 is the candidate comparison baseline for subsequent structural comparisons."
+    ],
+    "disallowed": [
+      "A2 is fully stable",
+      "training determinism solved",
+      "A2 is strong / SOTA",
+      "method superiority / A4/P01 gains (until A4 vs A2 completes)"
+    ]
+  },
+  "blocked": [
+    "further_A2_optimization",
+    "P01",
+    "cosine_now",
+    "K3-B",
+    "gated_fusion",
+    "further_FDPN_tuning_before_A4_result"
+  ],
+  "unblocked": [
+    "A4_vs_A2_formal_comparison_under_formal_a2_a4_v2"
+  ],
+  "next_stage": "formal_a2_a4_v2",
+  "next_direction": "Launch A4 seeds in order 44→43→42 under frozen protocol; reuse A2 K2-C executions; judge by consistent last@20 deltas, not peak score."
+}

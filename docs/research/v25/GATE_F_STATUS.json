@@ -1,0 +1,46 @@
+{
+  "gate": "F",
+  "status": "f0_f1_host_passed",
+  "dataset_name": "RGBT-Tiny",
+  "source_raw": "D:/BaiduNetdiskDownload/RGBT-Tiny",
+  "junction": "D:/datasets/RGBT-Tiny/raw/RGBT-Tiny",
+  "registered_root": "datasets/registered/rgbt_tiny_v1",
+  "dataset_key": "rgbt_tiny_v1",
+  "phases": {
+    "F0": {
+      "status": "registered_subset",
+      "layout": "official_images_seq_00_01",
+      "official_split": true,
+      "leakage_check": "passed",
+      "subset": {
+        "max_sequences": 12,
+        "max_frames_per_seq": 40,
+        "frame_stride": 5,
+        "seed": 42,
+        "frames": {"train": 304, "val": 80, "test": 80},
+        "sequences": {"train": 8, "val": 2, "test": 2}
+      },
+      "path_policy": "hardlink_or_symlink_no_copy",
+      "hardlinks": 928,
+      "notes": {
+        "oob_bbox_recorded": 26,
+        "annotation_modality": "thermal_01"
+      }
+    },
+    "F1": {
+      "status": "passed",
+      "host_dataloader": true,
+      "host_cuda": false,
+      "decode_ok": 55,
+      "align_mismatch": 0,
+      "note": "Host torch CUDA unavailable; Docker worker CUDA one-batch still recommended before formal train."
+    }
+  },
+  "claim_authority": "registration_and_probe_only",
+  "forbidden": ["formal_metrics", "A4", "P01", "full_corpus_train_without_decision"],
+  "next": [
+    "Optional: Docker CUDA one-batch via worker",
+    "Then plan formal A2 baseline on rgbt_tiny_v1 subset or expand subset",
+    "Do not launch A4/P01"
+  ]
+}

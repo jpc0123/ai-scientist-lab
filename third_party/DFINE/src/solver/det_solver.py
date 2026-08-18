@@ -91,8 +91,16 @@ class DetSolver(BaseSolver):
                 output_dir=self.output_dir,
             )
 
+            # Capture LRs used during this epoch (before MultiStepLR.step).
+            backbone_actual_lr = float(self.optimizer.param_groups[0]["lr"])
+            non_backbone_actual_lr = float(
+                max(float(pg["lr"]) for pg in self.optimizer.param_groups)
+            )
+
             if self.lr_warmup_scheduler is None or self.lr_warmup_scheduler.finished():
                 self.lr_scheduler.step()
+
+            scheduler_last_epoch = int(getattr(self.lr_scheduler, "last_epoch", -1))
 
             self.last_epoch += 1
 
@@ -175,6 +183,9 @@ class DetSolver(BaseSolver):
                 **{f"test_{k}": v for k, v in test_stats.items()},
                 "epoch": epoch,
                 "n_parameters": n_parameters,
+                "backbone_actual_lr": backbone_actual_lr,
+                "non_backbone_actual_lr": non_backbone_actual_lr,
+                "scheduler_last_epoch": scheduler_last_epoch,
             }
 
             if self.use_wandb:

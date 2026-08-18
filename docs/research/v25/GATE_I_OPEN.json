@@ -1,0 +1,33 @@
+{
+  "gate": "GATE_I_A2_FORMAL_MULTISEED",
+  "opened_at": "2026-07-29T12:17:08.584840+00:00",
+  "inherits_data_from": "GATE_H_A2_CURVE_HEALTH",
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "seed42": {
+    "seed": 42,
+    "policy": "reuse_gate_h",
+    "execution_id": "exec_4088755cafc6",
+    "status": "completed",
+    "best_epoch": 19,
+    "mAP50_95": 0.08334684868325494,
+    "mAP50": 0.18967608702891092,
+    "last_mAP50_95": null,
+    "note": "Identical hyperparameters and Gate-H frozen subset; counted as Gate I seed42 without retrain."
+  },
+  "contracts": {
+    "42": "D:/AI Scientist_tiao/scientist-lab/outputs/experiments/v25_real_rgbt/gate_i_a2_formal_multiseed/contracts/A2_seed42.json",
+    "43": "D:/AI Scientist_tiao/scientist-lab/outputs/experiments/v25_real_rgbt/gate_i_a2_formal_multiseed/contracts/A2_seed43.json",
+    "44": "D:/AI Scientist_tiao/scientist-lab/outputs/experiments/v25_real_rgbt/gate_i_a2_formal_multiseed/contracts/A2_seed44.json"
+  },
+  "blocked": [
+    "A4",
+    "P01",
+    "fdpn",
+    "gated_multiscale"
+  ],
+  "status": "running_seed43"
+}

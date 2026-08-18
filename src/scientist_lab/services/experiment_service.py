@@ -1471,8 +1471,10 @@ class ExperimentService:
             discover_dfine_log,
             discover_worker_log,
             enrich_execution_row,
+            fetch_docker_job_logs,
             load_gate_campaigns,
             parse_dfine_log_txt,
+            prefer_fresher_log,
             _tail_text,
         )
 
@@ -1559,10 +1561,18 @@ class ExperimentService:
                         live = None
 
                 # Prefer local worker log (fast) over remote HTTP logs.
+                # After worker restart, combined.log may freeze while the container
+                # keeps training — overlay with docker logs when fresher.
                 if job_id:
                     wlog = discover_worker_log(Path(self.settings.runtime_dir), job_id)
                     if wlog is not None:
                         log_text = _tail_text(wlog, max_chars=24_000)
+                    if status_name in ACTIVE:
+                        try:
+                            dlog = fetch_docker_job_logs(str(job_id))
+                            log_text = prefer_fresher_log(log_text, dlog)
+                        except Exception:  # noqa: BLE001
+                            pass
                 if not log_text:
                     out_combined = None
                     if binding and binding.get("output_directory"):

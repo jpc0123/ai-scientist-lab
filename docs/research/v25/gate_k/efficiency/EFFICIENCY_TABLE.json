@@ -1,0 +1,72 @@
+{
+  "id": "EFFICIENCY_TABLE_A2_A4",
+  "status": "filled",
+  "filled_at": "2026-08-08T05:45:00+00:00",
+  "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+  "image": "scientist-rgbt-detection:v2-cuda",
+  "protocol_match": {
+    "image_size": [640, 640],
+    "batch_size": 1,
+    "fusion_method": "early_concat",
+    "input_channels_for_model_forward": 3,
+    "note": "early_concat fuses RGB-T at data stage; model forward sees 3ch (same as training after staging)."
+  },
+  "bench": {
+    "script": "experiment_apps/rgbt_detection_real/bench_inference_latency.py",
+    "scope": "model_forward_only",
+    "includes_preprocess": false,
+    "includes_postprocess": false,
+    "amp": false,
+    "warmup": 30,
+    "iters": 200,
+    "flops_tool": "calflops",
+    "artifacts": {
+      "A2": "docs/research/v25/gate_k/efficiency/INFER_A2_640_bs1.json",
+      "A4": "docs/research/v25/gate_k/efficiency/INFER_A4_640_bs1.json"
+    }
+  },
+  "rows": {
+    "A2": {
+      "neck": "standard",
+      "parameter_count_train": 10228145,
+      "params_m": 10.228,
+      "flops": "25.0065 GFLOPS",
+      "macs": "12.4406 GMACs",
+      "latency_mean_ms": 17.2496,
+      "latency_p50_ms": 18.2874,
+      "latency_p95_ms": 23.2647,
+      "fps_mean": 57.97,
+      "peak_inference_gpu_memory_mb": 139.60,
+      "peak_train_gpu_memory_mb_mean": 836.39,
+      "train_duration_seconds_mean": 22054
+    },
+    "A4": {
+      "neck": "fdpn",
+      "parameter_count_train": 11344049,
+      "params_m": 11.344,
+      "flops": "30.1164 GFLOPS",
+      "macs": "15.0081 GMACs",
+      "latency_mean_ms": 15.3733,
+      "latency_p50_ms": 15.6745,
+      "latency_p95_ms": 22.5543,
+      "fps_mean": 65.05,
+      "peak_inference_gpu_memory_mb": 110.97,
+      "peak_train_gpu_memory_mb_mean": 803.17,
+      "train_duration_seconds_mean": 19549
+    }
+  },
+  "deltas_A4_minus_A2": {
+    "params_m": 1.116,
+    "params_rel": "+10.9%",
+    "flops_rel": "+20.4%",
+    "latency_mean_ms": -1.876,
+    "fps_mean": 7.08,
+    "interpretation": "A4 adds ~1.1M params and ~20% FLOPs vs A2 HybridEncoder; measured forward latency on this GPU is not worse (slightly lower mean). Do not over-claim deployment speedup — scope is forward-only, single session."
+  },
+  "caveats": [
+    "Forward-only; excludes dataloader, RGB-T pair load, NMS/postprocess.",
+    "Synthetic random input; not end-to-end pipeline FPS.",
+    "Single GPU session; p50/p95 can disagree across sessions.",
+    "Train peak VRAM from formal 20ep runs (bs=1); inference peak from this bench."
+  ]
+}
