@@ -11,6 +11,7 @@ from scientist_lab.patching.context_bundle import (
     build_code_context_bundle,
     code_context_sha256,
     digits_improvement_patch_request,
+    how_plugin_patch_request,
 )
 from scientist_lab.patching.context_models import (
     AllowedSourceFile,
@@ -120,6 +121,7 @@ __all__ = [
     "digits_improvement_patch_request",
     "export_code_context_bundle",
     "fingerprint_diff",
+    "how_plugin_patch_request",
     "list_sandbox_test_profiles",
     "load_exported_code_context_bundle",
     "load_patch_replay_bundle",

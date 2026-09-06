@@ -64,6 +64,7 @@ def is_real_baseline(baseline_key: str) -> bool:
 def ensure_baselines_loaded() -> None:
     # Import side-effects register adapters.
     from scientist_lab.tasks.rgbt_detection.baselines import dfine_s as _dfine  # noqa: F401
+    from scientist_lab.tasks.rgbt_detection.baselines import rtdetr_s as _rtdetr  # noqa: F401
     from scientist_lab.tasks.rgbt_detection.baselines import (  # noqa: F401
         tiny_detector as _tiny,
     )

@@ -38,4 +38,8 @@ LLM 已接入、Web 已有、RGB-T 方法已冻，最危险的是这些成果还
 
 ## Next direction
 
-第二步 Demo 已验收：见 `docs/V25D_DEMO_ACCEPTANCE.md`。probe REAL `exec_824958918784` APS=0.0 是工程闭环负结果，ClaimGate BLOCKED，不是 C1。Formal E 仅在比赛规则明确需要时另开。
+第二步 Demo 已验收：见 `docs/V25D_DEMO_ACCEPTANCE.md`。probe REAL `exec_824958918784` APS=0.0 是工程闭环负结果，ClaimGate BLOCKED，不是 C1。
+
+下一主线改为 **v2.6 LLM Autonomous Detection Campaign**（不是 Formal E）：  
+[`docs/V26_LLM_AUTONOMOUS_DETECTION.md`](./V26_LLM_AUTONOMOUS_DETECTION.md)。  
+优先级：**P0 Live LLM API → P1 Semantic Scholar 文献工具 → P2 切片（已落地）→ Dataset Workspace（已插入）→ V26.4 R0 `metrics_bound`（`APS_lowlight=0.0045926865160844455`）→ P3/V26.5 多轮 GPU → P4 transfer**。

@@ -64,6 +64,27 @@ def test_valid_evidence_does_not_keep_or_discard() -> None:
     assert verdict.review_allowed is True
 
 
+def test_ap_small_primary_accepts_aps_alias() -> None:
+    """Protocol primary=AP_small must accept Freeze canonical APS (same COCO AP)."""
+    protocol = load_json(EXAMPLES / "research_protocol_rgbt_dfine_v1.json")
+    protocol = {
+        **protocol,
+        "objective": {
+            **dict(protocol.get("objective") or {}),
+            "primary": {"metric": "AP_small", "direction": "maximize"},
+        },
+    }
+    verdict = EvidenceValidator().validate(
+        _result(metrics={"APS": 0.0768, "mAP50_95": 0.0758}),
+        protocol=protocol,
+        expected_artifacts=["metrics.json", "checkpoint_selection.json"],
+        fingerprint_comparable=True,
+    )
+    assert verdict.evidence_status == "VALID"
+    assert verdict.review_allowed is True
+    assert not any("AP_small absent" in r for r in verdict.reasons)
+
+
 def test_missing_eval_file_is_incomplete() -> None:
     protocol = load_json(EXAMPLES / "research_protocol_rgbt_dfine_v1.json")
     verdict = EvidenceValidator().validate(

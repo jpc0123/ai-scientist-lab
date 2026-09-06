@@ -8,8 +8,10 @@ from typing import Any
 from models.dual_stream_backbone import (
     DualStreamGatedBackbone,
     build_dual_stream_backbone,
+    build_dual_stream_backbone_from_fusion,
     dual_stream_state_summary,
 )
+from models.feature_fusion import FeatureFusion
 from models.fusion_factory import FusionConfig
 from rgbt_paired_dataset import wrap_loader_dataset_with_thermal
 
@@ -42,6 +44,33 @@ def apply_gated_multiscale_fusion(
 
     summary = dual_stream_state_summary(model.backbone)
     summary["fusion_config"] = fusion_config.to_dict()
+    summary["thermal_train_img"] = str(thermal_train_img)
+    summary["thermal_val_img"] = str(thermal_val_img)
+    return summary
+
+
+def apply_plugin_feature_fusion(
+    yaml_cfg: Any,
+    fusion: FeatureFusion,
+    *,
+    thermal_train_img: Path,
+    thermal_val_img: Path,
+    how_id: str,
+) -> dict[str, Any]:
+    """Same dual-stream wrap as gated fusion, but the module is a HOW plugin."""
+    model = yaml_cfg.model
+    if not hasattr(model, "backbone"):
+        raise TypeError(f"model has no backbone attribute: {type(model)!r}")
+    if isinstance(model.backbone, DualStreamGatedBackbone):
+        raise RuntimeError("plugin fusion already applied")
+    model.backbone = build_dual_stream_backbone_from_fusion(model.backbone, fusion)
+    train_loader = yaml_cfg.train_dataloader
+    val_loader = yaml_cfg.val_dataloader
+    wrap_loader_dataset_with_thermal(train_loader, thermal_train_img)
+    wrap_loader_dataset_with_thermal(val_loader, thermal_val_img)
+    _patch_vendor_visualizer_for_6ch()
+    summary = dual_stream_state_summary(model.backbone)
+    summary["plugin_how_id"] = str(how_id)
     summary["thermal_train_img"] = str(thermal_train_img)
     summary["thermal_val_img"] = str(thermal_val_img)
     return summary

@@ -197,3 +197,25 @@ def test_stage_gated_paired_folders(tmp_path: Path):
     assert Path(stage["thermal_val_img"]).is_dir()
     assert any(Path(stage["train_img"]).glob("*"))
     assert any(Path(stage["thermal_train_img"]).glob("*"))
+
+
+def test_stage_plugin_also_gets_thermal_paired(tmp_path: Path):
+    """plugin:<HOW> needs the same dual-stream thermal folders as gated_multiscale."""
+    from dfine_dataset_stage import stage_coco_for_dfine
+    from fusion_names import is_plugin_fusion, needs_paired_thermal
+
+    assert is_plugin_fusion("plugin:P1")
+    assert needs_paired_thermal("plugin:P1")
+    data_root = ROOT / "datasets" / "rgbt_fast_eval_v1"
+    if not data_root.exists():
+        pytest.skip("rgbt_fast_eval_v1 missing")
+    stage = stage_coco_for_dfine(
+        data_root,
+        tmp_path / "stage_plugin",
+        input_mode="rgbt",
+        fusion_method="plugin:P1",
+    )
+    assert stage["staging_mode"] == "gated_paired"
+    assert Path(stage["thermal_train_img"]).is_dir()
+    assert Path(stage["thermal_val_img"]).is_dir()
+    assert any(Path(stage["thermal_train_img"]).glob("*"))

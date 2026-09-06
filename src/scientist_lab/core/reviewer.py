@@ -18,6 +18,7 @@ from typing import Any, Mapping
 
 from scientist_lab.core.decision_rubric import RubricResult
 from scientist_lab.core.evidence_validator import EvidenceVerdict
+from scientist_lab.core.memory_ids import lesson_id_for_run, strategy_id_for_run
 from scientist_lab.core.schema_registry import validate_named
 from scientist_lab.core.state_machine import ReviewDecisionValue
 from scientist_lab.instrumentation.appender import EventAppender
@@ -283,8 +284,8 @@ class Reviewer:
             if current is None:
                 current = check.get("current")
 
-        lesson_id = f"LESSON-{run_id}-001"
-        strategy_id = f"STRATEGY-{run_id}-001"
+        lesson_id = lesson_id_for_run(run_id)
+        strategy_id = strategy_id_for_run(run_id)
         lesson = {
             "lesson_id": lesson_id,
             "type": lesson_type,
@@ -385,7 +386,11 @@ class Reviewer:
         events: EventAppender | None,
     ) -> ReviewPacket:
         from scientist_lab.llm.config import redact_secrets
-        from scientist_lab.llm.errors import MissingAPIKeyError, RealProviderNotEnabledError
+        from scientist_lab.llm.errors import (
+            MissingAPIKeyError,
+            RealProviderNotEnabledError,
+            StructuredOutputValidationError,
+        )
         from scientist_lab.llm.gateway import complete_chat
         from scientist_lab.llm.reviewer_contract import (
             ReviewerContractError,
@@ -441,6 +446,26 @@ class Reviewer:
                 fallback=self.fallback_to_rules,
             )
             raise ReviewRefused(str(exc)) from exc
+        except StructuredOutputValidationError as exc:
+            raw = redact_secrets(getattr(exc, "content", "") or getattr(exc, "prior_content", "") or raw)
+            issues = list(getattr(exc, "issues", []) or [])
+            prior = list(getattr(exc, "prior_issues", []) or [])
+            reason = f"fail_closed: gateway error: {exc}"
+            if issues:
+                reason = f"{reason}; issues={issues[:8]}"
+            if prior:
+                reason = f"{reason}; prior_schema_errors={prior[:8]}"
+            self._emit_llm_failure(
+                protocol=protocol,
+                run_id=payload.run_id,
+                events=events,
+                prompt_hash=hashed,
+                raw=raw,
+                response=response,
+                reason=reason,
+                fallback=self.fallback_to_rules,
+            )
+            raise ReviewRefused(reason) from exc
         except Exception as exc:  # noqa: BLE001 — fail closed, do not invent semantics
             self._emit_llm_failure(
                 protocol=protocol,

@@ -164,3 +164,28 @@ class DatasetRegistry:
         return self._repo.update_flags(
             dataset_key, enabled=True, updated_at=utc_now_iso()
         )
+
+    def update_host_path(
+        self,
+        dataset_key: str,
+        host_path: str | Path,
+    ) -> DatasetRegistration:
+        """Rebind mount path for an existing dataset_key. Does not change identity."""
+        if self.get(dataset_key) is None:
+            raise KeyError(f"数据集未注册：{dataset_key}")
+
+        path = Path(host_path).expanduser().resolve()
+        if not path.exists():
+            raise FileNotFoundError(f"数据集路径不存在：{path}")
+        if not path.is_dir():
+            raise ValueError(f"数据集路径必须是目录：{path}")
+
+        danger = is_dangerous_host_path(path, project_root=self._project_root)
+        if danger:
+            raise ValueError(danger)
+
+        return self._repo.update_host_path(
+            dataset_key,
+            host_path=str(path),
+            updated_at=utc_now_iso(),
+        )

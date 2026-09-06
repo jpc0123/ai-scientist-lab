@@ -1,0 +1,66 @@
+{
+  "catalog_id": "how_catalog_v26_p2",
+  "adapter": "dfine",
+  "allowed": [
+    {
+      "id": "F0",
+      "family": "fusion",
+      "primary_module": "fusion",
+      "input_mode": "rgb",
+      "fusion_method": "none",
+      "neck_type": "standard",
+      "existing_capability": "rgb_only"
+    },
+    {
+      "id": "F1",
+      "family": "fusion",
+      "primary_module": "fusion",
+      "input_mode": "rgbt",
+      "fusion_method": "early_concat",
+      "neck_type": "standard",
+      "existing_capability": "early_concat_blend"
+    },
+    {
+      "id": "F3",
+      "family": "fusion",
+      "primary_module": "fusion",
+      "input_mode": "rgbt",
+      "fusion_method": "gated_multiscale",
+      "neck_type": "standard",
+      "existing_capability": "gated_multiscale",
+      "cost_note": "heavier dual-stream path"
+    },
+    {
+      "id": "N0",
+      "family": "neck",
+      "primary_module": "neck",
+      "input_mode": "rgb",
+      "fusion_method": "none",
+      "neck_type": "standard",
+      "existing_capability": "rgb_hybrid_encoder"
+    },
+    {
+      "id": "N1",
+      "family": "neck",
+      "primary_module": "neck",
+      "input_mode": "rgb",
+      "fusion_method": "none",
+      "neck_type": "fdpn",
+      "existing_capability": "fdpn_neck",
+      "cost_note": "existing fdpn neck switch; not a newly invented operator"
+    },
+    {
+      "id": "A4",
+      "family": "fusion",
+      "primary_module": "fusion",
+      "input_mode": "rgbt",
+      "fusion_method": "early_concat",
+      "neck_type": "fdpn",
+      "existing_capability": "early_concat_fdpn",
+      "cost_note": "Composes existing F1 fusion + N1 neck knobs. Not a freeze answer key and not a new train operator."
+    }
+  ],
+  "not_registered": ["F2", "T0", "T1", "T2", "late_fusion", "mid_fusion", "weighted_fusion"],
+  "hidden_from_planner": {},
+  "llm_may_invent_how": false
+}

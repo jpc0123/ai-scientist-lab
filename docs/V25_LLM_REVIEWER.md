@@ -79,6 +79,14 @@ scientist-lab llm-review-replay --run-dir tests/fixtures/llm_plan_replay/m4_roun
 
 无 `LLM_API_KEY` 时 `--live` fail closed，exit 1，不得假装成功。
 
+把语义提案写进源包（不覆盖 Rubric `review.json` / ClaimGate）：
+
+```text
+scientist-lab llm-review-replay --run-dir outputs/v26_r1 --live --persist-pack
+```
+
+成功写 `semantic_review.json`。失败写 `reviewer_live_fail_closed.json`，禁止 mock 成功。Reviewer schema 不得要求 Planner `selected`。嵌套战役 `run_id` 被 LLM 截成 git-short-SHA 时，合同 id 的 unambiguous 前缀可规范化；外键仍 fail-closed。
+
 ## 与 Rubric / ClaimGate 的边界
 
 - Rubric 先跑。`packet.review_decision` 与 `document.review_decision` 保持 Rubric 结果（本包为 DISCARD）。

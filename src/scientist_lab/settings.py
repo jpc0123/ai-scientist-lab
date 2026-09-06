@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     poll_interval_seconds: float = 0.5
     rgbt_detector_dir: Path | None = None
     rgbt_detection_real_dir: Path | None = None
+    data_workspace_dir: Path | None = None
 
     def resolve(self) -> "Settings":
         root = self.project_root
@@ -40,6 +41,8 @@ class Settings(BaseSettings):
             self.rgbt_detection_real_dir = (
                 root / "experiment_apps" / "rgbt_detection_real"
             )
+        if self.data_workspace_dir is None:
+            self.data_workspace_dir = root / "data"
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
         self.outputs_dir.mkdir(parents=True, exist_ok=True)
         return self

@@ -38,6 +38,13 @@ reviewer:
 # v2.5-D: Human-gated probe REAL loop. manager-run defaults remain rules.
 # llm-real-loop is the opt-in closed loop. GPU (--execute) is independent of LLM --live.
 
+# v2.6-P1: LiteratureRetriever. Keys stay in SEMANTIC_SCHOLAR_API_KEY.
+# Default offline corpus is fake. --live selects semantic_scholar.
+literature:
+  default_provider: fake
+  semantic_scholar:
+    base_url: https://api.semanticscholar.org/graph/v1
+
 security:
   allow_network_by_default: false
   allow_real_llm_by_default: false

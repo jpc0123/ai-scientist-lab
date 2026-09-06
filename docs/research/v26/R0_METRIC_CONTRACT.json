@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "v26_r0_aps_lowlight",
+  "task": "rgbt_object_detection",
+  "dataset_id": "rgbt_tiny_v1",
+  "slice_id": "low_light_subset_v1",
+  "split": "val",
+  "primary": {
+    "metric": "APS_lowlight",
+    "direction": "maximize"
+  },
+  "secondary_slice": [
+    {
+      "metric": "mAP50_95_lowlight",
+      "direction": "maximize"
+    },
+    {
+      "metric": "AP50_lowlight",
+      "direction": "maximize"
+    },
+    {
+      "metric": "Recall_small_lowlight",
+      "direction": "maximize"
+    }
+  ],
+  "secondary_all": [
+    {
+      "metric": "APS_all",
+      "direction": "maximize"
+    },
+    {
+      "metric": "mAP50_95_all",
+      "direction": "maximize"
+    }
+  ],
+  "evaluator": "coco_ap_small_on_low_light_subset_v1",
+  "required_keys": [
+    "APS_lowlight"
+  ],
+  "forbidden_substitutes": [
+    "APS",
+    "APS_all",
+    "mAP50_95",
+    "mAP",
+    "mAP50"
+  ],
+  "official_labels": false,
+  "llm_may_rewrite": false,
+  "note": "G2 compares APS_lowlight on frozen low_light_subset_v1 val. Full-set APS / mAP cannot fill this key. v2.5 A4 and v2.5-D probe APS=0.0 are not R0."
+}

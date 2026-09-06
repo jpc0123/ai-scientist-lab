@@ -1,0 +1,25 @@
+{
+  "suite_version": "contrast_holdout_v1",
+  "title": "Planner contrast holdout exam v1",
+  "description": "Never use for SFT/DPO/RL. Grades single-factor contrast vs last executed anchor. Detection metrics are not scoring keys.",
+  "grader_version": "v1",
+  "schema_version": "v1",
+  "holdout": true,
+  "train_forbidden": true,
+  "case_files": [
+    "contrast/contrast_holdout_v1.jsonl",
+    "contrast/data_bucket_holdout_v1.jsonl"
+  ],
+  "case_counts": {
+    "model_exam": 12,
+    "bucket_exam": 6
+  },
+  "pass_threshold": {
+    "model_exam": 10,
+    "bucket_exam": 6
+  },
+  "metadata": {
+    "offline_default": true,
+    "scoring": "contract_fields_only"
+  }
+}

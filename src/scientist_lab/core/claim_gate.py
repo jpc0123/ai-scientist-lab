@@ -27,6 +27,7 @@ TYPE_FLOOR = {
 }
 
 APS_KEYS = frozenset({"APS", "AP_small"})
+LOWLIGHT_APS_KEYS = frozenset({"APS_lowlight"})
 MAP_KEYS = frozenset({"mAP50", "mAP50_95", "mAP", "AP"})
 SMALL_OBJECT_MARKERS = (
     "aps",
@@ -34,6 +35,12 @@ SMALL_OBJECT_MARKERS = (
     "small-object",
     "small object",
     "small_object",
+)
+LOWLIGHT_MARKERS = (
+    "aps_lowlight",
+    "lowlight",
+    "low-light",
+    "low_light",
 )
 
 
@@ -86,7 +93,20 @@ def _text_claims_aps(claim: Mapping[str, Any], metric: str) -> bool:
     return metric in APS_KEYS or any(tok in blob for tok in SMALL_OBJECT_MARKERS)
 
 
+def _text_claims_lowlight(claim: Mapping[str, Any], metric: str) -> bool:
+    blob = f"{metric} {claim.get('claim_text') or ''}".lower()
+    return metric in LOWLIGHT_APS_KEYS or any(tok in blob for tok in LOWLIGHT_MARKERS)
+
+
+def _has_lowlight_aps(metrics: Mapping[str, Any]) -> bool:
+    return any(_finite(metrics.get(key)) for key in LOWLIGHT_APS_KEYS)
+
+
 def _metric_number(metrics: Mapping[str, Any], metric: str) -> float | None:
+    if metric in LOWLIGHT_APS_KEYS or metric == "APS_lowlight":
+        if _finite(metrics.get("APS_lowlight")):
+            return float(metrics["APS_lowlight"])
+        return None
     if metric in APS_KEYS or metric == "APS":
         for key in ("APS", "AP_small"):
             if _finite(metrics.get(key)):
@@ -280,6 +300,16 @@ class ClaimGate:
             validate_named("claim_gate_result", payload)
             return ClaimVerdict(payload)
 
+        from scientist_lab.literature.gate import looks_like_literature_evidence
+
+        if looks_like_literature_evidence(evidence):
+            extra_refs.append("evidence_kind=literature")
+            return finish(
+                STATUS_BLOCKED,
+                "LiteratureEvidence cannot substitute ExperimentEvidence for ClaimGate",
+                ["experiment_evidence"],
+            )
+
         # Reviewer KEEP/DISCARD never grant or deny a claim by identity.
         extra_refs.append(f"review_decision={review or 'PENDING'}")
         extra_refs.append(f"run_level={level}")
@@ -308,7 +338,16 @@ class ClaimGate:
                 ["matched_fingerprint"],
             )
 
-        if _text_claims_aps(claim_n, metric) and not _has_aps(metrics):
+        if _text_claims_lowlight(claim_n, metric) and not _has_lowlight_aps(metrics):
+            if _has_aps(metrics) or _has_only_map_for_aps(metrics):
+                return finish(
+                    STATUS_BLOCKED,
+                    "missing APS_lowlight evidence (APS_all / mAP50/mAP50-95 are not APS_lowlight)",
+                    ["APS_lowlight"],
+                )
+            return finish(STATUS_BLOCKED, "missing APS_lowlight evidence", ["APS_lowlight"])
+
+        if _text_claims_aps(claim_n, metric) and not _has_aps(metrics) and not _text_claims_lowlight(claim_n, metric):
             if _has_only_map_for_aps(metrics):
                 return finish(
                     STATUS_BLOCKED,
@@ -389,7 +428,13 @@ class ClaimGate:
                     ["matched_fingerprint", "formal_baseline_APS"],
                 )
             base_metrics = dict(baseline.get("metrics") or {})
-            if _text_claims_aps(claim_n, metric) and not _has_aps(base_metrics):
+            if _text_claims_lowlight(claim_n, metric) and not _has_lowlight_aps(base_metrics):
+                return finish(
+                    STATUS_BLOCKED,
+                    "missing APS_lowlight evidence on baseline (APS_all / mAP are not APS_lowlight)",
+                    ["formal_baseline_APS_lowlight"],
+                )
+            if _text_claims_aps(claim_n, metric) and not _has_aps(base_metrics) and not _text_claims_lowlight(claim_n, metric):
                 return finish(
                     STATUS_BLOCKED,
                     "missing APS evidence on baseline (mAP is not APS)",
@@ -611,11 +656,14 @@ def evidence_from_run_dir(
             "result_ref": base_bundle.get("result_ref"),
         }
     elif (root / "baseline_metrics.json").is_file():
+        base_metrics = load_json(root / "baseline_metrics.json")
         baseline = {
             "present": True,
-            "metrics": load_json(root / "baseline_metrics.json"),
-            "matched_fingerprint": False,
-            "budget_class": "probe",
+            "metrics": dict(base_metrics),
+            "matched_fingerprint": bool(handle.get("fingerprint_comparable")),
+            "budget_class": str(
+                base_metrics.get("budget_class") or plan.get("budget_class") or "probe"
+            ),
         }
     evidence_status = str(
         run_doc.get("evidence_status") or handle.get("evidence_status") or "VALID"

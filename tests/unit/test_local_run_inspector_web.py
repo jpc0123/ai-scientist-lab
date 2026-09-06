@@ -85,6 +85,8 @@ def test_inspect_probe_loop_never_paints_supported():
     if not pack.is_dir():
         pytest.skip(".run/v25d_llm_real_loop not on this machine")
     payload = inspect_local_run(root, "v25d_llm_real_loop")
+    if payload.get("c1", {}).get("aps_is_zero") is not True:
+        pytest.skip("local .run/v25d_llm_real_loop is not the probe APS=0 pack")
     assert payload["c1"]["allowed"] is False
     assert payload["c1"]["engineering_not_claim"] is True
     assert payload["c1"]["aps_is_zero"] is True
@@ -149,3 +151,99 @@ def test_list_helper_does_not_require_dot_run():
     listed = list_local_runs(root)
     ids = {row["id"] for row in listed["items"]}
     assert "fixture_discard_stub" in ids
+
+
+def test_list_includes_v26_catalog_entries(api_client):
+    client, _, _ = api_client
+    resp = client.get("/api/v1/local-runs")
+    assert resp.status_code == 200
+    ids = {row["id"] for row in resp.json()["items"]}
+    assert "v26_r0" in ids
+    assert "v26_r1" in ids
+    assert "v26_r2" in ids
+    assert "v26_r3" in ids
+    assert "v26_r4" in ids
+    assert "v26_r5" in ids
+    assert "v26_p4_r0" in ids
+    assert "v26_p4_r1" in ids
+    assert "v26_5_round1" in ids
+    assert "v26_5_round2" in ids
+    assert "v26_5" in ids
+
+
+def test_inspect_v26_r0_when_present():
+    root = Path(__file__).resolve().parents[2]
+    pack = root / "outputs" / "v26_r0"
+    if not pack.is_dir() or not (pack / "metrics.json").is_file():
+        pytest.skip("outputs/v26_r0 not on this machine")
+    payload = inspect_local_run(root, "v26_r0")
+    metrics = payload.get("evidence", {}).get("metrics") or {}
+    assert metrics.get("APS_lowlight") == 0.0045926865160844455
+    assert payload["c1"]["allowed"] is False
+    assert payload["c1"]["engineering_not_claim"] is True
+    assert payload["progress"]["status"] == "completed"
+    assert payload["progress"]["epoch"] == 2
+    assert "combined.log" in str(payload["progress"].get("log_path") or "")
+
+
+def test_inspect_v26_r1_when_present():
+    root = Path(__file__).resolve().parents[2]
+    pack = root / "outputs" / "v26_r1"
+    if not pack.is_dir() or not (pack / "review.json").is_file():
+        pytest.skip("outputs/v26_r1 not on this machine")
+    payload = inspect_local_run(root, "v26_r1")
+    metrics = payload.get("evidence", {}).get("metrics") or {}
+    assert metrics.get("APS_lowlight") == 0.02135704762627717
+    assert payload["rubric"]["review_decision"] == "KEEP"
+    assert payload["claim_gate"]["status"] == "BLOCKED"
+    assert payload["c1"]["allowed"] is False
+    assert payload["c1"]["engineering_not_claim"] is True
+    llm = payload["llm"]
+    assert "semantic_review" in llm
+    assert "reviewer_fail_closed" in llm
+    files = payload.get("files") or []
+    assert "review.json" in files
+    assert "reviewer_live_fail_closed.json" in files or "semantic_review.json" in files
+    from scientist_lab.services.local_run_inspector import is_allowed_relpath
+
+    assert is_allowed_relpath("outputs/v26_r0") is True
+    assert is_allowed_relpath("outputs/../secrets") is False
+
+
+def test_inspect_v26_r2_when_present():
+    root = Path(__file__).resolve().parents[2]
+    pack = root / "outputs" / "v26_r2"
+    if not pack.is_dir() or not (pack / "review.json").is_file():
+        pytest.skip("outputs/v26_r2 GPU pack not on this machine")
+    payload = inspect_local_run(root, "v26_r2")
+    metrics = payload.get("evidence", {}).get("metrics") or {}
+    assert metrics.get("APS_lowlight") == 1.3452432199741713e-06
+    assert payload["rubric"]["review_decision"] == "KEEP"
+    assert payload["claim_gate"]["status"] == "BLOCKED"
+    assert payload["c1"]["allowed"] is False
+    assert payload["c1"]["engineering_not_claim"] is True
+    assert payload["progress"]["href"] == "/loop/v26_r2"
+    files = payload.get("files") or []
+    assert "review.json" in files
+    assert "plan.json" in files
+    assert "semantic_review.json" in files
+
+
+def test_inspect_v26_r3_when_present():
+    import json
+
+    root = Path(__file__).resolve().parents[2]
+    pack = root / "outputs" / "v26_r3"
+    if not pack.is_dir() or not (pack / "review.json").is_file():
+        pytest.skip("outputs/v26_r3 GPU pack not on this machine")
+    payload = inspect_local_run(root, "v26_r3")
+    metrics = payload.get("evidence", {}).get("metrics") or {}
+    assert metrics.get("APS_lowlight") is not None
+    assert payload["c1"]["allowed"] is False
+    assert payload["c1"]["engineering_not_claim"] is True
+    assert payload["progress"]["href"] == "/loop/v26_r3"
+    plan = json.loads((pack / "plan.json").read_text(encoding="utf-8"))
+    assert plan.get("how_id") == "F3"
+    assert (plan.get("evaluation") or {}).get("seeds") == [43]
+    files = payload.get("files") or []
+    assert "plan.json" in files

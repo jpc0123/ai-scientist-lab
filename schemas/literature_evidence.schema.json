@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/literature_evidence.schema.json",
+  "title": "LiteratureEvidence",
+  "description": "Gated paper packet for Planner/Reviewer. Must not enter ClaimGate as ExperimentEvidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_kind",
+    "paper",
+    "completeness",
+    "planner_admissible",
+    "can_enter_claim_gate",
+    "allowed_statements",
+    "blocked_statements"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "evidence_kind": { "type": "string", "const": "literature" },
+    "paper": { "$ref": "paper_record.schema.json" },
+    "completeness": {
+      "type": "string",
+      "enum": ["metadata", "abstract", "full_text"]
+    },
+    "planner_admissible": { "type": "boolean" },
+    "can_enter_claim_gate": { "type": "boolean", "const": false },
+    "allowed_statements": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blocked_statements": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "reject_reason": { "type": ["string", "null"] }
+  }
+}

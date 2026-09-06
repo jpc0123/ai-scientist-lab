@@ -24,6 +24,14 @@ class DiffSafetyLimits:
 
 DEFAULT_DIFF_SAFETY_LIMITS = DiffSafetyLimits()
 
+# HOW plugin authoring: single new plugin.py files can be large; keep a high sanity cap.
+HOW_PLUGIN_DIFF_SAFETY_LIMITS = DiffSafetyLimits(
+    max_added_lines=10_000,
+    max_removed_lines=10_000,
+    max_files=10,
+    max_hunks_per_file=200,
+)
+
 
 # --- Patterns ---------------------------------------------------------------
 

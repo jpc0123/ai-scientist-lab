@@ -85,7 +85,21 @@ def build_dual_stream_backbone(
         channels=tuple(channels) if channels else fusion_config.channels,
     )
     fusion = build_feature_fusion(cfg)
-    if cfg.share_backbone:
+    return build_dual_stream_backbone_from_fusion(
+        rgb_backbone,
+        fusion,
+        share_backbone=cfg.share_backbone,
+    )
+
+
+def build_dual_stream_backbone_from_fusion(
+    rgb_backbone: nn.Module,
+    fusion: FeatureFusion,
+    *,
+    share_backbone: bool = False,
+) -> DualStreamGatedBackbone:
+    """Attach an already-built FeatureFusion (catalog or HOW plugin)."""
+    if share_backbone:
         thermal = rgb_backbone
     else:
         thermal = copy.deepcopy(rgb_backbone)
@@ -93,7 +107,7 @@ def build_dual_stream_backbone(
         rgb_backbone,
         thermal,
         fusion,
-        share_backbone=cfg.share_backbone,
+        share_backbone=share_backbone,
     )
 
 

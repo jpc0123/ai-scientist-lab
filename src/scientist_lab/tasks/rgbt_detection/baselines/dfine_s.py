@@ -71,13 +71,16 @@ class DFineSBaselineAdapter:
                 f"fusion_method={fusion_raw!r} is not a fusion switch. "
                 "For FDPN use parameters.neck.type='fdpn' with "
                 "fusion_method=early_concat|gated_multiscale. "
-                "Supported fusion_method: none, early_concat, gated_multiscale."
+                "Supported fusion_method: none, early_concat, gated_multiscale, "
+                "or plugin:<HOW> overlay plugins."
             )
         fusion = _normalize_fusion(fusion_raw)
+        if fusion.startswith("plugin:"):
+            return
         if fusion not in {"none", "early_concat", "gated_multiscale"}:
             raise ValueError(
                 f"unsupported fusion_method: {fusion_raw!r}; "
-                "supported: none, early_concat, gated_multiscale"
+                "supported: none, early_concat, gated_multiscale, plugin:<HOW>"
             )
         nested = parameters.get("fusion")
         if nested is not None:
@@ -92,10 +95,20 @@ class DFineSBaselineAdapter:
         neck_type = _normalize_neck_type(neck)
         if neck is not None and not isinstance(neck, dict):
             raise ValueError("parameters.neck must be a mapping when present")
-        if neck_type not in {"standard", "fdpn"}:
+        if neck_type not in {"standard", "fdpn"} and not neck_type.startswith("plugin:"):
             raise ValueError(
-                f"unsupported neck.type={neck_type!r}; supported: standard, fdpn"
+                f"unsupported neck.type={neck_type!r}; supported: standard, fdpn, plugin:<HOW>"
             )
+        wrap = parameters.get("backbone_wrap")
+        wrap_type = ""
+        if wrap is not None:
+            if not isinstance(wrap, dict):
+                raise ValueError("parameters.backbone_wrap must be a mapping when present")
+            wrap_type = str(wrap.get("type") or "").strip().lower()
+            if wrap_type and not wrap_type.startswith("plugin:"):
+                raise ValueError(
+                    f"unsupported backbone_wrap.type={wrap_type!r}; supported: plugin:<HOW>"
+                )
         ckpt = parameters.get("checkpoint_policy")
         if ckpt is not None:
             if not isinstance(ckpt, dict):
@@ -108,10 +121,10 @@ class DFineSBaselineAdapter:
             raise ValueError(
                 f"input_mode={mode} requires fusion_method=none, got {fusion_raw!r}"
             )
-        if mode == "rgbt" and fusion in {"none", ""}:
+        if mode == "rgbt" and fusion in {"none", ""} and not wrap_type.startswith("plugin:"):
             raise ValueError(
                 "input_mode=rgbt requires an implemented fusion_method "
-                "(early_concat or gated_multiscale)"
+                "(early_concat, gated_multiscale, or plugin:<HOW>)"
             )
 
     def build_native_config(self, contract: ExperimentContract) -> dict[str, Any]:

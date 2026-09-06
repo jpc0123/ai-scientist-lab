@@ -1,0 +1,111 @@
+%% AI Scientist Lab — 系统总体架构图（图 4-1）
+%% 六层结构 + 四角色 + 主闭环
+
+flowchart TB
+    subgraph L1["① 人类控制面 Human Control Surface"]
+        direction LR
+        HG["Human Gate<br/>一次性授权"]
+        PA["Protocol Amendment<br/>协议修订"]
+        RP["ResearchProtocol<br/>冻结科研宪法"]
+        HG --- PA --- RP
+    end
+
+    subgraph L2["② 科研协议与计划层 Protocol & Planning"]
+        direction LR
+        Planner["Planner (LLM)<br/>WHAT / WHY"]
+        EP["ExperimentPlan<br/>假设 + memory_refs"]
+        Adapter["Adapter<br/>HOW 翻译"]
+        CC["Candidate Contract"]
+        EC["ExperimentContract<br/>冻结执行契约"]
+        Planner --> EP --> Adapter --> CC --> EC
+    end
+
+    subgraph L3["③ 调度与执行组织层 Orchestration"]
+        direction TB
+        Manager["Manager<br/>确定性状态机调度"]
+        subgraph DetSvc["确定性服务 Deterministic Services"]
+            direction LR
+            GE["GateEngine<br/>门禁引擎"]
+            EV["EvidenceValidator<br/>证据校验"]
+            RP2["ResultParser<br/>指标解析"]
+            DR["DecisionRubric<br/>决策规则"]
+            CG["ClaimGate<br/>声称裁决"]
+            MW["MemoryWriter<br/>记忆写入"]
+            TE["Trajectory Export<br/>轨迹导出"]
+        end
+        Manager --> DetSvc
+    end
+
+    subgraph L4["④ 自主实验闭环 Autonomous Loop"]
+        direction LR
+        S1["计划 Plan"] --> S2["契约 Contract"]
+        S2 --> S3["执行 Execute"]
+        S3 --> S4["读数 Metrics"]
+        S4 --> S5["规则 Rubric"]
+        S5 --> S6["审阅 Review"]
+        S6 --> S7["记忆 Memory"]
+        S7 --> S8["下一轮 Next Round"]
+        S8 -.-> S1
+    end
+
+    subgraph L5["⑤ 执行层 Execution"]
+        direction LR
+        Executor["Executor"]
+        GPU["GPU 训练 / 评测"]
+        Git["Git 实验提交"]
+        Executor --> GPU --> Git
+    end
+
+    subgraph L6["⑥ 记忆层 Memory"]
+        direction LR
+        RM["ResearchMemory<br/>经验与策略"]
+        EAM["证据关联记忆<br/>Evidence-Anchored Memory"]
+        RT["研究轨迹 / 运行时轨迹"]
+        RM --> EAM --> RT
+    end
+
+    subgraph Roles["四角色 Roles"]
+        direction LR
+        R_Mgr["Manager"]
+        R_Pln["Planner"]
+        R_Exe["Executor"]
+        R_Rev["Reviewer (LLM)"]
+    end
+
+  %% 层间主数据流
+    L1 -->|"冻结规则 / 预算 / 风险门禁"| L2
+    L2 -->|"门禁批准后"| L3
+    L3 -->|"调度"| L4
+    L4 -->|"契约下发"| L5
+    L5 -->|"实验结果 / 产物"| L4
+    L4 -->|"追加科研事实"| L6
+    L6 -.->|"memory_refs 引用"| L2
+
+  %% 角色落点
+    R_Mgr -.-> Manager
+    R_Pln -.-> Planner
+    R_Exe -.-> Executor
+    R_Rev -.-> S6
+
+  %% 核心对象
+    subgraph Objects["六个核心对象 Core Objects"]
+        direction LR
+        O1["ResearchProject"]
+        O2["ResearchProtocol"]
+        O3["ExperimentPlan"]
+        O4["ExperimentRun"]
+        O5["ExperimentResult"]
+        O6["ResearchMemory"]
+    end
+
+    classDef human fill:#E8F4FD,stroke:#1A73E8,stroke-width:2px
+    classDef llm fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    classDef det fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
+    classDef data fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    classDef exec fill:#FCE4EC,stroke:#C62828,stroke-width:2px
+
+    class HG,PA,RP human
+    class Planner,R_Rev llm
+    class Manager,GE,EV,RP2,DR,CG,MW,TE det
+    class EP,CC,EC,RM,EAM,RT,O1,O2,O3,O4,O5,O6 data
+    class Executor,GPU,Git exec

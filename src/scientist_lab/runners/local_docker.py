@@ -436,6 +436,20 @@ class LocalDockerRunner(ExperimentRunner):
             job.status = JobStatus.RUNNING
             container = self.client.containers.run(**run_kwargs)
             job.container_id = container.id
+            # Durable pointer so a dead host waiter can reattach without re-run.
+            try:
+                from scientist_lab.runners.exec_reattach import write_execution_sidecar
+
+                cname = f"scientist-{execution_id}".replace("_", "-").lower()
+                write_execution_sidecar(
+                    job.output_dir,
+                    execution_id=execution_id,
+                    container_name=cname,
+                    container_id=container.id,
+                    return_code=None,
+                )
+            except OSError:
+                pass
 
             return_code = self._wait_container(
                 container=container,

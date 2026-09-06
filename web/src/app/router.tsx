@@ -35,9 +35,13 @@ import {
 } from "../pages/MergeReleasePages";
 import { TreeDetailPage, TreesPage } from "../pages/TreesPage";
 import { LlmConfigPage } from "../pages/LlmConfigPage";
+import { LiteratureConfigPage } from "../pages/LiteratureConfigPage";
 import { RealLoopDetailPage, RealLoopsPage } from "../pages/RealLoopsPage";
 import { TrainingMonitorPage } from "../pages/TrainingMonitorPage";
 import { ClosedLoopPage } from "../pages/ClosedLoopPage";
+import { DatasetWorkspacePage } from "../pages/DatasetWorkspacePage";
+import { DataWorkspaceHubPage } from "../pages/DataWorkspaceHubPage";
+import { TrajectoriesPage, TrajectoryDetailPage } from "../pages/TrajectoryPage";
 
 export function AppRouter() {
   return (
@@ -85,6 +89,13 @@ export function AppRouter() {
         <Route path="audits/:id" element={<AuditDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="llm-config" element={<LlmConfigPage />} />
+        <Route path="literature" element={<LiteratureConfigPage />} />
+        <Route path="data" element={<DataWorkspaceHubPage />} />
+        <Route path="data/datasets" element={<DatasetWorkspacePage />} />
+        <Route path="data/trajectories" element={<TrajectoriesPage />} />
+        <Route path="data/trajectories/:runId" element={<TrajectoryDetailPage />} />
+        <Route path="trajectories" element={<Navigate to="/data/trajectories" replace />} />
+        <Route path="trajectories/:runId" element={<TrajectoryLegacyRedirect />} />
         <Route path="*" element={<Navigate to="/assistant" replace />} />
       </Route>
     </Routes>
@@ -99,4 +110,9 @@ function ProjectDetailRoute() {
 function ProjectRealLoopsRoute() {
   const { projectId = "" } = useParams();
   return <Navigate to={`/real-loops?project_id=${encodeURIComponent(projectId)}`} replace />;
+}
+
+function TrajectoryLegacyRedirect() {
+  const { runId = "" } = useParams();
+  return <Navigate to={`/data/trajectories/${encodeURIComponent(runId)}`} replace />;
 }

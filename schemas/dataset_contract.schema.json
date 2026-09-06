@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/dataset_contract.schema.json",
+  "title": "DatasetContract",
+  "description": "Resolved dataset+slice identity for Adapter/Gate. Not ExperimentEvidence.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "fingerprint",
+    "read_only",
+    "llm_may_rewrite"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "dataset_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "dataset_ref": { "type": "string" },
+    "slice_id": { "type": ["string", "null"] },
+    "fingerprint": { "$ref": "common.schema.json#/$defs/hex_hash" },
+    "split_reference": { "type": "string" },
+    "read_only": { "type": "boolean", "const": true },
+    "llm_may_rewrite": { "type": "boolean", "const": false },
+    "llm_may_select": { "type": "boolean" }
+  }
+}

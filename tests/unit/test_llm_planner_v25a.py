@@ -129,7 +129,15 @@ def test_adapter_capabilities_are_existing_how_only() -> None:
     assert fusion["fusion_method"] == "early_concat"
     assert neck["input_mode"] == "rgb"
     assert neck["fusion_method"] == "none"
-    assert "fdpn" not in json.dumps(caps).lower() or fusion["fusion_method"] != "fdpn"
+    dumped = json.dumps(caps).lower()
+    how_ids = {row.get("how_id") for row in caps if row.get("how_id")}
+    from scientist_lab.adapters.dfine.how_catalog import planner_visible_how_ids
+
+    assert how_ids == set(planner_visible_how_ids())
+    assert "N1" in how_ids
+    assert "A4" in how_ids
+    assert "F2" not in how_ids
+    assert "fdpn" in dumped
 
 
 def test_fake_provider_legacy_planner_schema_unchanged() -> None:
@@ -272,6 +280,84 @@ def test_fdpn_in_hypothesis_fail_closed(tmp_path: Path) -> None:
             parent_run_id=report["contract_run_id"],
             last_review_decision="DISCARD",
         )
+
+
+def test_f1_may_cite_prior_a4_fdpn_in_hypothesis(tmp_path: Path) -> None:
+    """Live M1: F1 plan may mention previous A4/FDPN as observation."""
+    report, writer, protocol, previous = _replay_discard(tmp_path)
+    previous = dict(previous)
+    previous["how_id"] = "A4"
+    previous["proposed_changes"] = [
+        {
+            "target": "fusion",
+            "summary": "A4 early_concat + fdpn",
+            "detail": {"how_id": "A4", "seed": 42},
+        }
+    ]
+    previous["hypothesis"] = "A4 (early_concat + fdpn) composition probe."
+    body = json.loads(_selected_json(module="fusion"))
+    body["selected"]["how_id"] = "F1"
+    body["selected"]["hypothesis"] = (
+        "Previous A4 (early_concat + fdpn) had zero delta; "
+        "run F1 early_concat baseline next."
+    )
+    body["selected"]["proposed_changes"] = [
+        {
+            "target": "fusion",
+            "summary": "Execute F1 early_concat baseline.",
+            "detail": {"how_id": "F1", "seed": 42},
+        }
+    ]
+    planner = Planner(backend="llm", provider=ScriptedProvider(json.dumps(body)))
+    packet = planner.next_plan(
+        protocol=protocol,
+        memory=writer,
+        previous_plan=previous,
+        parent_run_id=report["contract_run_id"],
+        last_review_decision="KEEP",
+    )
+    assert "F1" in json.dumps(packet.plan.get("proposed_changes") or [])
+
+
+def test_f3_may_list_n1_fdpn_as_not_selected_candidate(tmp_path: Path) -> None:
+    """candidates[] may name N1/FDPN as coverage gap without inventing HOW."""
+    report, writer, protocol, previous = _replay_discard(tmp_path)
+    previous = dict(previous)
+    previous["how_id"] = "F3"
+    previous["proposed_changes"] = [
+        {
+            "target": "fusion",
+            "summary": "F3 gated_multiscale",
+            "detail": {"how_id": "F3", "seed": 45},
+        }
+    ]
+    body = json.loads(_selected_json(module="fusion"))
+    body["selected"]["how_id"] = "F3"
+    body["selected"]["hypothesis"] = "Replicate F3 on seed 46 for multi-seed confirmation."
+    body["selected"]["proposed_changes"] = [
+        {
+            "target": "fusion",
+            "summary": "Replicate F3 gated_multiscale on seed 46.",
+            "detail": {"how_id": "F3", "seed": 46},
+        }
+    ]
+    body["candidates"] = [
+        {
+            "candidate_id": "cand_n1_fdpn_neck",
+            "requested_module": "neck",
+            "how_id": "N1",
+            "reason_not_selected": "N1 (FDPN neck) is a coverage gap; defer until F3 replicates.",
+        }
+    ]
+    planner = Planner(backend="llm", provider=ScriptedProvider(json.dumps(body)))
+    packet = planner.next_plan(
+        protocol=protocol,
+        memory=writer,
+        previous_plan=previous,
+        parent_run_id=report["contract_run_id"],
+        last_review_decision="KEEP",
+    )
+    assert "F3" in json.dumps(packet.plan.get("proposed_changes") or [])
 
 
 def test_no_how_module_fail_closed(tmp_path: Path) -> None:

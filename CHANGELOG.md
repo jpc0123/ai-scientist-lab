@@ -1,5 +1,35 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- HOW 生命周期（2026-08-26）：一次 Human Gate 冻结协议。战役内 LLM 决定是否新增 HOW、沙箱写 `plugin.py`、是否接入 overlay；Planner 只选可物化 HOW。`max_rounds` 6→12，`protocol_version` 1→2。`/loop` 默认最多 12 枪 GPU。不 merge 主树。KEEP ≠ Claim。决策 [`docs/research/v26/DECISION_LLM_HOW_LIFECYCLE.md`](docs/research/v26/DECISION_LLM_HOW_LIFECYCLE.md)
+- HOW 插件 Harness 走阿里云兼容协议（2026-08-26）：容器改用 `dsh-llm-pi-ai` + `openai-completions`，`supportsDeveloperRole=false` / `max_tokens`。不是只能用 DeepSeek 模型。不开 GPU。KEEP ≠ Claim。
+- HOW 插件工人接口（2026-08-26）：`author_how_patch` 的写 Diff 段可替换。默认仍是 `LlmPatchPluginWorker`（RealPatchPlanner）。`FakePluginWorker` 复制示例插件，无网络、无 Docker、无 GPU。人再注册。KEEP ≠ Claim。
+- HOW 插件双入口（2026-08-26）：`/loop` 可让现有 LLM 写 `plugin.py`，也可上传/粘贴人写的文件。同一 `author_how_patch` 沙箱 smoke，人再注册。不接 DeepSeek Harness 运行时。不开 GPU。KEEP ≠ Claim。决策 [`docs/research/v26/DECISION_OPEN_HOW_PLUGIN.md`](docs/research/v26/DECISION_OPEN_HOW_PLUGIN.md)
+- HOW 候选冻结：LLM 检索后只能写入 `how_pending.json` 草稿；人审 `register` 且 Adapter 能映射才进目录。未批准 / 无映射不能 materialize。文献不能进 ClaimGate。KEEP ≠ Claim。无 GPU。
+- **P0 ACCEPT（2026-08-24）**：live 战役 `p0_20260824T111526Z` `status=completed` `gpu_rounds=2`（F1 seed 42 ×2，`APS_lowlight` 0.00642 / 0.01034）。Rubric REPLICATE。ClaimGate C0 observational。KEEP ≠ Claim。不是 G2。无第三轮 GPU。决策 [`docs/research/v26/DECISION_P0_ACCEPT.md`](docs/research/v26/DECISION_P0_ACCEPT.md)
+- **P1 Planner 质量 INCONCLUSIVE（2026-08-24）**：同一协议 / RGBT-Tiny，规则 `p0_20260824T094123Z` vs LLM `p0_20260824T111526Z`。比规划质量不比 APS。两臂 R1 空转 F1 seed 42，Rubric Δ=`null`。不作废前误判 `winner=rules`。决策 [`docs/research/v26/DECISION_P1_PLANNER_QUALITY.md`](docs/research/v26/DECISION_P1_PLANNER_QUALITY.md)
+- Planner 对照修复（2026-08-25）：规则臂（人工特选）在 R0/bootstrap 或负 Δ 后下一枪换注册 HOW（F1→F3→F0）。禁止空转同一 HOW+同一 seed。冻结 R0 `aps_lowlight.json` 可注入战役 baseline。KEEP ≠ Claim。无新 GPU。
+- LLM 路线（2026-08-25）：`/loop` 开始只走 Live LLM；不再把 LLM 选的 HOW 改写成 F3。同 HOW 复现仍 bump seed。规则臂先停用。KEEP ≠ Claim。无新 GPU。
+- Web `/llm-config` 可配置 Semantic Scholar Key（独立于 LLM Key，写入 `runtime/literature_secrets.env`，GET 不回显）
+- v2.6 V26.4 R0 协议锚：HOW=F1 + `low_light_subset_v1` + `APS_lowlight`；CLI `freeze-v26-r0` / `v26-r0-run`；拒绝伪造 GPU 数字
+- V26.4 R0 GPU 已跑并绑定：`status=metrics_bound`，`APS_lowlight=0.0045926865160844455`（pycocotools 切片 val），run=`outputs/v26_r0` / `exec_31eff20c4e0c`
+- V26.5 R1 Live Reviewer 已在已有 GPU 证据上闭合：`outputs/v26_r1/semantic_review.json`，`hypothesis_status=not_a_claim`；Rubric KEEP / ClaimGate BLOCKED / `APS_lowlight=0.02135704762627717` 未改。未重跑 GPU。
+- V26.5 Round 2 GPU pack `outputs/v26_r2/`：HOW=F0 RGB-only，`APS_lowlight=1.3452432199741713e-06`（相对 R0 -0.004591341272864471，相对 Round 1 F3 -0.021355702383057194）。Rubric KEEP/INCONCLUSIVE（未越 discard 阈）。ClaimGate BLOCKED/C0。Live Reviewer `not_a_claim`。不是 G2。
+- V26.5 Round 3 GPU pack `outputs/v26_r3/`：HOW=F3 seed **43**（合同已对齐，非静默 42 重跑），`APS_lowlight=0.04881493259150456`（相对 R0 +0.044222246075420114）。与 Round 1 F3 seed 42 同方向高于 R0。Rubric KEEP。ClaimGate BLOCKED/C0。不是 G2 成功声明。
+- V26.5 R3 Live Reviewer 已在已有 GPU 证据上闭合：`outputs/v26_r3/semantic_review.json`，`hypothesis_status=not_a_claim`。根因是嵌套 `run_id` 被 LLM 截成 `...31eff20c`；前缀规范化后 persist，外键仍 fail-closed。Rubric KEEP / ClaimGate BLOCKED / `APS_lowlight` 未改。未重跑 GPU。
+- V26.5 Round 4 GPU pack `outputs/v26_r4/`：HOW=F3 seed **44**，`APS_lowlight=0.04204268629433699`（相对 R0 +0.03744999977825254）。三 seed 同方向高于 R0。Rubric KEEP。ClaimGate BLOCKED/C0。不是 G2 成功声明。
+- V26.5 R4 Live Reviewer 同修复后已写出 `outputs/v26_r4/semantic_review.json`（`not_a_claim`）。ClaimGate 仍 BLOCKED。不是 G2。
+- V26.5 Round 5：Next Plan F3 seed 45 曾因 `max_rounds=5` 在 GPU 前 STOP（`metrics_forged=false`）。Human Gate A 后 GPU 已落地：pack `outputs/v26_r5/`，HOW=F3 seed **45**，`APS_lowlight=0.035942673873977496`（相对 R0 +0.03134998735789305）。四 seed 同方向高于 R0。Rubric KEEP。ClaimGate BLOCKED/C0。不是 G2 成功声明。
+- **P4 STOP（2026-08-21）**：用户拒绝 `max_rounds` 2→3。P4 归档为 INCONCLUSIVE **Transfer Probe**（不是 generalization validation，不是失败验证）。Strategy Memory：`LESSON-V26-P4-PROBE-INCONCLUSIVE-001`，`STRATEGY-V26-P4-GATED-MULTISCALE-001` action=`keep`。未 BAN F3。ClaimGate 仍 C0/BLOCKED。无新 GPU。
+- **P4 C0 分析（2026-08-21）**：无新 GPU。`outputs/v26_p4_analysis/summary.json`。F3−F1 `APS_lowlight` +0.0017082151533518684，但 AP50_lowlight 与全集 mAP50 下降；相对 D-FINE 同 seed Δ 约为 0.102。INCONCLUSIVE。不是 G2/G3 / transfer success。
+- **P4 GO（2026-08-21）**：Adapter=`rtdetr`；Protocol=`research_protocol_rgbt_rtdetr_transfer_v26`（`max_rounds=2`，C0）。F1 `outputs/v26_p4_r0` `APS_lowlight=0.013241256515861267`（exec=`exec_5cdd236bde02`）。F3 `outputs/v26_p4_r1` `APS_lowlight=0.014949471669213135`（exec=`exec_6b36673902b9`，KEEP，ClaimGate BLOCKED/C0）。不是 G2/G3。
+- V26.5 R5 Live Reviewer 已在已有 GPU 证据上闭合：`outputs/v26_r5/semantic_review.json`，`hypothesis_status=not_a_claim`。Rubric KEEP / ClaimGate BLOCKED / `APS_lowlight` 未改。未重跑 GPU。
+- Semantic Scholar live 已接通（pack `provider=semantic_scholar`，`litq_a4d7bff94296`；探查 `litq_687d9c49f056`）。文献不能进 ClaimGate。
+- **Human Gate A（2026-08-20）**：用户批准 Protocol Amendment，`stop_rules.max_rounds` 仅 5→6。ClaimGate 仍 C0。不宣称 G2。P4 / RT-DETR 推迟。
+- Planner contract 将非法 `expected_effect.direction`（如 `decrease_relative_to_F3`）夹紧到 `increase|decrease|stabilize|unclear`。不发明 HOW。
+
 ## [2.3.0] - 2026-07-25
 
 CUDA + **Vendor DFINE** readiness and gated Fast Eval path on top of v2.2 (offline-first; no silent stand-in→formal claims).

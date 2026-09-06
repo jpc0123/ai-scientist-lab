@@ -27,12 +27,22 @@ BLOCKED_FUSION_METHODS = frozenset(
 
 
 def normalize_fusion_method(fusion_method: str) -> str:
-    name = str(fusion_method or "none").strip().lower()
+    raw = str(fusion_method or "none").strip()
+    # Preserve HOW id case for plugin:<HOW> filesystem paths; loader uppercases.
+    if raw.lower().startswith("plugin:"):
+        how = raw.split(":", 1)[1].strip()
+        return f"plugin:{how}" if how else "plugin:"
+    name = raw.lower()
     if name in {"concat", "early"}:
         return "early_concat"
     if name == "full_fusion":
         return "gated_multiscale"
     return name
+
+
+def is_plugin_fusion(fusion_method: str | None) -> bool:
+    """True for explicit plugin:<HOW> tokens (torch-free; staging-safe)."""
+    return str(fusion_method or "").strip().lower().startswith("plugin:")
 
 
 def is_gated_multiscale(fusion_method: str) -> bool:
@@ -41,3 +51,8 @@ def is_gated_multiscale(fusion_method: str) -> bool:
 
 def is_early_concat(fusion_method: str) -> bool:
     return normalize_fusion_method(fusion_method) == "early_concat"
+
+
+def needs_paired_thermal(fusion_method: str) -> bool:
+    """Gated catalog fusion and HOW plugins both need dual-stream thermal folders."""
+    return is_gated_multiscale(fusion_method) or is_plugin_fusion(fusion_method)

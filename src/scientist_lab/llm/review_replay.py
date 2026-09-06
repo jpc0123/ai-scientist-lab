@@ -9,6 +9,7 @@ the source pack Memory.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -20,9 +21,51 @@ from scientist_lab.core.memory_writer import MemoryWriter
 from scientist_lab.core.reviewer import ReviewRefused, Reviewer
 from scientist_lab.core.schema_registry import load_json
 from scientist_lab.instrumentation.appender import EventAppender
-from scientist_lab.llm.errors import MissingAPIKeyError, RealProviderNotEnabledError
+from scientist_lab.llm.errors import (
+    LLMError,
+    MissingAPIKeyError,
+    RealProviderNotEnabledError,
+)
 from scientist_lab.llm.gateway import resolve_gateway_provider
 from scientist_lab.llm.plan_replay import load_replay_bundle
+
+
+def _runtime_dir() -> Path:
+    override = str(os.environ.get("SCIENTIST_LAB_RUNTIME_DIR") or "").strip()
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parents[3] / "runtime"
+
+
+def _write_fail_closed_pack(root: Path, report: dict[str, Any]) -> None:
+    """Persist a fail-closed sidecar. Never writes semantic_review.json."""
+    payload = {
+        "ok": False,
+        "live": bool(report.get("live")),
+        "fail_closed": True,
+        "role": "reviewer",
+        "error": report.get("error"),
+        "schema_issues": report.get("schema_issues"),
+        "tls_verify_source": report.get("tls_verify_source"),
+        "tls_verified": report.get("tls_verified"),
+        "semantic_review_written": False,
+        "review_json_unchanged": True,
+        "claim_gate_unchanged": True,
+        "note": (
+            "DecisionRubric KEEP/DISCARD remains rules-owned. "
+            "Live Reviewer did not overwrite it. No mock success."
+        ),
+    }
+    path = root / "reviewer_live_fail_closed.json"
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n",
+        encoding="utf-8",
+    )
+    report["pack_write"] = {
+        "reviewer_live_fail_closed": str(path),
+        "semantic_review": None,
+        "review_json_unchanged": True,
+    }
 
 
 def _isolated_memory(src: MemoryWriter, dest: Path) -> MemoryWriter:
@@ -43,18 +86,32 @@ def run_llm_review_replay(
     output: Path | str | None = None,
     events_path: Path | str | None = None,
     persist_proposal: bool = True,
+    persist_pack: bool = False,
 ) -> dict[str, Any]:
     """Replay LLM Reviewer against frozen evidence. Never GPU / never execute.
 
     Writes ``<run-dir>/.llm_review_replay/``. Does not invent live-API success.
+    ``persist_pack`` may additionally write ``semantic_review.json`` and a
+    semantic Memory lesson into the source pack. It never overwrites Rubric
+    ``review.json`` KEEP/DISCARD or ClaimGate.
     """
+    if live:
+        from scientist_lab.llm.runtime_secrets import apply_runtime_llm_env
+
+        apply_runtime_llm_env(_runtime_dir())
+        current_timeout = float(os.environ.get("LLM_TIMEOUT_SECONDS") or 60.0)
+        if current_timeout < 180.0:
+            os.environ["LLM_TIMEOUT_SECONDS"] = "180"
     bundle = load_replay_bundle(run_dir)
     root: Path = bundle["root"]
     work = root / ".llm_review_replay"
     work.mkdir(parents=True, exist_ok=True)
     source = dict(bundle.get("source") or {})
     protocol = dict(bundle["protocol"])
-    plan = dict(bundle["previous_plan"])
+    if (root / "plan.json").is_file():
+        plan = load_json(root / "plan.json")
+    else:
+        plan = dict(bundle["previous_plan"])
     evidence_blob = dict(bundle.get("evidence") or {})
     result = dict(evidence_blob.get("result") or {})
     if not result and (root / "result.json").is_file():
@@ -75,6 +132,8 @@ def run_llm_review_replay(
         "execute": False,
         "gpu": False,
         "fail_closed": False,
+        "persist_pack": bool(persist_pack),
+        "plan_id": plan.get("plan_id"),
         "rubric_review_decision": locked_review,
         "llm_review_decision": None,
         "document_hypothesis_status": None,
@@ -82,7 +141,15 @@ def run_llm_review_replay(
         "writer": None,
         "memory_unchanged": True,
         "evidence_source": source or None,
+        "tls_verify_source": None,
+        "tls_verified": True,
     }
+    if live:
+        from scientist_lab.llm.http_transport import resolve_tls_verify
+
+        _verify, tls_source = resolve_tls_verify()
+        report["tls_verify_source"] = tls_source
+        report["tls_verified"] = _verify is not False
 
     events = EventAppender(Path(events_path) if events_path else work / "events.jsonl")
     try:
@@ -188,6 +255,72 @@ def run_llm_review_replay(
                         },
                     }
                 )
+                if persist_pack:
+                    pack_written = bundle["memory"].persist_semantic_proposal(
+                        proposal,
+                        run_id=str(result.get("run_id") or ""),
+                        review_decision=packet.review_decision,
+                        lesson_type=str(lesson.get("type") or "negative_evidence"),
+                        module=str(
+                            (lesson.get("scope") or {}).get("module") or "unknown"
+                        ),
+                        task=str(
+                            (lesson.get("scope") or {}).get("task") or "rgbt_detection"
+                        ),
+                        metric=str(
+                            ((protocol.get("objective") or {}).get("primary") or {}).get(
+                                "metric"
+                            )
+                            or "APS"
+                        ),
+                        delta=rubric.primary_delta,
+                    )
+                    sidecar = {
+                        "schema_version": "1.0.0",
+                        "source": "llm",
+                        "proposal_only": True,
+                        "keep_is_not_claim": True,
+                        "g2_not_claimed": True,
+                        "locked_review_decision": packet.review_decision,
+                        "document_hypothesis_status": packet.document.get(
+                            "hypothesis_status"
+                        ),
+                        "semantic_proposal": proposal,
+                        "run_id": str(result.get("run_id") or ""),
+                        "plan_id": plan.get("plan_id"),
+                        "primary_metric": (
+                            ((protocol.get("objective") or {}).get("primary") or {}).get(
+                                "metric"
+                            )
+                        ),
+                    }
+                    if packet.llm_trace:
+                        sidecar["llm_trace"] = {
+                            key: packet.llm_trace.get(key)
+                            for key in (
+                                "backend",
+                                "provider",
+                                "model",
+                                "prompt_hash",
+                                "rubric_locked",
+                            )
+                        }
+                    sidecar_path = root / "semantic_review.json"
+                    sidecar_path.write_text(
+                        json.dumps(sidecar, ensure_ascii=False, indent=2, default=str)
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                    fail_path = root / "reviewer_live_fail_closed.json"
+                    if fail_path.is_file():
+                        fail_path.unlink()
+                    report["pack_write"] = {
+                        "semantic_review": str(sidecar_path),
+                        "memory_accepted": True,
+                        "lesson_id": pack_written.get("lesson_id"),
+                        "review_json_unchanged": True,
+                        "reviewer_live_fail_closed_removed": True,
+                    }
             except InvariantError as exc:
                 report["ok"] = False
                 report["fail_closed"] = True
@@ -197,12 +330,23 @@ def run_llm_review_replay(
         ReviewRefused,
         MissingAPIKeyError,
         RealProviderNotEnabledError,
+        LLMError,
         FileNotFoundError,
         ValueError,
     ) as exc:
         report["fail_closed"] = True
         report["error"] = str(exc)
         report["ok"] = False
+        cause = getattr(exc, "__cause__", None)
+        issues = list(getattr(cause, "issues", None) or getattr(exc, "issues", None) or [])
+        if issues:
+            report["schema_issues"] = issues[:8]
+        prior = list(getattr(cause, "prior_issues", None) or [])
+        if prior:
+            report["prior_schema_errors"] = prior[:8]
+
+    if persist_pack and report.get("fail_closed"):
+        _write_fail_closed_pack(root, report)
 
     report["memory_unchanged"] = set(bundle["memory"].load_lessons()) == lessons_before
     report["rubric_review_decision"] = locked_review

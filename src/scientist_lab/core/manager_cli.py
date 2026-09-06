@@ -32,6 +32,9 @@ def run_manager_from_files(
     llm_provider: Any | None = None,
     llm_live: bool = False,
     fallback_to_rules: bool = False,
+    confirm_human_gate: bool = False,
+    project_root: Path | str | None = None,
+    inspect_docker: bool | None = None,
 ) -> dict[str, Any]:
     """Walk the Manager state machine. Default is dry-run / REPLAY.
 
@@ -43,6 +46,87 @@ def run_manager_from_files(
     v2.5-D: ``planner_backend`` / ``reviewer_backend`` default rules (None →
     Planner()/Reviewer() constructors, still rules unless env opens llm).
     """
+    lease = None
+    real_gpu = bool(execute) and live_runner is None
+    if real_gpu:
+        from scientist_lab.services.live_gpu_mutex import (
+            LiveGpuBusyError,
+            acquire_live_execute,
+        )
+
+        root = (
+            Path(project_root)
+            if project_root is not None
+            else Path(__file__).resolve().parents[3]
+        )
+        try:
+            lease = acquire_live_execute(
+                root,
+                owner_id=f"cli:{Path(output_dir)}",
+                inspect_docker=True if inspect_docker is None else bool(inspect_docker),
+            )
+        except LiveGpuBusyError as exc:
+            print(str(exc), file=sys.stderr)
+            return {
+                "ok": False,
+                "exit_code": 1,
+                "status": "blocked",
+                "fail_closed": True,
+                "metrics_forged": False,
+                "error": str(exc),
+                "holder": exc.holder,
+            }
+    try:
+        return _run_manager_from_files_inner(
+            protocol_path,
+            plan_path,
+            output_dir=output_dir,
+            execute=execute,
+            require_live_ready=require_live_ready,
+            max_steps=max_steps,
+            live_runner=live_runner,
+            doctor_fn=doctor_fn,
+            doctor_root=doctor_root,
+            baseline_metrics=baseline_metrics,
+            baseline_metrics_path=baseline_metrics_path,
+            max_extra_rounds=max_extra_rounds,
+            planner_backend=planner_backend,
+            reviewer_backend=reviewer_backend,
+            llm_provider=llm_provider,
+            llm_live=llm_live,
+            fallback_to_rules=fallback_to_rules,
+            confirm_human_gate=confirm_human_gate,
+        )
+    finally:
+        if lease is not None:
+            lease.release()
+
+
+def _run_manager_from_files_inner(
+    protocol_path: Path | str,
+    plan_path: Path | str,
+    *,
+    output_dir: Path | str,
+    execute: bool = False,
+    require_live_ready: bool = False,
+    max_steps: int = 32,
+    live_runner: Any | None = None,
+    doctor_fn: Any | None = None,
+    doctor_root: Path | str | None = None,
+    baseline_metrics: Mapping[str, Any] | None = None,
+    baseline_metrics_path: Path | str | None = None,
+    max_extra_rounds: int = 0,
+    planner_backend: str | None = None,
+    reviewer_backend: str | None = None,
+    llm_provider: Any | None = None,
+    llm_live: bool = False,
+    fallback_to_rules: bool = False,
+    confirm_human_gate: bool = False,
+) -> dict[str, Any]:
+    if llm_live:
+        from scientist_lab.llm.runtime_secrets import apply_runtime_llm_env
+
+        apply_runtime_llm_env(Path(__file__).resolve().parents[3] / "runtime")
     protocol = load_json(protocol_path)
     plan = load_json(plan_path)
     output = Path(output_dir)
@@ -71,8 +155,12 @@ def run_manager_from_files(
         llm_provider=llm_provider,
         llm_live=bool(llm_live),
         fallback_to_rules=bool(fallback_to_rules),
+        confirm_human_gate=bool(confirm_human_gate),
     )
-    shutil.copyfile(plan_path, mgr.plan_path)
+    src_plan = Path(plan_path).resolve()
+    dest_plan = Path(mgr.plan_path).resolve()
+    if src_plan != dest_plan:
+        shutil.copyfile(src_plan, dest_plan)
     doctor = mgr.probe_doctor()
     doctor_path = output / "cuda_doctor.json"
     doctor_path.write_text(

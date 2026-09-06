@@ -69,7 +69,7 @@ def _copy_artifacts(dest: Path, metrics_name: str) -> None:
 
 
 def _stub_by_round(calls: list):
-    """Round 1 last=DISCARD; round 2 best=KEEP; round 3 last=DISCARD. No GPU."""
+    """Round 1 last=DISCARD vs campaign baseline; round 2 best=VALIDATE vs previous shot; round 3 last=DISCARD."""
 
     def runner(contract, output_dir):
         n = len(calls)
@@ -112,7 +112,7 @@ def test_three_stub_rounds_cite_memory_and_switch_module(tmp_path: Path) -> None
         if s.action == OrchestrationAction.NEED_REVIEW.value
     ]
     assert reviews[0] == ReviewDecisionValue.DISCARD.value
-    assert reviews[1] == ReviewDecisionValue.KEEP.value
+    assert reviews[1] == ReviewDecisionValue.VALIDATE.value
     assert all(s.state.evidence_status == EvidenceStatus.VALID for s in steps if s.action == OrchestrationAction.NEED_REVIEW.value)
 
     next_plans = [s for s in steps if s.action == OrchestrationAction.NEXT_ROUND.value]

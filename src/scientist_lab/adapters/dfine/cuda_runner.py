@@ -26,7 +26,8 @@ CUDA_FAST_EVAL_DEFAULTS = {
     "input_mode": "rgb",
     "fusion_method": "none",
     "epochs": 1,
-    "batch_size": 2,
+    # 12GB-class GPUs at 160x160; was 2 (very slow). Do not change mid-run.
+    "batch_size": 8,
     "learning_rate": 0.0002,
     "image_width": 160,
     "image_height": 160,
@@ -155,18 +156,92 @@ def make_cuda_live_runner(
     def runner(contract: Mapping[str, Any], output_dir: Path) -> dict[str, Any]:
         if not execute:
             raise MaterializeRejected("cuda live_runner requires --execute")
+        from scientist_lab.runners.exec_reattach import try_harvest_existing
         from scientist_lab.tasks.rgbt_detection.dfine_cuda_orchestrator import (
             run_dfine_cuda_fast_eval,
         )
 
         eval_fn = call_eval or run_dfine_cuda_fast_eval
         output_dir.mkdir(parents=True, exist_ok=True)
-        legacy = ExperimentContract.model_validate(freeze_to_legacy_contract(contract))
+        legacy_dict = freeze_to_legacy_contract(contract)
+        legacy = ExperimentContract.model_validate(legacy_dict)
+        from scientist_lab.runners.exec_reattach import contract_identity
+
+        expected = contract_identity(legacy_dict) or contract_identity(contract)
+        if not expected.get("node_id"):
+            expected["node_id"] = str(
+                contract.get("run_id") or contract.get("plan_id") or legacy_dict.get("node_id") or ""
+            )
+
+        # Harvest *before* rewriting dest contract. Otherwise a leftover metrics.json
+        # would match the freshly written node_id and skip a real GPU job.
+        outputs_root = _outputs_root(experiments, output_dir)
+        project_id = str(getattr(legacy, "project_id", None) or contract.get("project_id") or "")
+        harvested = try_harvest_existing(
+            outputs_root=outputs_root,
+            dest=output_dir,
+            project_id=project_id or None,
+            wait=wait,
+            timeout_seconds=float(
+                getattr(getattr(legacy, "resources", None), "timeout_seconds", None)
+                or 86_400
+            ),
+            expected=expected,
+        )
+        # Reject harvest when synced artifacts disagree with requested HOW/epochs
+        # (seen on LONGTRAIN E8 r3: plan P3@8 harvested F0@2 metrics).
+        if harvested is not None:
+            from scientist_lab.runners.exec_reattach import (
+                identities_match,
+                load_contract_identity,
+            )
+
+            actual = load_contract_identity(output_dir)
+            if not identities_match(expected, actual):
+                harvested = None
+                # Scrub mismatched leftovers so the fresh GPU job is not confused.
+                for name in (
+                    "metrics.json",
+                    "model_summary.json",
+                    "config.json",
+                    "dfine_subset.json",
+                    "dfine_fast_config.yml",
+                    "execution.json",
+                    "live_execution.json",
+                    "learning_curve.json",
+                    "metrics_per_epoch.json",
+                    "checkpoint_selection.json",
+                    "fusion_module_summary.json",
+                ):
+                    stale = output_dir / name
+                    if stale.is_file():
+                        stale.unlink()
+        if harvested is not None:
+            harvested = dict(harvested)
+            contract_path = output_dir / "_legacy_fast_eval_contract.json"
+            # Always rewrite expected legacy so the next round cannot latch onto
+            # a stale F0 stamp that shares the same node_id.
+            contract_path.write_text(
+                json.dumps(legacy.model_dump(mode="json"), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            harvested["legacy_contract_path"] = str(contract_path)
+            status = str(harvested.get("status") or "failed")
+            return {
+                "status": status,
+                "orchestrator": harvested.get("orchestrator"),
+                "run": harvested.get("run"),
+                "dry_run": False,
+                "reattached": True,
+                "legacy_contract_path": str(contract_path),
+            }
+
         contract_path = output_dir / "_legacy_fast_eval_contract.json"
         contract_path.write_text(
             json.dumps(legacy.model_dump(mode="json"), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+
         payload = eval_fn(
             experiments,
             contract_path=contract_path,
@@ -188,3 +263,18 @@ def make_cuda_live_runner(
         }
 
     return runner
+
+
+def _outputs_root(experiments: Any, dest: Path) -> Path:
+    settings = getattr(experiments, "settings", None)
+    if settings is not None:
+        out = getattr(settings, "outputs_dir", None) or getattr(settings, "outputs_root", None)
+        if out:
+            return Path(out)
+    for parent in [Path(dest), *Path(dest).parents]:
+        if parent.name == "outputs" and parent.is_dir():
+            return parent
+        cand = parent / "outputs"
+        if cand.is_dir():
+            return cand
+    return Path(dest).resolve().parents[2] / "outputs"

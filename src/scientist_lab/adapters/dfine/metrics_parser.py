@@ -24,7 +24,8 @@ def _as_float(value: Any) -> float | None:
 def _flatten_metrics(raw: Mapping[str, Any]) -> dict[str, Any]:
     nested = raw.get("metrics")
     if isinstance(nested, dict) and any(
-        k in nested for k in ("mAP50_95", "mAP50", "APS", "AP_small", "accuracy")
+        k in nested
+        for k in ("mAP50_95", "mAP50", "APS", "AP_small", "APS_lowlight", "accuracy")
     ):
         merged = dict(nested)
         for key in ("params_m", "flops_g", "gpu_memory_gb"):
@@ -42,12 +43,22 @@ def parse_metrics_file(path: Path) -> dict[str, Any]:
 
 
 def canonicalize_metrics(raw: Mapping[str, Any]) -> dict[str, float | None]:
+    """Freeze canonical metrics.
+
+    APS and AP_small are the same COCO small-object AP under two names.
+    Emit both when either is present so protocols that declare primary=AP_small
+    pass EvidenceValidator (which must not invent numbers from mAP).
+    """
     src = _flatten_metrics(raw)
     aps = _as_float(src.get("APS") if src.get("APS") is not None else src.get("AP_small"))
     return {
         "APS": aps,
+        "AP_small": aps,
+        "APS_lowlight": _as_float(src.get("APS_lowlight")),
         "mAP50_95": _as_float(src.get("mAP50_95") if src.get("mAP50_95") is not None else src.get("mAP")),
         "mAP50": _as_float(src.get("mAP50")),
+        "mAP50_95_lowlight": _as_float(src.get("mAP50_95_lowlight")),
+        "AP50_lowlight": _as_float(src.get("AP50_lowlight")),
         "params_m": _as_float(src.get("params_m")),
         "flops_g": _as_float(src.get("flops_g")),
         "gpu_memory_gb": _as_float(src.get("gpu_memory_gb")),

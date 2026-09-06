@@ -309,6 +309,18 @@ export const api = {
     allow_network?: boolean | null;
     clear_api_key?: boolean;
   }) => apiPost<Record<string, unknown>>("/api/v1/system/llm-config", body),
+  literatureConfig: () =>
+    apiGet<Record<string, unknown>>("/api/v1/system/literature-config"),
+  updateLiteratureConfig: (body: {
+    api_key?: string | null;
+    base_url?: string | null;
+    clear_api_key?: boolean;
+  }) => apiPost<Record<string, unknown>>("/api/v1/system/literature-config", body),
+  probeLiteratureConfig: (body?: { query?: string; limit?: number }) =>
+    apiPost<Record<string, unknown>>(
+      "/api/v1/system/literature-config/probe",
+      body || { query: "RGB-T", limit: 1 },
+    ),
   llmProfiles: (enabledOnly = false) => {
     const q = new URLSearchParams();
     if (enabledOnly) q.set("enabled_only", "true");
@@ -678,5 +690,188 @@ export const api = {
     apiPost<Record<string, unknown>>(
       `/api/v1/local-runs/${encodeURIComponent(runId)}/actions`,
       body,
+    ),
+
+  autonomousCampaigns: () =>
+    apiGet<Record<string, unknown>>("/api/v1/autonomous-campaigns"),
+  autonomousCampaign: (id: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(id)}`,
+    ),
+  startAutonomousCampaign: (body: {
+    experiment_id: string;
+    confirm_human_gate: boolean;
+    execute: boolean;
+    llm_live?: boolean;
+    max_extra_rounds?: number;
+    planner_backend?: string;
+    reviewer_backend?: string;
+    plugin_worker?: "llm" | "harness";
+  }) => apiPost<Record<string, unknown>>("/api/v1/autonomous-campaigns", body),
+  stopAutonomousCampaign: (id: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(id)}/stop`,
+    ),
+  resumeAutonomousCampaign: (id: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(id)}/resume`,
+    ),
+  extendAutonomousCampaign: (
+    id: string,
+    body?: {
+      add_rounds?: number;
+      confirm_protocol_amendment?: boolean;
+      resume?: boolean;
+    },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(id)}/extend`,
+      {
+        add_rounds: body?.add_rounds ?? 5,
+        confirm_protocol_amendment: body?.confirm_protocol_amendment ?? true,
+        resume: body?.resume ?? true,
+      },
+    ),
+  sotaPursuit: (id: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(id)}/sota-pursuit`,
+    ),
+    decideHowCandidate: (
+    campaignId: string,
+    candidateId: string,
+    body: { decision: "reject" | "register"; confirm_human_gate: boolean; note?: string },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(campaignId)}/how-candidates/${encodeURIComponent(candidateId)}/decide`,
+      body,
+    ),
+  authorHowCandidate: (
+    campaignId: string,
+    candidateId: string,
+    body: {
+      confirm_human_gate: boolean;
+      live?: boolean;
+      plugin_source?: string;
+      unified_diff?: string;
+      plugin_worker?: "llm" | "harness";
+    },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(campaignId)}/how-candidates/${encodeURIComponent(candidateId)}/author-patch`,
+      body,
+    ),
+  chatScoutIntent: (
+    campaignId: string,
+    body: { message?: string; live?: boolean; locale?: string; action?: string },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(campaignId)}/scout-intent/chat`,
+      body,
+    ),
+  localizeScoutDisplay: (
+    campaignId: string,
+    body: { locale?: string; live?: boolean },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(campaignId)}/scout-display`,
+      body,
+    ),
+  decideScoutIntent: (
+    campaignId: string,
+    body: {
+      action: "set" | "human_set" | "accept" | "reject" | "clear";
+      query?: string;
+      why?: string;
+    },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(campaignId)}/scout-intent`,
+      body,
+    ),
+  setCampaignSteer: (
+    campaignId: string,
+    body: {
+      action: "set" | "human_set" | "clear";
+      text?: string;
+      why?: string;
+    },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/autonomous-campaigns/${encodeURIComponent(campaignId)}/steer`,
+      body,
+    ),
+  probeAutonomousGpu: () =>
+    apiPost<Record<string, unknown>>("/api/v1/autonomous-campaigns/probe-gpu"),
+  registeredExperiments: () =>
+    apiGet<Record<string, unknown>>("/api/v1/registered-experiments"),
+  registeredExperiment: (experimentId: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/registered-experiments/${encodeURIComponent(experimentId)}`,
+    ),
+  proposeRegisteredExperiment: (body?: {
+    live?: boolean;
+    interview_id?: string;
+    user_intent?: string;
+    dialogue?: Array<{ role?: string; text?: string }>;
+  }) =>
+    apiPost<Record<string, unknown>>("/api/v1/registered-experiments/propose", body || {}),
+  createIdeaInterview: () =>
+    apiPost<Record<string, unknown>>("/api/v1/registered-experiments/idea-interview"),
+  ideaInterview: (interviewId: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/registered-experiments/idea-interview/${encodeURIComponent(interviewId)}`,
+    ),
+  chatIdeaInterview: (
+    interviewId: string,
+    body: { message: string; live?: boolean },
+  ) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/registered-experiments/idea-interview/${encodeURIComponent(interviewId)}/chat`,
+      body,
+    ),
+  clearIdeaInterview: (interviewId: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/registered-experiments/idea-interview/${encodeURIComponent(interviewId)}/clear`,
+    ),
+  registerExperiment: (body: {
+    protocol: Record<string, unknown>;
+    seed_plan?: Record<string, unknown>;
+    experiment_id?: string;
+    title?: string;
+    idea_brief?: Record<string, unknown>;
+    user_intent?: string;
+    interview_id?: string;
+  }) => apiPost<Record<string, unknown>>("/api/v1/registered-experiments", body),
+
+  datasetWorkspace: () =>
+    apiGet<Record<string, unknown>>("/api/v1/dataset-workspace"),
+  datasetSlice: (sliceId: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/dataset-workspace/slices/${encodeURIComponent(sliceId)}`,
+    ),
+  resolveDatasetContract: (body: { dataset_id: string; slice_id?: string | null }) =>
+    apiPost<Record<string, unknown>>("/api/v1/dataset-workspace/resolve", body),
+  bindDatasetWorkspace: (body: {
+    dataset_id: string;
+    host_path?: string | null;
+    rebind?: boolean;
+  }) => apiPost<Record<string, unknown>>("/api/v1/dataset-workspace/bind", body),
+  enableDatasetWorkspace: (datasetId: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/dataset-workspace/datasets/${encodeURIComponent(datasetId)}/enable`,
+    ),
+  disableDatasetWorkspace: (datasetId: string) =>
+    apiPost<Record<string, unknown>>(
+      `/api/v1/dataset-workspace/datasets/${encodeURIComponent(datasetId)}/disable`,
+    ),
+  datasetPairPreviews: (datasetId: string, split = "train") =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/dataset-workspace/datasets/${encodeURIComponent(datasetId)}/pair-previews?split=${encodeURIComponent(split)}`,
+    ),
+
+  trajectories: () => apiGet<Record<string, unknown>>("/api/v1/trajectories"),
+  trajectory: (runId: string) =>
+    apiGet<Record<string, unknown>>(
+      `/api/v1/trajectories/${encodeURIComponent(runId)}`,
     ),
 };

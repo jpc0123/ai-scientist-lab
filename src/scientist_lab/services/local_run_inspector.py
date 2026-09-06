@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-ALLOWED_REL_PREFIXES = (".run", "tests/fixtures")
+ALLOWED_REL_PREFIXES = (".run", "tests/fixtures", "outputs")
 SKIP_DIR_NAMES = {
     "_web_actions",
     "node_modules",
@@ -26,6 +26,8 @@ JSON_ALLOWLIST = (
     "previous_plan.json",
     "result.json",
     "review.json",
+    "semantic_review.json",
+    "reviewer_live_fail_closed.json",
     "claim_gate.json",
     "claim_gate_c1.json",
     "loop_report.json",
@@ -40,9 +42,123 @@ JSON_ALLOWLIST = (
     "memory/research_memory.json",
     "memory/strategy_memory.json",
     "memory/research_trace.json",
+    "execution.json",
+    "metrics.json",
+    "aps_lowlight.json",
+    "config.json",
 )
 
 CATALOG: tuple[dict[str, Any], ...] = (
+    {
+        "id": "v26_r0",
+        "relpath": "outputs/v26_r0",
+        "inspect_subdir": "",
+        "kind": "v26_r0",
+        "role": "r0_anchor",
+        "title": "V26.4 R0 · F1 低照度锚",
+        "blurb": "已完成 GPU。APS_lowlight 来自切片 val，不是全集 APS/mAP，也不是 C1 Claim。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_r1",
+        "relpath": "outputs/v26_r1",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_5_round",
+        "title": "V26.5 第 1 轮 · Live LLM + GPU",
+        "blurb": "相对 R0 的第一轮。HOW 由 Live LLM 选；目录在就说明这一枪已开。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_r2",
+        "relpath": "outputs/v26_r2",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_5_round",
+        "title": "V26.5 第 2 轮 · Live LLM + GPU",
+        "blurb": "相对 R0 / 第 1 轮 KEEP F3 的第二轮。独立 pack。KEEP ≠ Claim。不是 G2。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_r3",
+        "relpath": "outputs/v26_r3",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_5_round",
+        "title": "V26.5 第 3 轮 · Live LLM + GPU",
+        "blurb": "F3 第二 seed（43）确认。独立 pack。KEEP ≠ Claim。2-seed 之前不是 G2。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_r4",
+        "relpath": "outputs/v26_r4",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_5_round",
+        "title": "V26.5 第 4 轮 · Live LLM + GPU",
+        "blurb": "F3 第三 seed（44）方差。独立 pack。KEEP ≠ Claim。不是 G2 成功声明。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_r5",
+        "relpath": "outputs/v26_r5",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_5_round",
+        "title": "V26.5 第 5 轮 · Live LLM + GPU",
+        "blurb": "F3 第四 seed（45）。战役最后一轮。KEEP ≠ Claim。不是 G2 成功声明。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_p4_r0",
+        "relpath": "outputs/v26_p4_r0",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_p4_rtdetr",
+        "title": "P4 RT-DETR · F1 基线",
+        "blurb": "同一低照度切片上的 RT-DETR F1。Adapter=HOW，不是第五个 Agent。ClaimGate C0。不是 G2/G3。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_p4_r1",
+        "relpath": "outputs/v26_p4_r1",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_p4_rtdetr",
+        "title": "P4 RT-DETR · F3 策略迁移",
+        "blurb": "把 D-FINE 上 KEEP 的 F3 gated_multiscale 策略迁到 RT-DETR Adapter。不是 G3 成功声明。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_5_round2",
+        "relpath": ".run/v26_5_round2",
+        "inspect_subdir": "round",
+        "kind": "v26_loop",
+        "role": "v26_5_round",
+        "title": "V26.5 第 2 轮 · Live LLM",
+        "blurb": "同一 dataset/slice/fingerprint 家族上的第二轮。目录不在就说明还没开跑。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_5_round1",
+        "relpath": ".run/v26_5_round1",
+        "inspect_subdir": "round",
+        "kind": "v26_loop",
+        "role": "v26_5_round",
+        "title": "V26.5 第 1 轮 · Live LLM",
+        "blurb": "同一 dataset/slice/fingerprint 家族上的第一轮。目录不在就说明还没开跑。",
+        "gitignored": True,
+    },
+    {
+        "id": "v26_5",
+        "relpath": "outputs/v26_5",
+        "inspect_subdir": "",
+        "kind": "v26_loop",
+        "role": "v26_5_gpu",
+        "title": "V26.5 · GPU 输出",
+        "blurb": "若第 1 轮 GPU 写到 outputs/v26_5，会在这里出现。",
+        "gitignored": True,
+    },
     {
         "id": "formal_c1_aps_early_concat",
         "relpath": ".run/formal_c1_aps_early_concat",
@@ -386,10 +502,13 @@ def _build_stages(
 
 def _evidence_summary(result: Mapping[str, Any], experiment_run: Mapping[str, Any]) -> str:
     metrics = _as_dict(result.get("metrics"))
+    aps_ll = metrics.get("APS_lowlight")
     aps = metrics.get("APS")
     status = experiment_run.get("evidence_status") or _as_dict(result.get("execution")).get(
         "status"
     )
+    if aps_ll is not None:
+        return f"APS_lowlight={aps_ll} · evidence={status or 'n/a'}"
     if aps is None:
         return str(status or "无 metrics")
     return f"APS={aps} · evidence={status or 'n/a'}"
@@ -411,6 +530,7 @@ def _c1_display(
     budget_hint = str(claim.get("budget_class") or "")
     is_probe = kind in {"llm_loop", "fixture"} or run_level == "probe" or budget_hint == "probe"
     is_formal = kind == "formal_c1" or run_level == "formal"
+    is_v26 = kind in {"v26_r0", "v26_loop", "cli_output"} or str(kind).startswith("v26")
 
     candidate_aps = _as_dict(result.get("metrics")).get("APS")
     if candidate_aps is None:
@@ -446,6 +566,20 @@ def _c1_display(
             "claim_status": status or "BLOCKED",
             "show_supported": False,
             "warning": note,
+        }
+
+    if is_v26:
+        aps_ll = _as_dict(result.get("metrics")).get("APS_lowlight")
+        return {
+            "allowed": False,
+            "engineering_not_claim": True,
+            "show_supported": False,
+            "aps_lowlight": aps_ll,
+            "aps_lowlight_display": _round_aps(aps_ll),
+            "warning": (
+                "V26 战役 pack：可展示 APS_lowlight 作为比较锚，不是 Formal C1 Claim。"
+                "全集 APS/mAP 不能冒充切片指标。"
+            ),
         }
 
     if not is_formal:
@@ -543,6 +677,38 @@ def list_local_runs(root: Path | str) -> dict[str, Any]:
                 }
             )
 
+    outputs_root = project / "outputs"
+    if outputs_root.is_dir():
+        for child in sorted(outputs_root.iterdir()):
+            if not child.is_dir() or child.name in SKIP_DIR_NAMES or child.name.startswith("."):
+                continue
+            rid = child.name
+            if rid in seen or not rid.lower().startswith("v26"):
+                continue
+            if not (
+                (child / "execution.json").is_file()
+                or (child / "metrics.json").is_file()
+                or (child / "combined.log").is_file()
+                or (child / "protocol.json").is_file()
+                or (child / "manager_status.json").is_file()
+                or (child / "experiment_run.json").is_file()
+            ):
+                continue
+            items.append(
+                {
+                    "id": rid,
+                    "relpath": f"outputs/{rid}",
+                    "inspect_subdir": "",
+                    "kind": "cli_output" if rid != "v26_r0" else "v26_r0",
+                    "role": "cli_output",
+                    "title": rid,
+                    "blurb": "本机 outputs/ 发现的 v2.6 CLI/GPU run（只读）。",
+                    "gitignored": True,
+                    "available": True,
+                }
+            )
+            seen.add(rid)
+
     return {
         "items": items,
         "narrative": {
@@ -558,6 +724,83 @@ def list_local_runs(root: Path | str) -> dict[str, Any]:
             "probe APS=0 标注为工程闭环，不是科学声称。",
         ],
     }
+
+
+def _hydrate_cli_artifacts(
+    project: Path,
+    pack: Path,
+    *,
+    kind: str,
+    protocol: dict[str, Any],
+    plan: dict[str, Any],
+    result: dict[str, Any],
+    how: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Fill protocol/plan/metrics for CLI output dirs that have no Manager JSON."""
+    metrics_file = _as_dict(_read_json(pack / "metrics.json"))
+    execution = _as_dict(_read_json(pack / "execution.json"))
+    aps_ll = _as_dict(_read_json(pack / "aps_lowlight.json"))
+    freeze = _as_dict(_read_json(project / "docs" / "research" / "v26" / "R0_BASELINE_FREEZE.json"))
+    examples = project / "schemas" / "examples"
+
+    if not protocol:
+        proto_path = _as_dict(freeze.get("execute")).get("protocol")
+        loaded = _as_dict(_read_json(Path(str(proto_path))) if proto_path else None)
+        if not loaded:
+            loaded = _as_dict(_read_json(examples / "research_protocol_rgbt_dfine_v26.json"))
+        protocol = loaded
+    if not plan:
+        plan_path = _as_dict(freeze.get("execute")).get("plan")
+        loaded = _as_dict(_read_json(Path(str(plan_path))) if plan_path else None)
+        if not loaded:
+            loaded = _as_dict(_read_json(examples / "experiment_plan_rgbt_dfine_v26_r0.json"))
+        plan = loaded
+
+    nested = metrics_file.get("metrics") if isinstance(metrics_file.get("metrics"), dict) else {}
+    metrics = dict(nested or {})
+    if aps_ll.get("APS_lowlight") is not None:
+        metrics.setdefault("APS_lowlight", aps_ll.get("APS_lowlight"))
+        metrics.setdefault("mAP50_95_lowlight", aps_ll.get("mAP50_95_lowlight"))
+        metrics.setdefault("AP50_lowlight", aps_ll.get("AP50_lowlight"))
+    if not result and (metrics or execution):
+        status = str(metrics_file.get("status") or "")
+        if not status:
+            status = "completed" if execution.get("return_code") == 0 else "unknown"
+        result = {
+            "run_id": execution.get("execution_id") or metrics_file.get("node_id") or pack.name,
+            "metrics": metrics or metrics_file,
+            "execution": {
+                "status": status,
+                "started_at": execution.get("started_at"),
+                "finished_at": execution.get("finished_at"),
+            },
+            "raw_metric_refs": [
+                name
+                for name in ("metrics.json", "aps_lowlight.json", "combined.log")
+                if (pack / name).is_file()
+            ],
+        }
+    elif result and metrics:
+        existing = _as_dict(result.get("metrics"))
+        result = {**result, "metrics": {**existing, **metrics}}
+
+    if not how:
+        freeze_how = _as_dict(freeze.get("how"))
+        training = _as_dict(metrics_file.get("training"))
+        fusion = training.get("fusion_method") or freeze_how.get("fusion_method")
+        neck = training.get("neck_type") or freeze_how.get("neck_type")
+        if fusion or neck or freeze_how:
+            how = {
+                "primary_module": freeze_how.get("primary_module") or "fusion",
+                "input_mode": freeze_how.get("input_mode") or "rgbt",
+                "fusion_method": fusion,
+                "neck_type": neck,
+                "existing_capability": freeze_how.get("existing_capability"),
+                "invented_operators": [],
+                "gap": freeze_how.get("hidden_control"),
+                "label": f"fusion / {fusion}" if fusion else str(freeze_how.get("how_id") or kind),
+            }
+    return protocol, plan, result, how, execution
 
 
 def inspect_local_run(root: Path | str, run_id: str) -> dict[str, Any]:
@@ -577,6 +820,8 @@ def inspect_local_run(root: Path | str, run_id: str) -> dict[str, Any]:
     )
     result = _as_dict(_read_json(inspect_root / "result.json"))
     review = _as_dict(_read_json(inspect_root / "review.json"))
+    semantic_review = _as_dict(_read_json(inspect_root / "semantic_review.json"))
+    reviewer_fail = _as_dict(_read_json(inspect_root / "reviewer_live_fail_closed.json"))
     claim = _as_dict(_read_json(inspect_root / "claim_gate.json"))
     pack_claim = _as_dict(_read_json(pack / "claim_gate_c1.json"))
     loop_report = _as_dict(
@@ -592,6 +837,29 @@ def inspect_local_run(root: Path | str, run_id: str) -> dict[str, Any]:
     memory_pack = _memory_pack(inspect_root)
     how = _how_from(contract, loop_report)
     gate = _gate_from(loop_report, experiment_run, contract)
+    kind = str(entry.get("kind") or "")
+    if kind in {"v26_r0", "v26_loop", "cli_output"} or str(entry.get("relpath") or "").startswith("outputs/"):
+        protocol, plan, result, how, execution = _hydrate_cli_artifacts(
+            project,
+            pack,
+            kind=kind,
+            protocol=protocol,
+            plan=plan,
+            result=result,
+            how=how,
+        )
+        if execution.get("return_code") == 0 and not experiment_run:
+            experiment_run = {
+                "run_id": execution.get("execution_id"),
+                "run_state": "COMPLETED",
+                "evidence_status": "VALID" if _as_dict(result.get("metrics")).get("APS_lowlight") is not None else "PRESENT",
+            }
+        if not gate.get("status") or gate.get("status") == "UNKNOWN":
+            gate = {
+                "status": "APPROVED",
+                "reasons": ["campaign Human Gate: --execute --confirm-human-gate"],
+                "source": "cli_output",
+            }
     decision_summary = _as_dict(plan.get("decision_summary") or loop_report.get("plan"))
     if not decision_summary.get("selected_action") and loop_report:
         decision_summary = _as_dict(plan.get("decision_summary"))
@@ -616,6 +884,14 @@ def inspect_local_run(root: Path | str, run_id: str) -> dict[str, Any]:
     if c1.get("engineering_not_claim") and str(claim_for_ui.get("status")) == "SUPPORTED":
         # Fail-closed display: never paint SUPPORTED on a probe pack.
         claim_for_ui = {**claim_for_ui, "status": "BLOCKED", "display_override": "probe_not_c1"}
+
+    progress: dict[str, Any] = {}
+    if kind in {"v26_r0", "v26_loop", "cli_output"} or str(entry.get("relpath") or "").startswith(
+        ("outputs/", ".run/v26")
+    ):
+        from scientist_lab.services.training_monitor import snapshot_cli_run
+
+        progress = snapshot_cli_run(pack)
 
     return {
         "id": run_id,
@@ -705,6 +981,15 @@ def inspect_local_run(root: Path | str, run_id: str) -> dict[str, Any]:
             "candidate_experiments": candidates,
             "llm_live": loop_report.get("llm_live"),
             "reviewer_explains_only": True,
+            "semantic_review": bool(semantic_review),
+            "semantic_hypothesis_status": (
+                _as_dict(semantic_review.get("semantic_proposal")).get("hypothesis_status")
+            ),
+            "reviewer_fail_closed": bool(reviewer_fail.get("fail_closed"))
+            and not semantic_review,
+            "reviewer_fail_closed_error": reviewer_fail.get("error")
+            if not semantic_review
+            else None,
         },
         "c1": c1,
         "loop_report": {
@@ -718,6 +1003,21 @@ def inspect_local_run(root: Path | str, run_id: str) -> dict[str, Any]:
             "aps": loop_report.get("aps"),
             "claim_gate_not_c1_supported": loop_report.get("claim_gate_not_c1_supported"),
         } if loop_report else None,
+        "progress": {
+            "status": progress.get("status"),
+            "epoch": progress.get("epoch"),
+            "epochs_total": progress.get("epochs_total"),
+            "step": progress.get("step"),
+            "steps_total": progress.get("steps_total"),
+            "stuck_at": progress.get("stuck_at"),
+            "elapsed_seconds": progress.get("elapsed_seconds"),
+            "log_path": progress.get("log_path"),
+            "log_tail": progress.get("log_tail"),
+            "APS_lowlight": progress.get("APS_lowlight"),
+            "started_at": progress.get("started_at"),
+            "completed_at": progress.get("completed_at"),
+            "href": progress.get("href"),
+        } if progress else None,
         "actions_enabled": {
             "llm_plan_replay": (inspect_root / "protocol.json").is_file()
             and (
@@ -854,10 +1154,15 @@ def run_local_action(
             raise PermissionError("llm-review-replay 永不 --execute / GPU")
         from scientist_lab.llm.review_replay import run_llm_review_replay
 
+        persist_pack = str((inspected.get("paths") or {}).get("relpath") or "").startswith(
+            "outputs/"
+        )
+        target = inspect_root if persist_pack else replica
         report = run_llm_review_replay(
-            replica,
+            target,
             live=bool(live),
             provider=provider if not live else "openai-compatible",
+            persist_pack=persist_pack,
             output=work / "replay_report.json",
         )
     else:

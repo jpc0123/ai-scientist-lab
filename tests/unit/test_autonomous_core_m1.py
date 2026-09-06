@@ -102,9 +102,9 @@ def test_schema_dir_lists_learning_and_event_contracts() -> None:
         "experiment_plan",
         "claim",
         "claim_gate_result",
+        "trajectory_step",
     ):
         assert name in names
-    assert "trajectory_step" not in names
 
 
 def test_example_research_protocol_validates() -> None:

@@ -339,7 +339,7 @@ export function ExecutionDetailPage() {
                   {msg || "状态为 failed，请打开「日志」查看详情。"}
                 </pre>
                 <p className="muted">
-                  也可在 <Link to="/training">训练监控</Link> 查看实时战役状态。
+                  也可在 <Link to="/training">训练监控</Link> 查看实时实验状态。
                 </p>
               </div>
             );

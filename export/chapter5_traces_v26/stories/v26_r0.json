@@ -1,0 +1,48 @@
+{
+  "exporter_version": "atdp6_v1",
+  "reward_export_version": "contrast_v1",
+  "run_id": "v26_r0",
+  "reconstructed": true,
+  "contrast_label": "unlabeled",
+  "bucket": "drop",
+  "training_eligible": false,
+  "high_trust_sft": false,
+  "machine": {
+    "anchor": null,
+    "plan": {
+      "how_id": null,
+      "how_zh": "未写明做法",
+      "seeds": [],
+      "dataset_id": null,
+      "slice_id": null,
+      "budget_class": null,
+      "stop": false
+    },
+    "executed": {
+      "how_id": null,
+      "how_zh": "未写明做法",
+      "seeds": [
+        42
+      ],
+      "dataset_id": null,
+      "slice_id": null,
+      "budget_class": null,
+      "stop": false
+    }
+  },
+  "story": {
+    "see": "没有上一轮已执行合同（缺比较基准）。协议仍禁止改数据集。编号必须带人话，不能只背 F0/F1。",
+    "decide": "决定改成「未写明做法」（未知），种子 未写。",
+    "happen": "实际执行 未跑/[42]，与计划不一致。评审 未评审。声称闸门 未写（KEEP ≠ 声称成立）。"
+  },
+  "reward_export": {
+    "version": "contrast_v1",
+    "r": null,
+    "note": "contrast rule score; not APS / mAP"
+  },
+  "gate": {
+    "training_eligible": true,
+    "human_gate_confirmed": false,
+    "status": null
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0.0",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_v26",
+  "protocol_version": 2,
+  "title": "Low-light RGB-T small-object improvement under D-FINE (v2.6)",
+  "goal": {
+    "improve": "lowlight_small_object_detection",
+    "task_type": "rgbt_detection",
+    "notes": "v2.6 campaign constitution. Not official night labels. R0 seed remains F1. Planner may select any materializable HOW (including N1/A4) and campaign overlay plugins after LLM HOW lifecycle. F2/T* need overlay. KEEP ≠ Claim."
+  },
+  "baseline": {
+    "model": "DFINE-S",
+    "dataset": "dataset:rgbt_tiny_v1",
+    "adapter": "dfine",
+    "reference_run_id": null
+  },
+  "objective": {
+    "primary": { "metric": "APS_lowlight", "direction": "maximize" },
+    "secondary": [
+      { "metric": "mAP50_95_lowlight", "direction": "maximize" },
+      { "metric": "AP50_lowlight", "direction": "maximize" },
+      { "metric": "APS", "direction": "maximize" },
+      { "metric": "mAP50_95", "direction": "maximize" }
+    ]
+  },
+  "editable_scope": [
+    "fusion",
+    "neck",
+    "backbone",
+    "loss",
+    "optimizer",
+    "hyperparameter",
+    "augmentation"
+  ],
+  "frozen_scope": [
+    "dataset_split",
+    "evaluator",
+    "metric_definition",
+    "condition_slice",
+    "baseline_result",
+    "gate_rule",
+    "human_permission_policy"
+  ],
+  "constraints": {
+    "params_m": { "max": 20 },
+    "flops_g": { "max": 65 },
+    "gpu_memory_gb": { "max": 24 },
+    "max_runtime": "12h"
+  },
+  "experiment_budget": {
+    "probe": "10min",
+    "validation": "60min",
+    "formal": "4h"
+  },
+  "risk_policy": {
+    "probe_training": "auto",
+    "full_training": "approval_required",
+    "install_dependency": "approval_required",
+    "dataset_change": "forbidden",
+    "evaluator_change": "forbidden",
+    "code_outside_editable": "forbidden"
+  },
+  "decision_policy": {
+    "keep_requires": { "primary_not_worse_than": -0.1 },
+    "validate_if": { "primary_gain_at_least": 0.5 },
+    "discard_if": { "primary_worse_than": -0.5 }
+  },
+  "stop_rules": {
+    "max_rounds": 12,
+    "max_consecutive_discards": 3,
+    "max_execution_failures": 2,
+    "stop_if_no_improvement_for": 3,
+    "max_duplicate_plan_rejects": 3
+  },
+  "fingerprint_id": "FP-RGBT-DFINE-V26-LOWLIGHT",
+  "claim_policy": {
+    "allow_scientific_claims": false,
+    "allow_significance_claim": false,
+    "allow_sota_claim": false,
+    "default_claim_level": "exploratory_comparison"
+  },
+  "condition_slice": {
+    "id": "low_light_subset_v1",
+    "version": "v1",
+    "method": "rgb_mean_rec709_luminance_train_p25",
+    "official_labels": false,
+    "rule_hash": "6aa3cf0a444b0373239c81fec10443e8e067f38f71e4e41dcf57d4d888965c49"
+  },
+  "invent_policy": {
+    "kinds": ["fusion", "neck"],
+    "one_slot_per_plugin": true
+  },
+  "notes": "low_light_subset_v1 is frozen. LLM cannot rewrite the slice. APS_lowlight is not APS_all or mAP. Human Gate B: max_rounds=12. HOW add/author/accept is campaign LLM lifecycle. KEEP ≠ Claim. invent_policy.kinds fusion+neck: overlay plugins may invent FeatureFusion or HybridEncoder-slot necks. backbone_wrap needs an explicit kind plus architecture_id / new R0."
+}

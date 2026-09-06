@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/trajectory_step.schema.json",
+  "title": "TrajectoryStep",
+  "description": "Read-only ATDP six-tuple projection of one research round step. Not a domain aggregate. Does not drive Planner/Gate/Executor. r is always null here; post-hoc reward lives in a separate reward_export copy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "step_index",
+    "step_kind",
+    "o",
+    "h",
+    "a",
+    "y",
+    "r",
+    "m"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "step_index": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "step_kind": {
+      "type": "string",
+      "enum": [
+        "plan_proposal",
+        "gate_decision",
+        "execution",
+        "review_decision"
+      ]
+    },
+    "o": {
+      "type": "object",
+      "description": "Observation already true before this action. Detection scores must not appear on plan_proposal or gate_decision."
+    },
+    "h": {
+      "description": "Structured decision_summary. Not hidden thought / CoT. Null only on execution.",
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/decision_summary" },
+        { "type": "null" }
+      ]
+    },
+    "a": {
+      "type": "object",
+      "description": "Issued action / tool call. Not a scientific claim."
+    },
+    "y": {
+      "type": "object",
+      "description": "Observed outcome. Primary detection scores belong only on execution/review steps."
+    },
+    "r": {
+      "type": ["number", "null"],
+      "description": "Live export is always null. Contrast reward is written only to reward_export."
+    },
+    "m": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["run_id", "step_kind", "reconstructed", "exporter_version"],
+      "properties": {
+        "exporter_version": { "type": "string" },
+        "step_kind": { "type": "string" },
+        "project_id": { "type": ["string", "null"] },
+        "round_id": { "type": ["string", "null"] },
+        "run_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+        "event_id": { "type": ["string", "null"] },
+        "actor_role": { "type": ["string", "null"] },
+        "phase": { "type": ["string", "null"] },
+        "plan_id": { "type": ["string", "null"] },
+        "fingerprint_id": { "type": ["string", "null"] },
+        "git_sha": { "type": ["string", "null"] },
+        "reconstructed": { "type": "boolean" },
+        "source_event_types": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

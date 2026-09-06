@@ -86,8 +86,14 @@ class StructuredOutputValidationError(LLMError):
         message: str = "",
         *,
         issues: list[str] | None = None,
+        content: str | None = None,
+        prior_issues: list[str] | None = None,
+        prior_content: str | None = None,
     ) -> None:
         self.issues = list(issues or [])
+        self.content = content or ""
+        self.prior_issues = list(prior_issues or [])
+        self.prior_content = prior_content or ""
         super().__init__(message or "; ".join(self.issues) or "structured output invalid")
 
 

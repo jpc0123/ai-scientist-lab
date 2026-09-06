@@ -3,11 +3,13 @@ import { useI18n } from "../i18n";
 import { ConnectionBar } from "./ConnectionBar";
 import { LanguageSwitch } from "./LanguageSwitch";
 
-type NavItem = { to: string; labelKey: string; hintKey: string };
+type NavItem = { to: string; labelKey: string; hintKey: string; end?: boolean };
 
 const primaryNav: NavItem[] = [
   { to: "/assistant", labelKey: "nav.assistant", hintKey: "nav.assistantHint" },
   { to: "/loop", labelKey: "nav.loop", hintKey: "nav.loopHint" },
+  { to: "/data", labelKey: "nav.data", hintKey: "nav.dataHint" },
+  { to: "/literature", labelKey: "nav.literature", hintKey: "nav.literatureHint" },
   { to: "/llm-config", labelKey: "nav.llmConfig", hintKey: "nav.llmConfigHint" },
 ];
 
@@ -62,6 +64,7 @@ function NavEntry({ link, showHint }: { link: NavItem; showHint?: boolean }) {
   return (
     <NavLink
       to={link.to}
+      end={link.end}
       className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
     >
       <span className="nav-label">{t(link.labelKey)}</span>

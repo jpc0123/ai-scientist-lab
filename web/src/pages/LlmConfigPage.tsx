@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api/endpoints";
 import { ApiErrorView } from "../components/ApiErrorView";
+import { LiteratureProbeStatus } from "../components/LiteratureProbeStatus";
 import { Loading } from "../components/Loading";
 import { MetaGrid } from "../components/MetaGrid";
 import { useT } from "../i18n";
@@ -52,9 +53,20 @@ export function LlmConfigPage() {
   });
   const [message, setMessage] = useState("");
 
+  const [litKey, setLitKey] = useState("");
+  const [litBase, setLitBase] = useState("");
+  const [litClear, setLitClear] = useState(false);
+  const [litProbe, setLitProbe] = useState<Record<string, unknown> | null>(null);
+  const [litProbeNeedKey, setLitProbeNeedKey] = useState(false);
+
   const config = useQuery({
     queryKey: ["llm-config"],
     queryFn: api.llmConfig,
+    retry: 0,
+  });
+  const literature = useQuery({
+    queryKey: ["literature-config"],
+    queryFn: api.literatureConfig,
     retry: 0,
   });
   const profiles = useQuery({
@@ -85,6 +97,13 @@ export function LlmConfigPage() {
       };
     });
   }, [config.data]);
+
+  useEffect(() => {
+    if (!literature.data) return;
+    setLitBase(String(literature.data.base_url || ""));
+    setLitKey("");
+    setLitClear(false);
+  }, [literature.data]);
 
   const saveConn = useMutation({
     mutationFn: () =>
@@ -124,6 +143,44 @@ export function LlmConfigPage() {
     },
   });
 
+  const saveLit = useMutation({
+    mutationFn: () =>
+      api.updateLiteratureConfig({
+        api_key: litKey.trim() ? litKey.trim() : null,
+        base_url: litBase.trim() ? litBase.trim() : null,
+        clear_api_key: litClear,
+      }),
+    onSuccess: async () => {
+      setMessage(litClear ? t("llm.literatureCleared") : t("llm.literatureSaved"));
+      setLitKey("");
+      setLitClear(false);
+      setLitProbe(null);
+      setLitProbeNeedKey(false);
+      await qc.invalidateQueries({ queryKey: ["literature-config"] });
+    },
+  });
+
+  const probeLit = useMutation({
+    mutationFn: async () => {
+      const typed = litKey.trim();
+      if (typed) {
+        await api.updateLiteratureConfig({
+          api_key: typed,
+          base_url: litBase.trim() ? litBase.trim() : null,
+          clear_api_key: false,
+        });
+      }
+      return api.probeLiteratureConfig({ query: "RGB-T", limit: 1 });
+    },
+    onSuccess: async (data) => {
+      setLitProbe(data);
+      setLitProbeNeedKey(false);
+      setLitKey("");
+      setLitClear(false);
+      await qc.invalidateQueries({ queryKey: ["literature-config"] });
+    },
+  });
+
   const selectProfile = useMutation({
     mutationFn: (id: string) => api.selectLlmProfile(id),
     onSuccess: async () => {
@@ -145,6 +202,9 @@ export function LlmConfigPage() {
   const missing = Array.isArray(cfg.missing_for_real)
     ? (cfg.missing_for_real as string[])
     : [];
+  const lit = asRecord(literature.data);
+  const litPresent = Boolean(lit.api_key_present);
+  const litReady = Boolean(lit.ready_for_live_search);
 
   return (
     <div className="page">
@@ -159,9 +219,19 @@ export function LlmConfigPage() {
         </Link>
       </header>
 
-      {(config.isError || saveConn.isError || registerProfile.isError) && (
+      {(config.isError ||
+        literature.isError ||
+        saveConn.isError ||
+        saveLit.isError ||
+        registerProfile.isError) && (
         <ApiErrorView
-          error={config.error || saveConn.error || registerProfile.error}
+          error={
+            config.error ||
+            literature.error ||
+            saveConn.error ||
+            saveLit.error ||
+            registerProfile.error
+          }
         />
       )}
       {message && <p className="banner ok">{message}</p>}
@@ -306,6 +376,114 @@ export function LlmConfigPage() {
           </button>
         </section>
       )}
+
+      <section className="panel">
+        <h2>{t("llm.literature")}</h2>
+        <p className="muted">{t("llm.literatureLede")}</p>
+        {literature.isLoading ? (
+          <Loading />
+        ) : (
+          <>
+            <MetaGrid
+              items={[
+                {
+                  label: t("llm.literatureProvider"),
+                  value: String(lit.provider || "fake"),
+                },
+                {
+                  label: t("llm.keyStatus"),
+                  value: litPresent ? t("llm.keyConfigured") : t("llm.keyMissing"),
+                },
+                {
+                  label: t("llm.literatureReady"),
+                  value: litReady ? t("llm.literatureReadyYes") : t("llm.literatureReadyNo"),
+                },
+                {
+                  label: t("llm.secretsFile"),
+                  value: String(lit.secrets_file || "literature_secrets.env"),
+                },
+              ]}
+            />
+            <p className="muted">
+              <a
+                href="https://www.semanticscholar.org/product/api"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t("llm.literatureSignup")}
+              </a>
+            </p>
+            <label className="field">
+              {t("llm.literatureBaseUrl")}
+              <input
+                value={litBase}
+                onChange={(e) => setLitBase(e.target.value)}
+                placeholder="https://api.semanticscholar.org/graph/v1"
+                autoComplete="off"
+              />
+            </label>
+            <label className="field">
+              Semantic Scholar API Key
+              <input
+                type="password"
+                value={litKey}
+                onChange={(e) => setLitKey(e.target.value)}
+                placeholder={
+                  litPresent ? t("llm.apiKeyKeepPlaceholder") : t("llm.apiKeyPlaceholder")
+                }
+                autoComplete="new-password"
+              />
+            </label>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={litClear}
+                onChange={(e) => setLitClear(e.target.checked)}
+              />
+              {t("llm.clearKey")}
+            </label>
+            <p className="muted">{t("llm.literatureNote")}</p>
+            <div className="action-row">
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={saveLit.isPending}
+                onClick={() => {
+                  setMessage("");
+                  saveLit.mutate();
+                }}
+              >
+                {saveLit.isPending ? t("common.pending") : t("llm.literatureSave")}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={probeLit.isPending}
+                onClick={() => {
+                  setMessage("");
+                  if (!litPresent && !litKey.trim()) {
+                    probeLit.reset();
+                    setLitProbe(null);
+                    setLitProbeNeedKey(true);
+                    return;
+                  }
+                  setLitProbeNeedKey(false);
+                  setLitProbe(null);
+                  probeLit.mutate();
+                }}
+              >
+                {probeLit.isPending ? t("common.pending") : t("llm.literatureProbe")}
+              </button>
+            </div>
+            <LiteratureProbeStatus
+              pending={probeLit.isPending}
+              error={litProbeNeedKey ? null : probeLit.error}
+              result={litProbe}
+              needKey={litProbeNeedKey}
+            />
+          </>
+        )}
+      </section>
 
       <section className="panel">
         <h2>{t("llm.profiles")}</h2>

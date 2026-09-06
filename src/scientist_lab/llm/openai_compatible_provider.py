@@ -26,12 +26,52 @@ from scientist_lab.llm.http_transport import (
     HttpTransport,
     HttpxTransport,
     map_http_error,
+    resolve_tls_verify,
 )
 from scientist_lab.llm.models import LLMRequest, LLMResponse, TokenUsage
 from scientist_lab.llm.openai_config import OpenAICompatibleConfig, join_api_url
 from scientist_lab.llm.provider import BaseLLMProvider, request_fingerprint
 from scientist_lab.llm.retry_policy import RetryPolicy, run_with_retries
 from scientist_lab.llm.schema_parser import parse_and_validate
+
+
+def _is_planner_request(request: LLMRequest) -> bool:
+    purpose = str(request.purpose or "")
+    meta = dict(request.metadata or {})
+    required = list((request.response_schema or {}).get("required") or [])
+    return (
+        purpose == "planner"
+        or bool(meta.get("planner_contract"))
+        or "selected" in required
+    )
+
+
+def _try_coerce_planner_content(
+    content: str,
+) -> tuple[str, dict[str, Any] | None, list[str]]:
+    """Alias-normalize planner JSON; return (content, parsed, errors)."""
+    from scientist_lab.llm.planner_contract import (
+        PLANNER_CONTRACT_SCHEMA,
+        coerce_planner_json_object,
+    )
+    from scientist_lab.llm.schema_parser import extract_json_object, validate_against_schema
+
+    try:
+        data = extract_json_object(content)
+    except (ValueError, json.JSONDecodeError) as exc:
+        return content, None, [str(exc)]
+    if not isinstance(data, dict):
+        return content, None, ["LLM JSON root must be an object"]
+    coerced = coerce_planner_json_object(data)
+    errors = validate_against_schema(coerced, PLANNER_CONTRACT_SCHEMA)
+    if errors:
+        # Still prefer original schema if caller attached a custom one.
+        return (
+            json.dumps(coerced, ensure_ascii=False),
+            coerced,
+            errors,
+        )
+    return json.dumps(coerced, ensure_ascii=False), coerced, []
 
 
 def _message_dicts(request: LLMRequest) -> list[dict[str, str]]:
@@ -150,33 +190,127 @@ def provider_request_id_from(
     return str(rid) if rid else None
 
 
+def effective_response_schema(request: LLMRequest) -> dict[str, Any] | None:
+    """Return the schema that must be validated for this request.
+
+    Reviewer calls never inherit Planner ``selected``. If the request is a
+    Reviewer contract but the attached schema requires ``selected``, replace
+    it with ``REVIEWER_CONTRACT_SCHEMA``.
+    """
+    schema = dict(request.response_schema) if request.response_schema else None
+    purpose = str(request.purpose or "")
+    meta = dict(request.metadata or {})
+    is_reviewer = purpose == "reviewer" or str(meta.get("reviewer_contract") or "") == "semantic"
+    if not is_reviewer:
+        return schema
+    required = list((schema or {}).get("required") or [])
+    if schema is None or "selected" in required:
+        from scientist_lab.llm.reviewer_contract import REVIEWER_CONTRACT_SCHEMA
+
+        return dict(REVIEWER_CONTRACT_SCHEMA)
+    return schema
+
+
+def _schema_repair_hints(schema: dict[str, Any] | None) -> dict[str, Any]:
+    """Describe the actual response schema. Never default to Planner `selected`."""
+    schema = dict(schema or {})
+    required = list(schema.get("required") or [])
+    props = dict(schema.get("properties") or {})
+    nested_required: dict[str, list[str]] = {}
+    enums: dict[str, list[Any]] = {}
+    for key, sub in props.items():
+        if not isinstance(sub, dict):
+            continue
+        if sub.get("required"):
+            nested_required[key] = list(sub["required"])
+        if "enum" in sub:
+            enums[key] = list(sub["enum"])
+    return {
+        "required_root_keys": required,
+        "nested_required": nested_required,
+        "enums": enums,
+    }
+
+
+def _repair_instruction(original: LLMRequest) -> str:
+    schema = dict(original.response_schema or {})
+    required = list(schema.get("required") or [])
+    purpose = str(original.purpose or "")
+    meta = dict(original.metadata or {})
+    is_reviewer = purpose == "reviewer" or str(meta.get("reviewer_contract") or "") == "semantic"
+    is_planner = purpose == "planner" or "selected" in required
+    if is_reviewer:
+        return (
+            "Repair JSON to the Reviewer semantic-proposal schema. "
+            "Do NOT add selected, review_decision, claim_gate, or Memory write keys. "
+            "KEEP → hypothesis_status must be not_a_claim. "
+            "DISCARD → not_supported_under_current_protocol or inconclusive_budget. "
+            f"Required root keys: {required}."
+        )
+    if is_planner and "selected" in required:
+        selected_required = list(
+            ((schema.get("properties") or {}).get("selected") or {}).get("required")
+            or ["requested_module", "hypothesis", "proposed_changes"]
+        )
+        return (
+            "Fix validation issues only; do not invent science. "
+            "Root JSON must include selected with "
+            + ", ".join(selected_required)
+            + "."
+        )
+    if required:
+        return (
+            "Fix validation issues only; do not invent science. "
+            f"Root JSON must include required keys: {required}."
+        )
+    return "Fix validation issues only; do not invent science. Return one JSON object matching the schema."
+
+
 def build_repair_request(
     original: LLMRequest,
     *,
     bad_content: str,
     schema_errors: list[str],
 ) -> LLMRequest:
-    """One-shot structured repair request (same provider/model)."""
+    """One-shot structured repair request (same provider/model).
+
+    Instruction and required keys come from ``original.response_schema``.
+    Planner ``selected`` is used only when that schema actually requires it.
+    """
     errors = "; ".join((schema_errors or [])[:8])
-    snippet = (bad_content or "")[:1500]
+    # Keep enough of the bad JSON for repair. Truncating planner plans at 1500
+    # chars often drops `selected` mid-object and the repair model then
+    # returns $.selected missing — which previously fail-closed the campaign.
+    max_snip = 12000 if _is_planner_request(original) else 4000
+    snippet = bad_content or ""
+    if len(snippet) > max_snip:
+        snippet = snippet[:max_snip]
+    hints = _schema_repair_hints(original.response_schema)
+    payload: dict[str, Any] = {
+        "schema_errors": errors,
+        "invalid_output": snippet,
+        "required_root_keys": hints["required_root_keys"],
+        "nested_required": hints["nested_required"],
+        "enums": hints["enums"],
+        "response_schema": original.response_schema,
+        "instruction": _repair_instruction(original),
+    }
+    # Planner-only alias: keep older repair tests / models that look for this key
+    # when the schema actually requires `selected`.
+    if "selected" in hints["nested_required"]:
+        payload["selected_required"] = hints["nested_required"]["selected"]
     messages = [
         {
             "role": "system",
             "content": (
-                "Repair the JSON so it matches the schema. "
-                "Return ONLY a single JSON object. No markdown."
+                "Repair the JSON so it matches the provided schema. "
+                "Return ONLY a single JSON object. No markdown. "
+                "Do not switch to a different role schema."
             ),
         },
         {
             "role": "user",
-            "content": json.dumps(
-                {
-                    "schema_errors": errors,
-                    "invalid_output": snippet,
-                    "instruction": "Fix validation issues only; do not invent science.",
-                },
-                ensure_ascii=False,
-            ),
+            "content": json.dumps(payload, ensure_ascii=False),
         },
     ]
     return LLMRequest(
@@ -224,7 +358,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         if transport is not None:
             self._transport = transport
         elif config.allow_network:
-            self._transport = HttpxTransport()
+            verify, _source = resolve_tls_verify(verify_tls=bool(config.verify_tls))
+            self._transport = HttpxTransport(verify=verify)
         else:
             raise RealProviderNotEnabledError(
                 "OpenAICompatibleProvider requires allow_network=True "
@@ -299,6 +434,15 @@ class OpenAICompatibleProvider(BaseLLMProvider):
     ) -> LLMResponse:
         usage, usage_unknown = parse_usage(payload)
         parsed, schema_errors = parse_and_validate(content, request.response_schema)
+        # Planner often uses aliases (module/changes). Coerce before counting as invalid.
+        if schema_errors and _is_planner_request(request):
+            coerced_content, coerced_parsed, coerced_errors = _try_coerce_planner_content(
+                content
+            )
+            if coerced_parsed is not None and not coerced_errors:
+                content = coerced_content
+                parsed = coerced_parsed
+                schema_errors = []
         elapsed_ms = float(http_resp.elapsed_ms or ((time.perf_counter() - started) * 1000.0))
         req_id = provider_request_id_from(http_resp.headers, payload)
         return LLMResponse(
@@ -329,6 +473,9 @@ class OpenAICompatibleProvider(BaseLLMProvider):
     def complete(self, request: LLMRequest) -> LLMResponse:
         started = time.perf_counter()
         self.attempt_log = []
+        effective = effective_response_schema(request)
+        if effective != request.response_schema:
+            request = request.model_copy(update={"response_schema": effective})
 
         if self.budget is not None:
             projected = request.max_tokens or self.config.default_max_output_tokens
@@ -405,9 +552,37 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 )
                 repaired.metadata["budget"] = budget_meta
             if repaired.schema_errors:
+                # Last chance: locally coerce original / repaired blobs before fail-closed.
+                if _is_planner_request(request):
+                    for blob in (repair_content, response.content):
+                        coerced_content, coerced_parsed, coerced_errors = (
+                            _try_coerce_planner_content(blob or "")
+                        )
+                        if coerced_parsed is not None and not coerced_errors:
+                            recovered = self._to_response(
+                                request,
+                                content=coerced_content,
+                                payload=repair_payload,
+                                http_resp=repair_http,
+                                started=started,
+                                attempt_count=(len(self.attempt_log) or 1) + 1,
+                                repaired=True,
+                                prior_errors=prior,
+                            )
+                            if self.budget is not None:
+                                budget_meta = self.budget.record(
+                                    recovered.usage,
+                                    usage_unknown=recovered.usage_unknown,
+                                )
+                                recovered.metadata["budget"] = budget_meta
+                            recovered.metadata["planner_alias_coerced"] = True
+                            return recovered
                 raise StructuredOutputValidationError(
                     "structured output invalid after one repair attempt",
                     issues=list(repaired.schema_errors)[:8],
+                    content=repair_content,
+                    prior_issues=prior,
+                    prior_content=response.content,
                 )
             return repaired
 

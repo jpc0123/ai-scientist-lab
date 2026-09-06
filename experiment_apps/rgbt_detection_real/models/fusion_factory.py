@@ -14,6 +14,12 @@ from fusion_names import (
 )
 
 from .feature_fusion import FeatureFusion, GatedMultiscaleFusion
+from .how_plugin_loader import (
+    HowPluginError,
+    is_plugin_fusion_method,
+    load_how_plugin,
+    normalize_plugin_how_id,
+)
 
 _FULL_FUSION_ALIASES = frozenset({"gated_multiscale", "full_fusion"})
 
@@ -87,4 +93,35 @@ def build_feature_fusion(config: FusionConfig) -> FeatureFusion:
             residual=config.residual,
             levels=config.levels,
         )
+    if is_plugin_fusion_method(config.type):
+        return load_how_plugin(
+            normalize_plugin_how_id(config.type),
+            channels=tuple(int(c) for c in config.channels),
+            residual=config.residual,
+        )
     raise ValueError(f"Unknown fusion type: {config.type!r}")
+
+
+def try_build_plugin_fusion(
+    fusion_method: str | None,
+    *,
+    channels: Sequence[int] = (256, 512, 1024),
+    residual: bool = True,
+    root: Any | None = None,
+) -> FeatureFusion | None:
+    """Load how_plugins/<HOW>/plugin.py when fusion_method is a plugin id.
+
+    Missing or illegal plugins fail closed. Does not register HOW.
+    """
+    if not is_plugin_fusion_method(fusion_method):
+        return None
+    try:
+        how_id = normalize_plugin_how_id(str(fusion_method))
+    except HowPluginError:
+        return None
+    return load_how_plugin(
+        how_id,
+        root=root,
+        channels=tuple(int(c) for c in channels),
+        residual=residual,
+    )

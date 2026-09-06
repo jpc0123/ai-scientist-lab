@@ -218,6 +218,33 @@ def test_keep_memory_also_yields_legal_plan(tmp_path: Path) -> None:
     DFINEAdapter().materialize_contract(packet.plan, protocol)
 
 
+def test_replicate_same_module_writes_next_seed(tmp_path: Path) -> None:
+    protocol = load_json(EXAMPLES / "research_protocol_rgbt_dfine_v1.json")
+    best = load_json(EXAMPLES / "recovered_k2c44_best_metrics.json")
+    out = tmp_path / "replicate"
+    _install_recovered(out, "recovered_k2c44_best_metrics.json")
+    previous = _plan()
+    report = run_gated_dfine(
+        protocol=protocol,
+        plan=previous,
+        output_dir=out,
+        execute=False,
+        baseline_metrics={"APS": best["APS"]},
+    )
+    writer = MemoryWriter(out / "memory")
+    packet = Planner().next_plan(
+        protocol=protocol,
+        memory=writer,
+        previous_plan=previous,
+        parent_run_id=report["contract_run_id"],
+        last_review_decision="REPLICATE",
+    )
+    assert previous["evaluation"]["seeds"] == [42]
+    assert packet.plan["evaluation"]["seeds"] == [43]
+    contract = DFINEAdapter().materialize_contract(packet.plan, protocol)
+    assert contract["seed"] == 43
+
+
 def test_discard_switches_off_failed_module(tmp_path: Path) -> None:
     report, writer, protocol, previous = _replay_discard(tmp_path)
     packet = Planner().next_plan(

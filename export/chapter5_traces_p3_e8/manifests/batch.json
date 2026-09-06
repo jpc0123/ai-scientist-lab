@@ -1,0 +1,27 @@
+{
+  "exporter_version": "atdp6_v1",
+  "reward_export_version": "contrast_v1",
+  "exported_at": "2026-09-03T07:44:50.912008+00:00",
+  "runs": [
+    {
+      "run_id": "run_plan_r9_25fe24b137",
+      "run_dir": ".run\\autonomous\\exp_rgbt_dfine_v26_lowlight_20260831T081633Z",
+      "reconstructed": false,
+      "contrast_label": "illegal",
+      "bucket": "dpo_rejected",
+      "high_trust_sft": false,
+      "traces": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_p3_e8\\traces\\run_plan_r9_25fe24b137.jsonl",
+      "story": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_p3_e8\\stories\\run_plan_r9_25fe24b137.json",
+      "n_steps": 4,
+      "events_source": "research_events.jsonl"
+    }
+  ],
+  "counts": {
+    "runs": 1,
+    "sft": 0,
+    "dpo": 0,
+    "rl": 0
+  },
+  "holdout_isolated": true,
+  "note": "SFT input is step-1 observation only; do not concatenate four steps. r in traces is null. Contrast reward is sidecar-only."
+}

@@ -2,7 +2,7 @@
 
 Machine-readable contracts aligned with `设计架构.md`.
 
-`trajectory_step.schema.json` is **not** in this set. It is an Export Schema and must be derived after Canonical Research Events exist.
+`trajectory_step.schema.json` is an **Export Schema**: a read-only six-tuple projection of Canonical Research Events. It does not drive Planner / Gate / Executor.
 
 ## Files
 
@@ -19,6 +19,9 @@ Machine-readable contracts aligned with `设计架构.md`.
 | `strategy.schema.json` | Evidence-linked strategy |
 | `frozen_fingerprint.schema.json` | Comparability Contract snapshot |
 | `research_event.schema.json` | Append-only canonical fact (not a domain aggregate) |
+| `trajectory_step.schema.json` | Export-only ATDP six-tuple ⟨o,h,a,y,r,m⟩ (4 steps / round) |
+
+Example: `schemas/examples/trajectory_step_plan_proposal.json`. CLI: `scientist-lab export-trajectory --run-dir <run>`.
 
 ## Validate in Python
 

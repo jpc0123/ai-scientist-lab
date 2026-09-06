@@ -29,6 +29,14 @@ SCHEMA_FILES: dict[str, str] = {
     "research_event": "research_event.schema.json",
     "claim": "claim.schema.json",
     "claim_gate_result": "claim_gate_result.schema.json",
+    "paper_record": "paper_record.schema.json",
+    "literature_query": "literature_query.schema.json",
+    "literature_evidence": "literature_evidence.schema.json",
+    "how_candidate": "how_candidate.schema.json",
+    "low_light_subset": "low_light_subset.schema.json",
+    "dataset_contract": "dataset_contract.schema.json",
+    "r0_baseline": "r0_baseline.schema.json",
+    "trajectory_step": "trajectory_step.schema.json",
 }
 
 

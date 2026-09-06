@@ -7,7 +7,11 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from fusion_names import is_early_concat, is_gated_multiscale, normalize_fusion_method
+from fusion_names import (
+    is_early_concat,
+    needs_paired_thermal,
+    normalize_fusion_method,
+)
 
 
 def _subset_coco(payload: dict[str, Any], max_images: int | None) -> dict[str, Any]:
@@ -59,8 +63,9 @@ def stage_coco_for_dfine(
     early = (
         str(input_mode).lower() in {"rgbt", "rgb_thermal"} and is_early_concat(fusion)
     )
-    gated = (
-        str(input_mode).lower() in {"rgbt", "rgb_thermal"} and is_gated_multiscale(fusion)
+    paired = (
+        str(input_mode).lower() in {"rgbt", "rgb_thermal"}
+        and needs_paired_thermal(fusion)
     )
     modality = _resolve_modality_dir(input_mode=input_mode, fusion_method=fusion)
     train_map = _copy_split(
@@ -83,7 +88,7 @@ def stage_coco_for_dfine(
         split="val",
         max_images=max_val_images,
     )
-    if gated:
+    if paired:
         thermal_train_img.mkdir(parents=True, exist_ok=True)
         thermal_val_img.mkdir(parents=True, exist_ok=True)
         _copy_modality_images(
@@ -119,13 +124,13 @@ def stage_coco_for_dfine(
         "fusion_method": fusion,
         "staging_mode": (
             "gated_paired"
-            if gated
+            if paired
             else ("early_concat_blend" if early else "single_modality")
         ),
         "max_train_images": max_train_images,
         "max_val_images": max_val_images,
     }
-    if gated:
+    if paired:
         out["thermal_train_img"] = thermal_train_img
         out["thermal_val_img"] = thermal_val_img
     return out
@@ -137,10 +142,10 @@ def _resolve_modality_dir(*, input_mode: str, fusion_method: str) -> str:
     if mode == "thermal":
         return "thermal"
     if mode in {"rgbt", "rgb_thermal"} and (
-        is_early_concat(fusion) or is_gated_multiscale(fusion)
+        is_early_concat(fusion) or needs_paired_thermal(fusion)
     ):
         # RGB folder is the primary COCO image root; thermal is paired separately
-        # for gated_multiscale, or blended in-place for early_concat.
+        # for gated_multiscale / plugin:*, or blended in-place for early_concat.
         return "rgb"
     return "rgb"
 

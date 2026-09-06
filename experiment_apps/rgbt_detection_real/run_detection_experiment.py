@@ -25,6 +25,8 @@ def _select_backend(contract: dict[str, Any], config: dict[str, Any]) -> str:
         return "standin"
     if requested in {"dfine", "dfine_s", "vendor"}:
         return "dfine"
+    if requested in {"rtdetr", "rt-detr", "rt_detr", "rtdetr_s"}:
+        return "rtdetr"
     from dfine_config_builder import dfine_root_from_app
 
     vendor = dfine_root_from_app(Path(__file__).resolve().parent) / "train.py"
@@ -58,12 +60,13 @@ def main() -> None:
     backend = _select_backend(contract, config)
 
     print(
-        f"RGB-T real baseline entry mode={mode} baseline=dfine_s backend={backend}",
+        f"RGB-T real baseline entry mode={mode} baseline={backend} backend={backend}",
         flush=True,
     )
     print(f"data_root={data_root}", flush=True)
 
     from fusion_names import BLOCKED_FUSION_METHODS, normalize_fusion_method
+    from models.how_plugin_loader import is_plugin_fusion_method
 
     fusion = normalize_fusion_method(args.fusion_method or "none")
     fusion_raw = str(args.fusion_method or "none").strip().lower()
@@ -71,12 +74,14 @@ def main() -> None:
         raise RuntimeError(
             f"fusion_method={fusion_raw!r} is not a fusion switch "
             "(FDPN belongs under parameters.neck.type); "
-            "use early_concat or gated_multiscale"
+            "use early_concat, gated_multiscale, or plugin:<HOW>"
         )
-    if fusion not in {"none", "early_concat", "gated_multiscale"}:
+    if is_plugin_fusion_method(fusion_raw):
+        fusion = fusion_raw  # keep plugin:<how> token for loader
+    elif fusion not in {"none", "early_concat", "gated_multiscale"}:
         raise RuntimeError(
             f"unsupported fusion_method={fusion_raw!r}; "
-            "supported: none, early_concat, gated_multiscale"
+            "supported: none, early_concat, gated_multiscale, plugin:<HOW>"
         )
 
     params = dict(config.get("parameters") or contract.get("parameters") or {})
@@ -87,9 +92,9 @@ def main() -> None:
         neck_type = str(neck.get("type") or "standard").strip().lower()
         if neck_type in {"hybrid", "hybrid_encoder", "default", ""}:
             neck_type = "standard"
-        if neck_type not in {"standard", "fdpn"}:
+        if neck_type not in {"standard", "fdpn"} and not neck_type.startswith("plugin:"):
             raise RuntimeError(
-                f"unsupported neck.type={neck_type!r}; supported: standard, fdpn"
+                f"unsupported neck.type={neck_type!r}; supported: standard, fdpn, plugin:<HOW>"
             )
 
     report = quick_dataset_report(data_root, dataset_key=dataset_key or "unknown")
@@ -139,7 +144,7 @@ def main() -> None:
             {"duration_seconds": 0.0, "validate_only": True},
         )
     elif mode in {"smoke_train", "fast_eval", "full_train"}:
-        if backend == "dfine":
+        if backend in {"dfine", "rtdetr"}:
             from train_dfine import run_dfine_train
 
             run_dfine_train(

@@ -134,24 +134,25 @@ function asSuggestions(raw: unknown): ChatSuggestion[] {
 
 function asMessages(raw: unknown): ChatMessage[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((row) => {
-      if (!row || typeof row !== "object") return null;
-      const item = row as Record<string, unknown>;
-      const role = item.role === "user" || item.role === "assistant" ? item.role : null;
-      if (!role || typeof item.text !== "string") return null;
-      return {
-        id: typeof item.id === "string" ? item.id : nid(),
-        role,
-        text: item.text,
-        live: Boolean(item.live),
-        agent: typeof item.agent === "string" ? item.agent : undefined,
-        agentId: asAgentId(item.agent_id),
-        links: asLinks(item.links),
-        suggestions: asSuggestions(item.suggestions),
-      };
-    })
-    .filter((row): row is ChatMessage => row !== null);
+  const out: ChatMessage[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as Record<string, unknown>;
+    const role: Role | null =
+      item.role === "user" || item.role === "assistant" ? item.role : null;
+    if (!role || typeof item.text !== "string") continue;
+    out.push({
+      id: typeof item.id === "string" ? item.id : nid(),
+      role,
+      text: item.text,
+      live: Boolean(item.live),
+      agent: typeof item.agent === "string" ? item.agent : undefined,
+      agentId: asAgentId(item.agent_id),
+      links: asLinks(item.links),
+      suggestions: asSuggestions(item.suggestions),
+    });
+  }
+  return out;
 }
 
 function readFocus(): { sessionId: string; agent: AgentId; workspaceId: string } {
@@ -825,6 +826,8 @@ export function ChatWorkspacePage() {
           </div>
           <div className="cc-top-links">
             {activeWorkspace?.pack_to ? <Link to={String(activeWorkspace.pack_to)}>实验闭环</Link> : <Link to="/loop">实验闭环</Link>}
+            <Link to="/data">数据</Link>
+            <Link to="/literature">文献</Link>
             <Link to="/llm-config">模型</Link>
           </div>
         </header>

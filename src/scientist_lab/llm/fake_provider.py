@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -304,12 +305,18 @@ def build_fake_reviewer_payload(request: LLMRequest) -> dict[str, Any]:
             "priority, not a ClaimGate SUPPORTED result."
         )
         next_pri = "Run the protocol validation budget before any formal claim."
+    claim_stance = (
+        "no_module_efficacy_claim"
+        if decision in {"KEEP", "DISCARD", "STOP"}
+        else "deferred_to_claim_gate"
+    )
     return {
         "observation": (
             f"VALID evidence for {run_id}: primary {metric} judged by DecisionRubric "
             f"as {decision}."
         ),
         "hypothesis_status": status,
+        "claim_stance": claim_stance,
         "interpretation": interpretation,
         "alternative_explanations": [
             "Probe budget or a tiny subset can yield a large APS delta without a formal pair.",
@@ -338,6 +345,109 @@ def build_fake_critic_payload(request: LLMRequest) -> dict[str, Any]:
         "weaknesses": ["FakeProvider review only; not a real scientific critique."],
         "required_revisions": [],
         "recommendation": "accept",
+    }
+
+
+def build_fake_experiment_protocol_payload(request: LLMRequest) -> dict[str, Any]:
+    """Offline draft of a non-V26 object_detection experiment. Not a Claim. No GPU."""
+    intent = ""
+    try:
+        user = json.loads(str((request.messages or [{}])[-1].get("content") or "{}"))
+        if isinstance(user, dict):
+            intent = str(user.get("user_intent") or "").strip()
+            brief = user.get("idea_brief") if isinstance(user.get("idea_brief"), dict) else {}
+            if not intent and brief:
+                intent = str(brief.get("core_intent") or brief.get("research_direction") or "").strip()
+    except (TypeError, ValueError, json.JSONDecodeError, IndexError, AttributeError):
+        intent = ""
+    question = (
+        intent[:220]
+        if intent
+        else (
+            "On the full RGBT-Tiny val split (not the frozen low-light slice), "
+            "does RGB-only F0 underperform early-concat fusion for APS?"
+        )
+    )
+    if intent and "aps" not in intent.lower() and "指标" not in intent:
+        question = (
+            f"{intent.rstrip('。.')} — evaluated on full-val APS "
+            "(not the frozen low-light APS_lowlight slice)."
+        )
+    return {
+        "research_question": question[:400],
+        "dataset_id": "rgbt_tiny_v1",
+        "slice_id": None,
+        "primary_metric": "APS",
+        "adapter_id": "dfine",
+        "seed_how_id": "F0",
+        "catalog_id": "how_catalog_v26_p2",
+        "difference_from_builtin": (
+            "Honors Idea Interview / user_intent when present; "
+            "slice_id is unset (full val, not low_light_subset_v1); "
+            "primary_metric is APS not APS_lowlight; seed_how_id is F0 not F1."
+        ),
+        "title": "Full-val RGB-only APS vs thermal fusion",
+        "protocol_id": "research_protocol_rgbt_dfine_fullval_aps_f0",
+        "experiment_id": "exp_rgbt_dfine_fullval_aps_f0",
+    }
+
+
+def build_fake_idea_interview_payload(request: LLMRequest) -> dict[str, Any]:
+    """Offline Idea Interview turn. Not Planner. No GPU."""
+    message = ""
+    try:
+        user = json.loads(str((request.messages or [{}])[-1].get("content") or "{}"))
+        dialogue = user.get("dialogue") if isinstance(user, dict) else None
+        if isinstance(dialogue, list) and dialogue:
+            message = str((dialogue[-1] or {}).get("text") or "").strip()
+    except (TypeError, ValueError, json.JSONDecodeError, IndexError, AttributeError):
+        message = ""
+    other = bool(
+        re.search(
+            r"分类|分割|segmentation|classification|nlp|diffusion",
+            message,
+            re.IGNORECASE,
+        )
+    )
+    if other:
+        return {
+            "reply": (
+                "已记下。分类/分割现在不能开战；可改成目标检测方向后再起草。"
+                "这不是战役 Planner。"
+            ),
+            "brief": {
+                "core_intent": message[:400],
+                "research_direction": "",
+                "hypothesis": "",
+                "constraints": ["unsupported_task_for_ready_campaign"],
+                "preferred_adapter": None,
+                "preferred_metric": None,
+                "preferred_slice": None,
+                "open_questions": ["是否改成 object_detection 方向？"],
+                "ready_to_draft": False,
+                "unsupported_task_note": "non object_detection task",
+            },
+        }
+    ready = len(message) >= 12
+    return {
+        "reply": (
+            "已提取你的方向。可继续补充主指标/对照，或基于想法起草协议。"
+            "我不是战役 Planner，也不会点火 GPU。"
+            if ready
+            else "请再写具体一点：想验证什么假设、盯哪个指标？"
+        ),
+        "brief": {
+            "core_intent": message[:400] or "unspecified detection direction",
+            "research_direction": message[:240],
+            "hypothesis": message[:240] if ready else "",
+            "constraints": ["object_detection", "adapter dfine|rtdetr"],
+            "preferred_adapter": "dfine",
+            "preferred_metric": "APS" if ("aps" in message.lower() or "full" in message.lower()) else None,
+            "preferred_slice": None,
+            "open_questions": [] if ready else ["主指标？", "对照设置？"],
+            "ready_to_draft": ready,
+            "unsupported_task_note": None,
+        },
     }
 
 
@@ -371,6 +481,12 @@ class FakeProvider(BaseLLMProvider):
         elif request.purpose == "critic":
             payload = build_fake_critic_payload(request)
             schema = request.response_schema or CRITIC_REVIEW_SCHEMA
+        elif str((request.metadata or {}).get("planner_contract") or "") == "idea_interview":
+            payload = build_fake_idea_interview_payload(request)
+            schema = request.response_schema
+        elif str((request.metadata or {}).get("planner_contract") or "") == "experiment_protocol":
+            payload = build_fake_experiment_protocol_payload(request)
+            schema = request.response_schema
         else:
             payload = {
                 "ok": True,

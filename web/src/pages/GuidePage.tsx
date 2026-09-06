@@ -25,6 +25,7 @@ export function GuidePage() {
   const menus = [
     { name: t("nav.assistant"), to: "/assistant", desc: t("nav.assistantHint") },
     { name: t("nav.loop"), to: "/loop", desc: t("nav.loopHint") },
+    { name: t("nav.data"), to: "/data", desc: t("nav.dataHint") },
     { name: t("nav.dashboard"), to: "/dashboard", desc: t("nav.dashboardHint") },
     { name: t("nav.approvals"), to: "/approvals", desc: t("nav.approvalsHint") },
     { name: t("nav.executions"), to: "/executions", desc: t("nav.executionsHint") },

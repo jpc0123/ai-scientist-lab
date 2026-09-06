@@ -15,6 +15,7 @@ from typing import Any
 
 from scientist_lab.patching.apply_engine import PatchApplyError, apply_unified_diff_to_root
 from scientist_lab.patching.diff_parser import parse_unified_diff
+from scientist_lab.patching.diff_safety import DiffSafetyLimits
 from scientist_lab.patching.path_policy import PathPolicy
 from scientist_lab.patching.verifier import PatchVerifier
 from scientist_lab.storage.artifact_store import write_json
@@ -36,11 +37,12 @@ class PatchSandbox:
         project_root: Path,
         sandbox_root: Path,
         policy: PathPolicy | None = None,
+        limits: DiffSafetyLimits | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
         self.sandbox_root = Path(sandbox_root)
         self.policy = policy or PathPolicy.for_code_context()
-        self.verifier = PatchVerifier(self.policy)
+        self.verifier = PatchVerifier(self.policy, limits=limits)
 
     def workspace_dir(self, patch_id: str) -> Path:
         return (self.sandbox_root / patch_id).resolve()

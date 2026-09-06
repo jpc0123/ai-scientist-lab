@@ -33,6 +33,25 @@ def _finite(value: Any) -> bool:
         return False
 
 
+# COCO AP_small is stored as APS in Freeze canonical metrics and as AP_small
+# in D-FINE / training monitor dumps. Treat as the same primary signal.
+_APS_ALIASES: dict[str, tuple[str, ...]] = {
+    "APS": ("APS", "AP_small"),
+    "AP_small": ("AP_small", "APS"),
+}
+
+
+def _primary_metric_value(metrics: Mapping[str, Any], primary_metric: str | None) -> Any:
+    if not primary_metric:
+        return None
+    if primary_metric in metrics and metrics.get(primary_metric) is not None:
+        return metrics.get(primary_metric)
+    for key in _APS_ALIASES.get(str(primary_metric), ()):
+        if key in metrics and metrics.get(key) is not None:
+            return metrics.get(key)
+    return None
+
+
 class EvidenceValidator:
     def validate(
         self,
@@ -53,7 +72,7 @@ class EvidenceValidator:
         missing = list(artifacts.get("missing_expected") or [])
         primary = ((protocol or {}).get("objective") or {}).get("primary") or {}
         primary_metric = primary.get("metric")
-        primary_value = metrics.get(primary_metric) if primary_metric else None
+        primary_value = _primary_metric_value(metrics, primary_metric)
 
         if handle_status in {"failed", "timeout", "timed_out", "cancelled"} or exec_status in {
             "failed",

@@ -55,12 +55,18 @@ _FALLBACK_HOW = {
 }
 
 # Modules with a distinct existing HOW mapping. LLM Planner may request only these.
-HOW_MODULES = frozenset({"neck", "fusion"})
+HOW_MODULES = frozenset({"neck", "fusion", "backbone"})
 
 
 def list_adapter_capabilities() -> list[dict[str, Any]]:
-    """Existing Adapter HOW surface. Not a new operator catalog; no FDPN invention."""
-    return [
+    """Existing Adapter HOW surface. Not a new operator catalog; no FDPN invention.
+
+    First two rows stay the v2.5-D module summary (neck / fusion). Extra rows
+    are every materializable how_id (including N1/A4). F2/T* stay off this list.
+    """
+    from scientist_lab.adapters.dfine.how_catalog import ALLOWED_HOW
+
+    rows: list[dict[str, Any]] = [
         {
             "module": "neck",
             "input_mode": _NECK_HOW["input_mode"],
@@ -78,15 +84,32 @@ def list_adapter_capabilities() -> list[dict[str, Any]]:
             "invented_operators": [],
         },
     ]
+    for how_id, spec in ALLOWED_HOW.items():
+        rows.append(
+            {
+                "module": spec["primary_module"],
+                "how_id": spec["id"],
+                "input_mode": spec["input_mode"],
+                "fusion_method": spec["fusion_method"],
+                "neck_type": spec["neck_type"],
+                "existing_capability": spec["existing_capability"],
+                "invented_operators": [],
+                "cost_note": spec.get("cost_note"),
+            }
+        )
+    return rows
 
 
 # Minimum formal that ClaimGate can accept: full split, non-probe subset,
 # enough steps that APS is not a 16/8 untrained observation. Not 640/20ep.
+# 2026-08-31 Human Gate: raise 2→8 to reduce seed variance under same slice
+# (DECISION_LIVE_B_LONGTRAIN_E8). Old 2ep arms stay archived; not ClaimGate.
 _FORMAL_TRAIN_KNOBS = {
-    "epochs": 2,
+    "epochs": 8,
     "pretrained": True,
     "mixed_precision": True,
-    "batch_size": 2,
+    # 12GB @ 160x160 + AMP; was 2 (~1600 steps/epoch). Next rounds only.
+    "batch_size": 8,
     "image_width": 160,
     "image_height": 160,
     "learning_rate": 0.0002,
@@ -121,37 +144,77 @@ def _stable_hash(payload: Any) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def _neck_type_ok(neck_type: str) -> bool:
+    raw = str(neck_type or "").strip().lower()
+    return raw in _EXISTING_NECK_TYPES or raw.startswith("plugin:")
+
+
 def how_identity(how: Mapping[str, Any]) -> dict[str, str]:
     """Fields that distinguish neck HOW vs fusion HOW (not Frozen Fingerprint hashes)."""
-    return {
+    identity = {
         "primary_module": str(how.get("primary_module") or ""),
         "input_mode": str(how.get("input_mode") or "rgb"),
         "fusion_method": str(how.get("fusion_method") or "none"),
         "neck_type": str(how.get("neck_type") or "standard"),
     }
+    wrap = str(how.get("backbone_wrap_method") or "").strip()
+    if wrap:
+        identity["backbone_wrap_method"] = wrap
+    kind = str(how.get("plugin_kind") or "").strip()
+    if kind:
+        identity["plugin_kind"] = kind
+    return identity
 
 
-def resolve_adapter_how(plan: Mapping[str, Any]) -> dict[str, Any]:
+def resolve_adapter_how(
+    plan: Mapping[str, Any],
+    protocol: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Translate Plan.modification_scope[0] into existing train/config knobs."""
-    scope = [str(tok) for tok in (plan.get("modification_scope") or [])]
-    primary = scope[0] if scope else ""
-    if primary == "fusion":
-        body = dict(_FUSION_HOW)
-    elif primary == "neck":
-        body = dict(_NECK_HOW)
+    from scientist_lab.adapters.dfine.how_catalog import plan_how_id, resolve_how_id
+
+    how_id = plan_how_id(plan)
+    if how_id:
+        overlay = plan.get("how_overlay")
+        extra = overlay if isinstance(overlay, Mapping) else None
+        spec = resolve_how_id(how_id, overlay=extra)
+        body = {
+            "primary_module": spec["primary_module"],
+            "input_mode": spec["input_mode"],
+            "fusion_method": spec["fusion_method"],
+            "neck_type": spec["neck_type"],
+            "invented_operators": [],
+            "existing_capability": spec["existing_capability"],
+            "how_id": spec["id"],
+            "plugin_kind": spec.get("plugin_kind"),
+            "backbone_wrap_method": spec.get("backbone_wrap_method"),
+            "requires_new_baseline": bool(spec.get("requires_new_baseline")),
+            "gap": str(spec.get("hidden_control_note") or spec.get("cost_note") or ""),
+        }
     else:
-        body = dict(_FALLBACK_HOW)
-        body["primary_module"] = primary or "unspecified"
-        body["gap"] = (
-            f"module {primary!r} has no distinct existing fusion/neck knob "
-            "mapping; Adapter does not invent an operator"
-        )
+        scope = [str(tok) for tok in (plan.get("modification_scope") or [])]
+        primary = scope[0] if scope else ""
+        if primary == "fusion":
+            body = dict(_FUSION_HOW)
+        elif primary == "neck":
+            body = dict(_NECK_HOW)
+        else:
+            body = dict(_FALLBACK_HOW)
+            body["primary_module"] = primary or "unspecified"
+            body["gap"] = (
+                f"module {primary!r} has no distinct existing fusion/neck knob "
+                "mapping; Adapter does not invent an operator"
+            )
 
     identity = how_identity(body)
     if identity["fusion_method"] not in _EXISTING_FUSION_METHODS:
-        raise ValueError(f"Adapter HOW selected unknown fusion_method={identity['fusion_method']!r}")
+        if not str(identity["fusion_method"]).lower().startswith("plugin:"):
+            raise ValueError(
+                f"Adapter HOW selected unknown fusion_method={identity['fusion_method']!r}"
+            )
     if identity["neck_type"] not in _EXISTING_NECK_TYPES:
-        raise ValueError(f"Adapter HOW selected unknown neck_type={identity['neck_type']!r}")
+        if not _neck_type_ok(identity["neck_type"]):
+            raise ValueError(f"Adapter HOW selected unknown neck_type={identity['neck_type']!r}")
 
     signature = _stable_hash(identity)
     body["signature"] = signature
@@ -160,6 +223,9 @@ def resolve_adapter_how(plan: Mapping[str, Any]) -> dict[str, Any]:
         "fusion_method": identity["fusion_method"],
         "neck": {"type": identity["neck_type"]},
     }
+    wrap = str(body.get("backbone_wrap_method") or "").strip()
+    if wrap:
+        body["legacy_parameters"]["backbone_wrap"] = {"type": wrap}
     budget = str(plan.get("budget_class") or "probe").strip().lower()
     body["budget_class"] = budget
     if budget == "formal":

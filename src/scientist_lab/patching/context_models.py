@@ -24,6 +24,7 @@ class AllowedSourceFile(BaseModel):
     path: str
     reason: str = ""
     role: SourceFileRole = "module"
+    allow_create: bool = False
 
 
 class SourceSnapshot(BaseModel):

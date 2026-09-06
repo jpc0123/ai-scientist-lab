@@ -119,6 +119,17 @@ def build_code_context_bundle(
             continue
 
         if not abs_path.is_file():
+            if item.allow_create:
+                snapshots.append(
+                    SourceSnapshot(
+                        path=norm,
+                        content="",
+                        content_sha256=hashlib.sha256(b"").hexdigest(),
+                        size_bytes=0,
+                        truncated=False,
+                    )
+                )
+                continue
             excluded.append({"path": norm, "reason": "file not found"})
             continue
 
@@ -209,4 +220,143 @@ def digits_improvement_patch_request(
         ],
         source_commit=source_commit,
         metadata={"demo": "digits_v22_1", "provider_call": False},
+    )
+
+
+HOW_PLUGIN_INTERFACE_NOTES = {
+    "fusion": [
+        "Implement models.feature_fusion.FeatureFusion via build_fusion(channels, residual=True).",
+        "Set PLUGIN_KIND = \"fusion\".",
+        "forward(rgb_features, thermal_features) -> list[tensor] with matching NCHW per level.",
+        "Write only experiment_apps/rgbt_detection_real/models/how_plugins/<HOW>/plugin.py.",
+        "Spatial attention means HxW (or CxHxW) masks — not GAP channel vectors.",
+        "Do not touch third_party/DFINE, train_dfine.py, or scientist_lab.llm.",
+        "No os.system, subprocess, eval, or network calls.",
+    ],
+    "neck": [
+        "Set PLUGIN_KIND = \"neck\". Export def build_neck(in_channels, hidden_dim=256, feat_strides=(8,16,32), **kwargs).",
+        "forward(feats) is HybridEncoder I/O: list×3 in, list×3 hidden_dim out at the same spatial sizes.",
+        "Copy _example_neck. This is the D-FINE encoder slot (same as N1), not a new Adapter.",
+        "Write only experiment_apps/rgbt_detection_real/models/how_plugins/<HOW>/plugin.py.",
+        "Do not touch third_party/DFINE, train_dfine.py, or scientist_lab.llm.",
+        "No os.system, subprocess, eval, or network calls.",
+    ],
+    "backbone_wrap": [
+        "Set PLUGIN_KIND = \"backbone_wrap\". Export def build_backbone_wrap(rgb_backbone, **kwargs).",
+        "forward(x) returns list×3 backbone feature maps. Replaces model.backbone only.",
+        "Copy _example_backbone_wrap. Requires a new R0 / architecture_id.",
+        "Write only experiment_apps/rgbt_detection_real/models/how_plugins/<HOW>/plugin.py.",
+        "Do not touch third_party/DFINE, train_dfine.py, or scientist_lab.llm.",
+        "No os.system, subprocess, eval, or network calls.",
+    ],
+}
+
+
+def how_plugin_patch_request(
+    how_id: str,
+    *,
+    mechanism: str = "",
+    request_id: str | None = None,
+    project_id: str = "how_plugin_v26",
+    source_commit: str | None = None,
+    plugin_kind: str = "fusion",
+) -> PatchRequest:
+    """Restricted PatchRequest for one HOW plugin file. May create the file."""
+    token = str(how_id or "").strip().upper()
+    if token.startswith("PLUGIN:"):
+        token = token.split(":", 1)[1].strip().upper()
+    kind = str(plugin_kind or "fusion").strip().lower() or "fusion"
+    rel = (
+        "experiment_apps/rgbt_detection_real/models/how_plugins/"
+        f"{token}/plugin.py"
+    )
+    example_folder = {
+        "fusion": "_example_weighted",
+        "neck": "_example_neck",
+        "backbone_wrap": "_example_backbone_wrap",
+    }.get(kind, "_example_weighted")
+    if kind == "neck":
+        goal = (
+            f"Author HOW plugin {token} as a detector neck/encoder module. "
+            "plugin.py MUST set PLUGIN_KIND = \"neck\" and export "
+            "def build_neck(in_channels, hidden_dim=256, feat_strides=(8,16,32), **kwargs). "
+            + (str(mechanism or "").strip()[:400])
+        ).strip()
+        failure = (
+            "Trusted catalog has no materializable neck for this HOW id; "
+            "write plugin.py that implements a HybridEncoder-compatible neck."
+        )
+        errors = [
+            "synthetic: plugin missing or failed neck shape smoke",
+            "synthetic: AttributeError: module has no attribute build_neck",
+        ]
+        example_reason = "Read-only neck plugin example; do not replace catalog"
+    elif kind == "backbone_wrap":
+        goal = (
+            f"Author HOW plugin {token} as a backbone_wrap module. "
+            "plugin.py MUST set PLUGIN_KIND = \"backbone_wrap\" and export "
+            "def build_backbone_wrap(rgb_backbone, **kwargs). "
+            + (str(mechanism or "").strip()[:400])
+        ).strip()
+        failure = (
+            "Trusted catalog has no materializable backbone wrap for this HOW id; "
+            "write plugin.py that wraps the RGB backbone."
+        )
+        errors = [
+            "synthetic: plugin missing or failed backbone_wrap shape smoke",
+            "synthetic: AttributeError: module has no attribute build_backbone_wrap",
+        ]
+        example_reason = "Read-only backbone_wrap plugin example; do not replace catalog"
+    else:
+        goal = (
+            f"Author HOW plugin {token} as a FeatureFusion module. "
+            "The plugin.py file MUST end with exactly: "
+            "def build_fusion(channels, residual=True): return <YourFusion>(...). "
+            "Wrong names build_plugin / build_feature_fusion will fail smoke. "
+            + (str(mechanism or "").strip()[:400])
+        ).strip()
+        failure = (
+            "Trusted catalog has no materializable operator for this HOW id; "
+            "write plugin.py that implements FeatureFusion and exports "
+            "build_fusion(channels, residual=True) — not build_plugin."
+        )
+        errors = [
+            "synthetic: plugin missing or failed FeatureFusion shape smoke",
+            "synthetic: AttributeError: module has no attribute build_fusion",
+        ]
+        example_reason = "Read-only FeatureFusion plugin example; do not replace catalog"
+    example = (
+        "experiment_apps/rgbt_detection_real/models/how_plugins/"
+        f"{example_folder}/plugin.py"
+    )
+    return PatchRequest(
+        request_id=request_id or f"preq_{uuid.uuid4().hex[:12]}",
+        project_id=project_id,
+        goal=goal,
+        failure_summary=failure,
+        test_errors=errors,
+        evidence_gap_ids=[f"gap_how_plugin_{token}"],
+        patch_target=rel,
+        allowed_files=[
+            AllowedSourceFile(
+                path=rel,
+                reason="Writable HOW plugin; only Python plugin module in scope",
+                role="module",
+                allow_create=True,
+            ),
+            AllowedSourceFile(
+                path=example,
+                reason=example_reason,
+                role="interface",
+            ),
+        ],
+        interface_notes=list(HOW_PLUGIN_INTERFACE_NOTES.get(kind) or HOW_PLUGIN_INTERFACE_NOTES["fusion"]),
+        source_commit=source_commit,
+        metadata={
+            "how_id": token,
+            "plugin": True,
+            "plugin_kind": kind,
+            "provider_call": False,
+            "can_enter_claim_gate": False,
+        },
     )

@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_v26_r0_dfine_f1",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_v26",
+  "protocol_version": 2,
+  "parent_run_id": null,
+  "round_index": 0,
+  "observation": "v2.6 needs a D-FINE R0 on the frozen low-light slice before Live LLM rounds. This is the trusted RGB-T starting point, not an LLM discovery.",
+  "hypothesis": "early_concat (F1) with the standard neck is the v2.6 R0 comparator for APS_lowlight.",
+  "modification_scope": ["fusion"],
+  "proposed_changes": [
+    {
+      "target": "fusion",
+      "summary": "R0 trusted HOW F1 early_concat + standard neck. Not A4, not F3, not F2.",
+      "detail": {
+        "how_id": "F1",
+        "neck_type": "standard"
+      }
+    }
+  ],
+  "controlled_variables": [
+    "dataset_split",
+    "evaluator",
+    "metric_definition",
+    "condition_slice",
+    "seed"
+  ],
+  "expected_effect": {
+    "primary_metric": "APS_lowlight",
+    "direction": "stabilize",
+    "rationale": "R0 is the comparator, not a claimed improvement."
+  },
+  "evaluation": {
+    "method": "full_train",
+    "seeds": [42],
+    "notes": "budget_class=formal so G2 is not 16/8 smoke. Same Frozen Fingerprint family as later rounds. Not Formal E and not a C1 upgrade of v2.5-D."
+  },
+  "budget_class": "formal",
+  "risk_level": "auto",
+  "memory_refs": {
+    "lesson_ids": [],
+    "strategy_ids": []
+  },
+  "evidence_runs": [],
+  "bootstrap": true,
+  "how_id": "F1",
+  "rationale": "Campaign constitution R0. LLM did not select this HOW."
+}

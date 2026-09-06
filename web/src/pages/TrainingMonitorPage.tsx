@@ -279,6 +279,7 @@ export function TrainingMonitorPage() {
   const failedView = failed.filter(matchFocus);
   const recentView = recent.filter(matchFocus);
   const j3bCampaign = campaigns.find((c) => c.campaign === "GATE_J3B");
+  const v26Campaigns = campaigns.filter((c) => String(c.campaign || "").startsWith("V26"));
 
   if (monitor.isLoading && !data) return <Loading label="加载训练监控…" />;
 
@@ -289,7 +290,7 @@ export function TrainingMonitorPage() {
           <p className="eyebrow">Live Training</p>
           <h1>训练监控</h1>
           <p className="lede">
-            每 5 秒刷新。上方是当前 live 训练；下方有战役状态、失败列表与最近执行表。
+            每 5 秒刷新。最上方是正在训练的 live 卡片；下方是 v2.6 战役、失败与最近执行。CLI 的 `outputs/v26_*` 也会出现。
           </p>
         </div>
         <div className="action-row">
@@ -300,6 +301,9 @@ export function TrainingMonitorPage() {
           >
             立即刷新
           </button>
+          <Link className="btn-primary" to="/loop">
+            实验闭环
+          </Link>
           <Link className="btn-primary" to="/executions">
             全部执行
           </Link>
@@ -312,6 +316,30 @@ export function TrainingMonitorPage() {
           <p className="muted">请确认后端已启动：scientist-lab serve --port 8787</p>
         </div>
       ) : null}
+
+      {active.length > 0 && activeView.length === 0 ? (
+        <div className="error-panel" style={{ marginBottom: "1rem" }}>
+          当前有 {active.length} 个运行中的训练，但被「聚焦={focus}」过滤掉了。
+          请把聚焦改成「全部」或对应 Gate（例如 K2-A）。
+        </div>
+      ) : null}
+
+      <section style={{ marginBottom: "1.25rem" }}>
+        <h2>正在训练 {activeView.length ? `(${activeView.length})` : ""}</h2>
+        {activeView.length === 0 ? (
+          <EmptyState
+            title={focus === "all" ? "当前没有运行中的训练" : "当前聚焦范围内没有运行中的训练"}
+            description="可把「聚焦」改成「全部」，或去实验闭环看 V26.4 R0 / V26.5。"
+            secondaryAction={{ label: "去实验闭环", to: "/loop" }}
+          />
+        ) : (
+          <div className="monitor-grid">
+            {activeView.map((row) => (
+              <RunCard key={String(row.execution_id)} row={row} emphasize />
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="panel">
         <div className="action-row" style={{ flexWrap: "wrap", alignItems: "end" }}>
@@ -363,12 +391,79 @@ export function TrainingMonitorPage() {
         </div>
       </section>
 
-      {active.length > 0 && activeView.length === 0 ? (
-        <div className="error-panel" style={{ marginBottom: "1rem" }}>
-          当前有 {active.length} 个运行中的训练，但被「聚焦={focus}」过滤掉了。
-          请把聚焦改成「全部」或对应 Gate（例如 K2-A）。
-        </div>
-      ) : null}
+      {v26Campaigns.map((camp) => {
+        const href = String(camp.meta?.href || "/loop");
+        return (
+          <section
+            key={String(camp.campaign)}
+            className="panel monitor-campaign"
+            style={{ marginBottom: "1rem" }}
+          >
+            <div className="monitor-card-head">
+              <div>
+                <strong>{String(camp.campaign)}</strong>
+                <p className="muted" style={{ margin: "0.25rem 0 0" }}>
+                  {camp.note}
+                </p>
+              </div>
+              <span className={camp.failed ? "pill bad" : camp.status === "completed" ? "pill ok" : "pill"}>
+                {camp.status || "—"}
+              </span>
+            </div>
+            <div className="monitor-metrics" style={{ marginTop: "0.75rem" }}>
+              <div>
+                <span className="stat-label">execution</span>
+                <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                  {String(camp.meta?.execution_id || "—")}
+                </strong>
+              </div>
+              <div>
+                <span className="stat-label">APS_lowlight</span>
+                <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                  {camp.meta?.APS_lowlight == null ? "—" : String(camp.meta.APS_lowlight)}
+                </strong>
+              </div>
+              <div>
+                <span className="stat-label">epoch</span>
+                <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                  {camp.meta?.epoch == null ? "—" : String(camp.meta.epoch)}
+                  {camp.meta?.epochs_total != null ? `/${String(camp.meta.epochs_total)}` : ""}
+                </strong>
+              </div>
+              <div>
+                <span className="stat-label">step</span>
+                <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                  {camp.meta?.step == null ? "—" : String(camp.meta.step)}
+                  {camp.meta?.steps_total != null ? `/${String(camp.meta.steps_total)}` : ""}
+                </strong>
+              </div>
+              <div>
+                <span className="stat-label">stuck_at</span>
+                <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                  {String(camp.meta?.stuck_at || camp.status || "—")}
+                </strong>
+              </div>
+              <div>
+                <span className="stat-label">eta</span>
+                <strong className="mono" style={{ fontSize: "0.8rem" }}>
+                  {String(camp.meta?.eta || "—")}
+                </strong>
+              </div>
+              <div>
+                <span className="stat-label">打开</span>
+                <Link className="mono" to={href}>
+                  {href}
+                </Link>
+              </div>
+            </div>
+            {camp.log_tail ? (
+              <pre className="log-block" style={{ marginTop: "0.75rem" }}>
+                {camp.log_tail}
+              </pre>
+            ) : null}
+          </section>
+        );
+      })}
 
       {j3bCampaign && (focus === "j3b" || focus === "all") ? (
         <section className="panel monitor-campaign" style={{ marginBottom: "1rem" }}>
@@ -411,23 +506,6 @@ export function TrainingMonitorPage() {
           </div>
         </section>
       ) : null}
-
-      <section>
-        <h2>正在训练 {activeView.length ? `(${activeView.length})` : ""}</h2>
-        {activeView.length === 0 ? (
-          <EmptyState
-            title={focus === "all" ? "当前没有运行中的训练" : "当前聚焦范围内没有运行中的训练"}
-            description="可把「聚焦」改成「全部」，或去实验中心查看历史。"
-            secondaryAction={{ label: "去实验中心", to: "/executions" }}
-          />
-        ) : (
-          <div className="monitor-grid">
-            {activeView.map((row) => (
-              <RunCard key={String(row.execution_id)} row={row} emphasize />
-            ))}
-          </div>
-        )}
-      </section>
 
       {failedView.length > 0 ? (
         <section style={{ marginTop: "1.25rem" }}>

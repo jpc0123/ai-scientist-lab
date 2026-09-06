@@ -1153,6 +1153,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Opt-in: on fail-closed LLM, fall back to rules Planner/Reviewer. Default off.",
     )
+    manager_run.add_argument(
+        "--confirm-human-gate",
+        action="store_true",
+        help=(
+            "Campaign one-time Human Gate for formal/full_training. "
+            "Does not change protocol.risk_policy.full_training. Not a frozen/forbidden bypass."
+        ),
+    )
 
     claim_gate = sub.add_parser(
         "claim-gate",
@@ -1179,6 +1187,40 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Optional path to write claim_gate.json",
+    )
+
+    export_trajectory = sub.add_parser(
+        "export-trajectory",
+        help=(
+            "Read-only ATDP six-tuple export from Manager run directories. "
+            "Does not run GPU, does not rewrite research_events.jsonl, "
+            "and does not use detection scores as Planner reward."
+        ),
+    )
+    export_trajectory.add_argument(
+        "--run-dir",
+        action="append",
+        type=Path,
+        dest="run_dirs",
+        required=True,
+        help="Manager run directory (repeatable)",
+    )
+    export_trajectory.add_argument(
+        "--parent-dir",
+        type=Path,
+        default=None,
+        help="Optional parent/anchor run directory when previous_plan.json is missing",
+    )
+    export_trajectory.add_argument(
+        "--export-dir",
+        type=Path,
+        default=None,
+        help="Export root. Default: <run-dir>/export when a single --run-dir is given.",
+    )
+    export_trajectory.add_argument(
+        "--traces-only",
+        action="store_true",
+        help="Write traces/stories/reward_export only; skip SFT/DPO/RL cuts",
     )
 
     llm_plan_replay = sub.add_parser(
@@ -1247,6 +1289,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional JSON report path (default: <run-dir>/.llm_review_replay/replay_report.json)",
     )
+    llm_review_replay.add_argument(
+        "--persist-pack",
+        action="store_true",
+        help=(
+            "On success, write semantic_review.json and a semantic Memory lesson "
+            "into the source pack. Never overwrites Rubric review.json or ClaimGate."
+        ),
+    )
 
     llm_real_loop = sub.add_parser(
         "llm-real-loop",
@@ -1310,6 +1360,291 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=32,
         help="Hard cap for Manager.run_until (default 32)",
+    )
+
+    lit_search = sub.add_parser(
+        "literature-search",
+        help=(
+            "v2.6-P1: search papers via LiteratureRetriever. "
+            "Default fake corpus (no key). --live uses Semantic Scholar (SEMANTIC_SCHOLAR_API_KEY). "
+            "Not a fifth Agent. Results are LiteratureEvidence, not ClaimGate evidence."
+        ),
+    )
+    lit_search.add_argument("--query", required=True)
+    lit_search.add_argument("--year-from", type=int, default=2022)
+    lit_search.add_argument("--limit", type=int, default=20)
+    lit_search.add_argument("--live", action="store_true")
+    lit_search.add_argument("--provider", default=None, help="fake | semantic_scholar")
+    lit_search.add_argument("--round-id", default="round_unspecified")
+    lit_search.add_argument(
+        "--used-by-plan",
+        action="append",
+        default=[],
+        help="Paper ids cited by the Plan (repeatable). Must appear in search hits.",
+    )
+    lit_search.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Provenance dir (default .run/literature)",
+    )
+    lit_search.add_argument("--no-cache", action="store_true")
+
+    lit_get = sub.add_parser(
+        "literature-get",
+        help="v2.6-P1: fetch one paper by provider id (S2:...). Default fake; --live Semantic Scholar.",
+    )
+    lit_get.add_argument("--paper-id", required=True)
+    lit_get.add_argument("--live", action="store_true")
+    lit_get.add_argument("--provider", default=None)
+    lit_get.add_argument("--round-id", default="round_unspecified")
+    lit_get.add_argument("--output-dir", type=Path, default=None)
+    lit_get.add_argument("--no-cache", action="store_true")
+
+    lit_refs = sub.add_parser(
+        "literature-refs",
+        help="v2.6-P1: list references or citations of one paper.",
+    )
+    lit_refs.add_argument("--paper-id", required=True)
+    lit_refs.add_argument(
+        "--kind",
+        choices=["references", "citations"],
+        default="references",
+    )
+    lit_refs.add_argument("--limit", type=int, default=20)
+    lit_refs.add_argument("--live", action="store_true")
+    lit_refs.add_argument("--provider", default=None)
+    lit_refs.add_argument("--round-id", default="round_unspecified")
+    lit_refs.add_argument("--output-dir", type=Path, default=None)
+    lit_refs.add_argument("--no-cache", action="store_true")
+
+    how_list = sub.add_parser(
+        "how-candidate-list",
+        help="List LLM HOW drafts in a campaign pending store. Not the executable catalog.",
+    )
+    how_list.add_argument("--campaign-dir", required=True, type=Path)
+
+    how_decide = sub.add_parser(
+        "how-candidate-decide",
+        help="Human freeze: reject or register an LLM HOW draft. Register still needs Adapter mapping.",
+    )
+    how_decide.add_argument("--campaign-dir", required=True, type=Path)
+    how_decide.add_argument("--candidate-id", required=True)
+    how_decide.add_argument("--decision", required=True, choices=["reject", "register", "release"])
+    how_decide.add_argument(
+        "--confirm-human-gate",
+        action="store_true",
+        help="Required. HOW catalog freeze is a human decision, not an LLM write.",
+    )
+    how_decide.add_argument("--note", default=None)
+    how_decide.add_argument("--actor", default="human")
+
+    scout_set = sub.add_parser(
+        "scout-intent-set",
+        help="Human-set campaign scout query. LLM drafts stay proposed until accepted.",
+    )
+    scout_set.add_argument("--campaign-dir", required=True, type=Path)
+    scout_set.add_argument("--query", required=True)
+    scout_set.add_argument("--why", default="")
+
+    scout_chat = sub.add_parser(
+        "scout-intent-chat",
+        help="Campaign-bound search-intent dialogue. Cannot register HOW or start GPU.",
+    )
+    scout_chat.add_argument("--campaign-dir", required=True, type=Path)
+    scout_chat.add_argument("--message", required=True)
+    scout_chat.add_argument("--live", action="store_true")
+
+    exp_list = sub.add_parser(
+        "experiment-list",
+        help="List registered object-detection experiments. V26 is one built-in experiment.",
+    )
+    _ = exp_list
+    exp_get = sub.add_parser(
+        "experiment-get",
+        help="Show one registered experiment. Not a Claim.",
+    )
+    exp_get.add_argument("--experiment-id", required=True)
+    exp_reg = sub.add_parser(
+        "experiment-register",
+        help="Register a new experiment from protocol JSON. Does not run GPU.",
+    )
+    exp_reg.add_argument("--protocol", required=True, type=Path)
+    exp_reg.add_argument("--seed-plan", default=None, type=Path)
+    exp_reg.add_argument("--experiment-id", default=None)
+    exp_reg.add_argument("--title", default=None)
+    exp_propose = sub.add_parser(
+        "experiment-propose",
+        help="Ask the LLM to draft a new experiment protocol. Does not register or run GPU.",
+    )
+    exp_propose.add_argument(
+        "--live",
+        action="store_true",
+        help="Call the real LLM. Default is FakeProvider (offline, no GPU).",
+    )
+
+    freeze_lowlight = sub.add_parser(
+        "freeze-lowlight-subset",
+        help=(
+            "v2.6-P2: freeze low_light_subset_v1 from RGB Rec.709 luminance. "
+            "Not official night labels. LLM cannot rewrite the slice."
+        ),
+    )
+    freeze_lowlight.add_argument(
+        "--dataset-root",
+        type=Path,
+        default=None,
+        help="Registered rgbt_tiny_v1 root (default datasets/registered/rgbt_tiny_v1)",
+    )
+    freeze_lowlight.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Freeze JSON path (default docs/research/v26/LOW_LIGHT_SUBSET_V1_FREEZE.json)",
+    )
+    freeze_lowlight.add_argument(
+        "--rule-only",
+        action="store_true",
+        help="Write the frozen rule+hash without reading images",
+    )
+
+    ds_ws = sub.add_parser(
+        "dataset-workspace",
+        help="v2.6: list Dataset Workspace (registry/slices). Not an Agent. Images stay off Git.",
+    )
+    _ = ds_ws
+    ds_resolve = sub.add_parser(
+        "dataset-resolve",
+        help="Resolve dataset_id + optional slice_id into a frozen Dataset Contract.",
+    )
+    ds_resolve.add_argument("--dataset-id", required=True)
+    ds_resolve.add_argument("--slice-id", default=None)
+    ds_import = sub.add_parser(
+        "dataset-import-slice",
+        help="Import a frozen slice from LOW_LIGHT_SUBSET_V1_FREEZE.json into data/slices/. Does not copy images.",
+    )
+    ds_import.add_argument(
+        "--from-freeze",
+        type=Path,
+        required=True,
+        help="Path to freeze JSON (membership + hashes).",
+    )
+    ds_import.add_argument("--parent-dataset", default="rgbt_tiny_v1")
+
+    r0_freeze = sub.add_parser(
+        "freeze-v26-r0",
+        help="V26.4: freeze D-FINE R0 identity (F1 + low_light_subset_v1 + APS_lowlight). Does not invent GPU metrics.",
+    )
+    r0_freeze.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Freeze JSON (default docs/research/v26/R0_BASELINE_FREEZE.json)",
+    )
+    r0_freeze.add_argument(
+        "--bind-metrics",
+        type=Path,
+        default=None,
+        help="Optional run directory with metrics.json containing APS_lowlight. Refuses substitutes.",
+    )
+    r0_freeze.add_argument(
+        "--no-probe",
+        action="store_true",
+        help="Skip docker/nvidia probes while recording doctor.live_ready",
+    )
+    r0_run = sub.add_parser(
+        "v26-r0-run",
+        help="V26.4 R0 dry-run (default). GPU only with --execute --confirm-human-gate --require-live-ready.",
+    )
+    r0_run.add_argument("--output-dir", type=Path, default=Path("outputs/v26_r0"))
+    r0_run.add_argument("--execute", action="store_true")
+    r0_run.add_argument(
+        "--confirm-human-gate",
+        action="store_true",
+        help="One-time campaign permission for formal R0. Required with --execute.",
+    )
+    r0_run.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail if CUDA doctor live_ready is false; do not forge metrics",
+    )
+    r0_run.add_argument("--no-probe", action="store_true")
+
+    p4_run = sub.add_parser(
+        "v26-p4-run",
+        help=(
+            "V26.7 P4 RT-DETR transfer. Default dry-run. GPU: "
+            "--execute --confirm-human-gate --require-live-ready. "
+            "stage=r0 is RT-DETR F1 baseline; stage=transfer is F3 HOW. "
+            "Does not start D-FINE R6. ClaimGate stays C0."
+        ),
+    )
+    p4_run.add_argument(
+        "--stage",
+        choices=["r0", "transfer"],
+        default="r0",
+        help="r0 = RT-DETR F1 baseline pack outputs/v26_p4_r0; transfer = F3 pack outputs/v26_p4_r1",
+    )
+    p4_run.add_argument("--output-dir", type=Path, default=None)
+    p4_run.add_argument("--execute", action="store_true")
+    p4_run.add_argument(
+        "--confirm-human-gate",
+        action="store_true",
+        help="Human Gate GO for P4. Required with --execute.",
+    )
+    p4_run.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail if CUDA doctor live_ready is false; do not forge metrics",
+    )
+    p4_run.add_argument(
+        "--live",
+        action="store_true",
+        help="Live Semantic Scholar + live LLM Reviewer/Planner. Literature cannot enter ClaimGate.",
+    )
+    p4_run.add_argument("--max-steps", type=int, default=32)
+
+    campaign_continue = sub.add_parser(
+        "v26-campaign-continue",
+        help=(
+            "V26.5 unattended loop from the latest completed pack. "
+            "Default dry-run prepares the next pack only. GPU requires "
+            "--execute --confirm-human-gate (one-time, not per round). "
+            "LLM decides Next Plan inside the process; Cursor is not the outer loop."
+        ),
+    )
+    campaign_continue.add_argument(
+        "--until-round",
+        type=int,
+        default=5,
+        help="Last V26.5 pack index to run (default 5 → outputs/v26_r5). Inclusive.",
+    )
+    campaign_continue.add_argument("--execute", action="store_true")
+    campaign_continue.add_argument(
+        "--confirm-human-gate",
+        action="store_true",
+        help="One-time campaign permission for remaining formal rounds. Not per-round.",
+    )
+    campaign_continue.add_argument(
+        "--require-live-ready",
+        action="store_true",
+        help="Fail if CUDA doctor live_ready is false; do not forge metrics",
+    )
+    campaign_continue.add_argument(
+        "--live",
+        action="store_true",
+        help="Live LLM Planner/Reviewer (LLM_API_KEY). Independent of --execute GPU.",
+    )
+    campaign_continue.add_argument(
+        "--no-propose",
+        action="store_true",
+        help="Do not call Planner; require an existing plan_roundN_next.json",
+    )
+    campaign_continue.add_argument(
+        "--max-steps",
+        type=int,
+        default=32,
+        help="Hard cap for each pack's Manager.run_until (default 32)",
     )
 
     dfine_cuda_evidence = sub.add_parser(
@@ -1921,6 +2256,40 @@ def build_parser() -> argparse.ArgumentParser:
         help="Submit without waiting for seed completion",
     )
 
+    gc_parser = sub.add_parser(
+        "gc",
+        help=(
+            "Garbage-collect regenerable experiment artifacts "
+            "(unreferenced execs/campaigns, stale worker jobs, redundant weights)"
+        ),
+    )
+    gc_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually delete; default is dry-run",
+    )
+    gc_parser.add_argument(
+        "--keep-days",
+        type=int,
+        default=2,
+        help="Protect outputs/campaigns touched within N days (default: 2)",
+    )
+    gc_parser.add_argument(
+        "--no-slim",
+        action="store_true",
+        help="Do not delete redundant .pth/.pt weights inside protected old runs",
+    )
+    gc_parser.add_argument(
+        "--no-worker-jobs",
+        action="store_true",
+        help="Do not clean runtime/scientist-worker/jobs",
+    )
+    gc_parser.add_argument(
+        "--no-campaigns",
+        action="store_true",
+        help="Do not delete unreferenced .run/autonomous campaigns",
+    )
+
     return parser
 
 
@@ -1950,6 +2319,7 @@ def main(argv: list[str] | None = None) -> int:
             reviewer_backend=str(getattr(args, "reviewer_backend", "rules") or "rules"),
             llm_live=bool(getattr(args, "llm_live", False)),
             fallback_to_rules=bool(getattr(args, "fallback_to_rules", False)),
+            confirm_human_gate=bool(getattr(args, "confirm_human_gate", False)),
         )
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return int(result.get("exit_code") or 0)
@@ -1972,6 +2342,24 @@ def main(argv: list[str] | None = None) -> int:
                 encoding="utf-8",
             )
         print(json.dumps(verdict, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "export-trajectory":
+        from scientist_lab.llm.trajectory_export import export_runs
+
+        run_dirs = list(getattr(args, "run_dirs") or [])
+        export_dir = getattr(args, "export_dir", None)
+        if export_dir is None:
+            if len(run_dirs) != 1:
+                parser.error("--export-dir is required when exporting multiple run directories")
+            export_dir = run_dirs[0] / "export"
+        manifest = export_runs(
+            run_dirs,
+            export_dir,
+            parent_dir=getattr(args, "parent_dir", None),
+            include_training=not bool(getattr(args, "traces_only", False)),
+        )
+        print(json.dumps(manifest, ensure_ascii=False, indent=2, default=str))
         return 0
 
     if args.command == "llm-plan-replay":
@@ -1997,6 +2385,7 @@ def main(argv: list[str] | None = None) -> int:
             provider=str(args.provider or "mock"),
             fallback_to_rules=bool(getattr(args, "fallback_to_rules", False)),
             output=getattr(args, "output", None),
+            persist_pack=bool(getattr(args, "persist_pack", False)),
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
         return 0 if report.get("ok") else 1
@@ -2019,6 +2408,312 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
         return 0 if report.get("ok") else 1
+
+    if args.command in {"literature-search", "literature-get", "literature-refs"}:
+        try:
+            from scientist_lab.literature.runtime_secrets import apply_runtime_literature_env
+            from scientist_lab.settings import get_settings
+
+            apply_runtime_literature_env(get_settings().runtime_dir)
+        except OSError:
+            pass
+        from scientist_lab.llm.errors import (
+            MissingAPIKeyError,
+            RealProviderNotEnabledError,
+            UnsupportedProviderError,
+        )
+        from scientist_lab.literature.errors import LiteratureProviderError
+        from scientist_lab.literature.retriever import LiteratureRetriever
+
+        try:
+            retriever = LiteratureRetriever(
+                live=bool(getattr(args, "live", False)),
+                provider=getattr(args, "provider", None),
+                provenance_dir=getattr(args, "output_dir", None),
+                use_cache=not bool(getattr(args, "no_cache", False)),
+            )
+            if args.command == "literature-search":
+                packet = retriever.search(
+                    str(args.query),
+                    year_from=getattr(args, "year_from", 2022),
+                    limit=int(getattr(args, "limit", 20) or 20),
+                    round_id=str(getattr(args, "round_id") or "round_unspecified"),
+                    used_by_plan=list(getattr(args, "used_by_plan") or []),
+                )
+            elif args.command == "literature-get":
+                packet = retriever.get_paper(
+                    str(args.paper_id),
+                    round_id=str(getattr(args, "round_id") or "round_unspecified"),
+                )
+            else:
+                packet = retriever.related(
+                    str(args.paper_id),
+                    kind=str(getattr(args, "kind") or "references"),
+                    limit=int(getattr(args, "limit", 20) or 20),
+                    round_id=str(getattr(args, "round_id") or "round_unspecified"),
+                )
+        except (
+            MissingAPIKeyError,
+            RealProviderNotEnabledError,
+            UnsupportedProviderError,
+            LiteratureProviderError,
+            KeyError,
+        ) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(packet, ensure_ascii=False, indent=2, default=str))
+        return 0 if packet.get("ok") else 1
+
+    if args.command in {"how-candidate-list", "how-candidate-decide"}:
+        from scientist_lab.core.how_pending import (
+            HowPendingError,
+            decide_candidate,
+            load_store,
+            pending_path,
+        )
+
+        store_path = pending_path(args.campaign_dir)
+        try:
+            if args.command == "how-candidate-list":
+                payload = load_store(store_path)
+            else:
+                payload = decide_candidate(
+                    store_path,
+                    str(args.candidate_id),
+                    decision=str(args.decision),
+                    actor=str(args.actor or "human"),
+                    note=args.note,
+                    confirm_human_gate=bool(args.confirm_human_gate),
+                )
+        except HowPendingError as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command in {"scout-intent-set", "scout-intent-chat"}:
+        from scientist_lab.core.how_pending import HowPendingError, pending_path, set_scout_intent
+        from scientist_lab.core.scout_dialogue import handle_scout_chat
+
+        store_path = pending_path(args.campaign_dir)
+        try:
+            if args.command == "scout-intent-set":
+                payload = set_scout_intent(
+                    store_path,
+                    source="human",
+                    query=str(args.query),
+                    why=str(args.why or args.query),
+                    status="active",
+                    drafted_by="human",
+                )
+            else:
+                payload = handle_scout_chat(
+                    store_path,
+                    str(args.message),
+                    live=bool(args.live),
+                )
+        except HowPendingError as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command in {"experiment-list", "experiment-get", "experiment-register", "experiment-propose"}:
+        from scientist_lab.core.schema_registry import load_json
+        from scientist_lab.services.registered_experiments import (
+            RegisteredExperimentError,
+            RegisteredExperimentService,
+        )
+        from scientist_lab.settings import get_settings
+
+        store = RegisteredExperimentService(get_settings().project_root)
+        try:
+            if args.command == "experiment-list":
+                payload = store.list()
+            elif args.command == "experiment-get":
+                payload = store.get(str(args.experiment_id))
+                if payload is None:
+                    print(
+                        json.dumps(
+                            {"ok": False, "error": f"unknown experiment: {args.experiment_id}"},
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    return 1
+            elif args.command == "experiment-propose":
+                from scientist_lab.llm.fake_provider import FakeProvider
+                from scientist_lab.llm.gateway import resolve_gateway_provider
+                from scientist_lab.services.experiment_propose import propose_experiment_draft
+
+                live = bool(getattr(args, "live", False))
+                provider = resolve_gateway_provider(live=live) if live else FakeProvider()
+                payload = propose_experiment_draft(provider=provider, live=live)
+            else:
+                protocol = load_json(args.protocol)
+                plan = load_json(args.seed_plan) if args.seed_plan else None
+                payload = store.register(
+                    protocol=protocol,
+                    seed_plan=plan,
+                    experiment_id=args.experiment_id,
+                    title=args.title,
+                )
+        except RegisteredExperimentError as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command == "freeze-lowlight-subset":
+        from scientist_lab.core.schema_registry import validate_named
+        from scientist_lab.datasets.low_light_subset import (
+            SliceAmendmentRequired,
+            build_low_light_subset,
+            default_registered_root,
+            frozen_rule,
+            rule_hash,
+            write_freeze,
+        )
+
+        dest = args.output or (
+            Path(__file__).resolve().parents[2]
+            / "docs"
+            / "research"
+            / "v26"
+            / ("LOW_LIGHT_SUBSET_V1_RULE.json" if args.rule_only else "LOW_LIGHT_SUBSET_V1_FREEZE.json")
+        )
+        try:
+            if args.rule_only:
+                spec = frozen_rule()
+                freeze = {
+                    "schema_version": "1.0.0",
+                    "slice_id": spec["slice_id"],
+                    "official_labels": False,
+                    "rule": spec,
+                    "rule_hash": rule_hash(spec),
+                    "threshold": None,
+                    "membership": {},
+                    "counts": {},
+                    "membership_hash": None,
+                    "llm_may_rewrite": False,
+                    "amendment": "Protocol Amendment required to change this slice",
+                    "status": "rule_frozen_membership_pending",
+                }
+            else:
+                freeze = build_low_light_subset(args.dataset_root or default_registered_root())
+            validate_named("low_light_subset", freeze)
+            write_freeze(freeze, dest)
+        except (SliceAmendmentRequired, FileNotFoundError, ValueError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps({**freeze, "output": str(dest)}, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command == "dataset-workspace":
+        try:
+            payload = _experiment_service().list_dataset_workspace()
+        except Exception as exc:  # noqa: BLE001
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command == "dataset-resolve":
+        try:
+            payload = _experiment_service().resolve_dataset_contract(
+                str(args.dataset_id),
+                slice_id=getattr(args, "slice_id", None),
+            )
+        except (KeyError, ValueError, FileNotFoundError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command == "dataset-import-slice":
+        try:
+            spec = _experiment_service().import_slice_from_freeze_file(
+                args.from_freeze,
+                parent_dataset=str(args.parent_dataset),
+            )
+        except (KeyError, ValueError, FileNotFoundError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps({"ok": True, "slice": spec}, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command == "freeze-v26-r0":
+        from scientist_lab.tasks.rgbt_detection.v26_r0 import R0BaselineError
+
+        try:
+            payload = _experiment_service().freeze_v26_r0(
+                probe_runtime=not bool(args.no_probe),
+                output=args.output,
+                metrics_dir=getattr(args, "bind_metrics", None),
+            )
+        except (R0BaselineError, KeyError, ValueError, FileNotFoundError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        return 0
+
+    if args.command == "v26-r0-run":
+        from scientist_lab.tasks.rgbt_detection.v26_r0 import R0BaselineError
+
+        try:
+            payload = _experiment_service().run_v26_r0(
+                output_dir=args.output_dir,
+                execute=bool(args.execute),
+                confirm_human_gate=bool(args.confirm_human_gate),
+                require_live_ready=bool(args.require_live_ready),
+                probe_runtime=not bool(args.no_probe),
+            )
+        except (R0BaselineError, KeyError, ValueError, FileNotFoundError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        if args.execute:
+            status = str((payload.get("handle") or {}).get("status") or "")
+            return 0 if status == "completed" else 1
+        return 0
+
+    if args.command == "v26-p4-run":
+        from scientist_lab.tasks.rgbt_detection.v26_p4 import P4TransferError
+
+        try:
+            payload = _experiment_service().run_v26_p4(
+                stage=str(args.stage),
+                output_dir=args.output_dir,
+                execute=bool(args.execute),
+                confirm_human_gate=bool(args.confirm_human_gate),
+                require_live_ready=bool(args.require_live_ready),
+                llm_live=bool(args.live),
+                max_steps=int(args.max_steps),
+            )
+        except (P4TransferError, KeyError, ValueError, FileNotFoundError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            return 1
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        if args.execute:
+            mgr = payload.get("manager") or {}
+            return 0 if payload.get("ok") and int(mgr.get("exit_code") or 1) == 0 else 1
+        return 0
+
+    if args.command == "gc":
+        from scientist_lab.artifacts.gc import run_artifact_gc
+        from scientist_lab.settings import get_settings
+
+        settings = get_settings()
+        report = run_artifact_gc(
+            settings.project_root,
+            dry_run=not bool(args.apply),
+            keep_days=int(args.keep_days),
+            slim_old_weights=not bool(args.no_slim),
+            clean_worker_jobs=not bool(args.no_worker_jobs),
+            clean_unprotected_campaigns=not bool(args.no_campaigns),
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 1 if report.get("errors") else 0
 
     if args.command in {"doctor", "system-doctor"}:
         try:

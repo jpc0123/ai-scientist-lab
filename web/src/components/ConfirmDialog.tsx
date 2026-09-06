@@ -6,6 +6,8 @@ type Props = {
   summary: string;
   consequences?: string[];
   confirmLabel?: string;
+  busy?: boolean;
+  busyLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -17,18 +19,25 @@ export function ConfirmDialog({
   summary,
   consequences = [],
   confirmLabel,
+  busy = false,
+  busyLabel,
   onConfirm,
   onCancel,
 }: Props) {
   const t = useT();
   if (!open) return null;
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onCancel}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onClick={busy ? undefined : onCancel}
+    >
       <div
         className="modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
+        aria-busy={busy || undefined}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-title">{title}</h2>
@@ -41,11 +50,19 @@ export function ConfirmDialog({
           </ul>
         )}
         <div className="modal-actions">
-          <button type="button" className="btn-ghost" onClick={onCancel}>
+          <button type="button" className="btn-ghost" disabled={busy} onClick={onCancel}>
             {t("common.cancel")}
           </button>
-          <button type="button" className="btn-danger" onClick={onConfirm}>
-            {confirmLabel || t("common.confirm")}
+          <button
+            type="button"
+            className="btn-danger"
+            disabled={busy}
+            onClick={() => {
+              if (busy) return;
+              onConfirm();
+            }}
+          >
+            {busy ? busyLabel || t("common.pending") : confirmLabel || t("common.confirm")}
           </button>
         </div>
       </div>

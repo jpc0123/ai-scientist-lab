@@ -142,6 +142,7 @@ class RealPatchPlanner:
         *,
         auto_verify: bool = True,
         patch_id: str | None = None,
+        system_prompt: str | None = None,
     ) -> tuple[PatchProposal, dict[str, Any]]:
         """Call provider and build PatchProposal.
 
@@ -159,7 +160,9 @@ class RealPatchPlanner:
             fallback_used=False,
         )
 
-        request = code_context_to_patch_request(bundle)
+        request = code_context_to_patch_request(
+            bundle, system_prompt=system_prompt or REAL_PATCH_SYSTEM_PROMPT
+        )
         try:
             response = self.provider.complete(request)
         except Exception as exc:  # noqa: BLE001 — surface, do not mock-fallback

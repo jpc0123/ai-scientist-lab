@@ -306,6 +306,19 @@ class LlmConfigUpdateBody(BaseModel):
     clear_api_key: bool = False
 
 
+class LiteratureConfigUpdateBody(BaseModel):
+    """Update Semantic Scholar key (independent of LLM_API_KEY). Secrets stay in runtime/."""
+
+    api_key: str | None = None
+    base_url: str | None = None
+    clear_api_key: bool = False
+
+
+class LiteratureProbeBody(BaseModel):
+    query: str = "RGB-T"
+    limit: int = Field(default=1, ge=1, le=3)
+
+
 class LlmProfileRegisterBody(BaseModel):
     profile_id: str
     provider: str = "mock"
@@ -328,6 +341,121 @@ class LocalRunActionBody(BaseModel):
     confirm_live: bool = False
     confirm_execute: bool = False
     provider: str = "mock"
+
+
+class AutonomousCampaignStartBody(BaseModel):
+    """P0: one Human Gate, then Manager runs at least two catalog rounds unattended."""
+
+    experiment_id: str = Field(min_length=1, max_length=80)
+    confirm_human_gate: bool = False
+    execute: bool = False
+    llm_live: bool = False
+    max_extra_rounds: int = 1
+    planner_backend: str | None = None
+    reviewer_backend: str | None = None
+    plugin_worker: Literal["llm", "harness"] | None = None
+    llm_may_invent_how: bool = False
+
+
+class AutonomousCampaignExtendBody(BaseModel):
+    """Human Gate: raise round budget (campaign + protocol max_rounds), then optional resume."""
+
+    add_rounds: int = Field(default=5, ge=1, le=20)
+    confirm_protocol_amendment: bool = False
+    resume: bool = True
+
+
+class RegisteredExperimentProposeBody(BaseModel):
+    """Ask the LLM to draft a new experiment. Does not register. No GPU.
+
+    Optional Idea Interview fields steer the draft. This is not the campaign Planner.
+    """
+
+    live: bool = False
+    interview_id: str | None = Field(default=None, max_length=80)
+    user_intent: str | None = Field(default=None, max_length=4000)
+    dialogue: list[dict[str, Any]] | None = None
+
+
+class IdeaInterviewCreateBody(BaseModel):
+    """Create an Idea Interview session. Not Planner. No GPU."""
+
+    live: bool = False
+
+
+class IdeaInterviewChatBody(BaseModel):
+    """One Idea Interview turn. Extracts intent; cannot start GPU or write Claim."""
+
+    message: str = Field(min_length=1, max_length=4000)
+    live: bool = False
+
+
+class RegisteredExperimentCreateBody(BaseModel):
+    """Register a new object-detection experiment from a protocol JSON. No GPU."""
+
+    protocol: dict[str, Any]
+    seed_plan: dict[str, Any] | None = None
+    experiment_id: str | None = Field(default=None, max_length=80)
+    title: str | None = Field(default=None, max_length=200)
+    idea_brief: dict[str, Any] | None = None
+    user_intent: str | None = Field(default=None, max_length=4000)
+    interview_id: str | None = Field(default=None, max_length=80)
+
+
+class CampaignSteerBody(BaseModel):
+    """Mid-campaign human steer for the next Planner round. Not Protocol Amendment."""
+
+    action: Literal["set", "human_set", "clear"]
+    text: str | None = Field(default=None, max_length=2000)
+    why: str | None = Field(default=None, max_length=400)
+
+
+class HowCandidateDecideBody(BaseModel):
+    """Human freeze for an LLM HOW draft. Does not invent Adapter knobs."""
+
+    decision: Literal["reject", "register", "release"]
+    confirm_human_gate: bool = False
+    note: str | None = None
+
+
+class HowCandidateAuthorBody(BaseModel):
+    """Sandbox-author a HOW plugin. Does not register. No GPU."""
+
+    confirm_human_gate: bool = False
+    live: bool = False
+    plugin_source: str | None = Field(default=None, max_length=65536)
+    unified_diff: str | None = Field(default=None, max_length=131072)
+    plugin_worker: Literal["llm", "harness"] | None = None
+
+
+class ScoutIntentChatBody(BaseModel):
+    """Campaign-bound search-intent turn. Cannot register HOW or start GPU."""
+
+    message: str = Field(default="", max_length=2000)
+    live: bool = False
+    locale: str | None = Field(default=None, max_length=16)
+    action: str | None = Field(default=None, max_length=32)
+
+    def normalized_action(self) -> str:
+        raw = str(self.action or "").strip().lower()
+        if raw in {"llm_search", "library_search"}:
+            return raw
+        return "chat"
+
+
+class ScoutIntentDecideBody(BaseModel):
+    """Set, accept, reject, or clear scout_intent. Not a HOW freeze."""
+
+    action: Literal["set", "human_set", "accept", "reject", "clear"]
+    query: str | None = Field(default=None, max_length=400)
+    why: str | None = Field(default=None, max_length=400)
+
+
+class ScoutDisplayBody(BaseModel):
+    """Translate last ranked table into the UI locale. Does not invent papers."""
+
+    locale: str = Field(default="zh", max_length=16)
+    live: bool = False
 
 
 class ConsoleChatBody(BaseModel):

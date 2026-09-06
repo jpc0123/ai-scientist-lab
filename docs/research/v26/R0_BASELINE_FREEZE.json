@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0.0",
+  "anchor_id": "v26_r0_dfine_f1_lowlight",
+  "step": "V26.4",
+  "campaign": "v2.6",
+  "status": "protocol_frozen_metrics_pending",
+  "frozen_at": "2026-09-02T05:23:26+00:00",
+  "not_an_agent": true,
+  "llm_may_rewrite": false,
+  "llm_may_select_slice": true,
+  "how": {
+    "how_id": "F1",
+    "family": "fusion",
+    "primary_module": "fusion",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "neck_type": "standard",
+    "existing_capability": "early_concat_blend",
+    "hidden_control": "Not A4 (F1+N1). N1 is not the R0 neck. R0 seed stays F1."
+  },
+  "run_key": "r0_dfine_f1_lowlight_v1",
+  "plan_id": "plan_v26_r0_dfine_f1",
+  "protocol_id": "research_protocol_rgbt_dfine_v26",
+  "protocol_version": 2,
+  "dataset": {
+    "dataset_id": "rgbt_tiny_v1",
+    "dataset_ref": "dataset:rgbt_tiny_v1",
+    "slice_id": "low_light_subset_v1",
+    "split_reference": "low_light_subset_v1@6aa3cf0a444b0373239c81fec10443e8e067f38f71e4e41dcf57d4d888965c49",
+    "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "version": "v1_gate_k2c_seq_expand",
+    "rule_hash": "6aa3cf0a444b0373239c81fec10443e8e067f38f71e4e41dcf57d4d888965c49"
+  },
+  "metric_contract": {
+    "schema_version": "1.0.0",
+    "contract_id": "v26_r0_aps_lowlight",
+    "task": "rgbt_object_detection",
+    "dataset_id": "rgbt_tiny_v1",
+    "slice_id": "low_light_subset_v1",
+    "split": "val",
+    "primary": {
+      "metric": "APS_lowlight",
+      "direction": "maximize"
+    },
+    "secondary_slice": [
+      {
+        "metric": "mAP50_95_lowlight",
+        "direction": "maximize"
+      },
+      {
+        "metric": "AP50_lowlight",
+        "direction": "maximize"
+      },
+      {
+        "metric": "Recall_small_lowlight",
+        "direction": "maximize"
+      }
+    ],
+    "secondary_all": [
+      {
+        "metric": "APS_all",
+        "direction": "maximize"
+      },
+      {
+        "metric": "mAP50_95_all",
+        "direction": "maximize"
+      }
+    ],
+    "evaluator": "coco_ap_small_on_low_light_subset_v1",
+    "required_keys": [
+      "APS_lowlight"
+    ],
+    "forbidden_substitutes": [
+      "APS",
+      "APS_all",
+      "mAP50_95",
+      "mAP",
+      "mAP50"
+    ],
+    "official_labels": false,
+    "llm_may_rewrite": false,
+    "note": "G2 compares APS_lowlight on frozen low_light_subset_v1 val. Full-set APS / mAP cannot fill this key. v2.5 A4 and v2.5-D probe APS=0.0 are not R0."
+  },
+  "run_level": {
+    "budget_class": "formal",
+    "execution_mode": "full_train",
+    "evaluation_scope": "low_light_subset_v1_val",
+    "seed": 42,
+    "note": "probe/fast_eval 16/8 cannot fill G2. This formal run_level is the v2.6 comparator family, not Formal E / C1 of v2.5-D."
+  },
+  "frozen_fingerprint": {
+    "schema_version": "1.0.0",
+    "fingerprint_id": "FP-RGBT-DFINE-V26-LOWLIGHT",
+    "protocol_id": "research_protocol_rgbt_dfine_v26",
+    "protocol_version": 2,
+    "dataset_split_hash": "6b8e6d1c40c526d3e18022818e7a4cb6c55db99115bb8707ac15cfcdb2b6c30b",
+    "evaluator_hash": "c120ecda79f459eb8fdb524e9c51a855ce7e7a28418262c465e8f2048667e3f7",
+    "metric_definition_hash": "e6bf79ff94848a32ebca45a2890a5313ceffd033bd18e9af48aef4a055f93cf2",
+    "baseline_config_hash": "00d4678d34c3806ce0e875da7f49b7ab68170a0a79bdb6cedbb146764528eab5",
+    "annotation_version": "v1_gate_k2c_seq_expand",
+    "data_manifest_hash": "0089f7c5398a1dcbd79e39a4e45dffefc7a613902346a65bc1f0545ea57b893e",
+    "notes": "HOW signature=27905f8b4a3c7e48cfa0aa0d99af2e102d0061c8e6b99c9c72a7464432e772ae; module=fusion; input_mode=rgbt; fusion_method=early_concat; neck_type=standard; plugin_kind=None; backbone_wrap=None. Frozen hashes exclude fusion/neck HOW (comparability contract). backbone_wrap plugins require a rebound architecture_id / new R0."
+  },
+  "experiment_contract_run_id": "run_plan_v26_r0_dfine_f1",
+  "metrics": {
+    "APS_lowlight": null,
+    "mAP50_95_lowlight": null,
+    "AP50_lowlight": null,
+    "source": null,
+    "execution_id": null,
+    "note": "Metrics pending a live_ready GPU run. Not filled from v2.5 or probe APS=0.0."
+  },
+  "gates": {
+    "live_ready": false,
+    "doctor_ok": true,
+    "missing": [
+      "cuda_doctor.live_ready",
+      "runtime.docker",
+      "runtime.cuda_image",
+      "runtime.nvidia_smi"
+    ],
+    "human_gate": "full_training remains approval_required; --execute --confirm-human-gate is the one-time campaign permission"
+  },
+  "execute": {
+    "cli": "scientist-lab v26-r0-run --output-dir outputs/v26_r0 --execute --confirm-human-gate --require-live-ready  # protocol=D:/AI Scientist_tiao/scientist-lab/schemas/examples/research_protocol_rgbt_dfine_v26.json plan=D:/AI Scientist_tiao/scientist-lab/schemas/examples/experiment_plan_rgbt_dfine_v26_r0.json",
+    "protocol": "D:\\AI Scientist_tiao\\scientist-lab\\schemas\\examples\\research_protocol_rgbt_dfine_v26.json",
+    "plan": "D:\\AI Scientist_tiao\\scientist-lab\\schemas\\examples\\experiment_plan_rgbt_dfine_v26_r0.json"
+  },
+  "do_not": [
+    "copy v2.5 A4 mAP50_95 / last@20 as APS_lowlight",
+    "copy v2.5-D probe APS=0.0",
+    "let LLM rewrite low_light_subset_v1",
+    "fill APS_lowlight from APS_all or mAP",
+    "use F2/T1/T2 or A4 as R0"
+  ]
+}

@@ -112,17 +112,24 @@ class ExperimentService:
             "local:rgbt_detection_real": Path(self.settings.rgbt_detection_real_dir),
             "image:rgbt-detection-v2": Path(self.settings.rgbt_detection_real_dir),
         }
-        # Apply local LLM secrets (runtime/llm_secrets.env) into process env.
+        # Apply local LLM + literature secrets (runtime/*.env) into process env.
         try:
             from scientist_lab.llm.runtime_secrets import apply_runtime_llm_env
 
             apply_runtime_llm_env(Path(self.settings.runtime_dir))
         except OSError:
             pass
+        try:
+            from scientist_lab.literature.runtime_secrets import apply_runtime_literature_env
+
+            apply_runtime_literature_env(Path(self.settings.runtime_dir))
+        except OSError:
+            pass
         self._local_runner: LocalDockerRunner | None = None
         self._remote_runners: dict[str, RemoteDockerRunner] = {}
         self._execution_runners: dict[str, Any] = {}
         self._watchers: dict[str, threading.Thread] = {}
+        self._autonomous_campaigns: Any = None
 
     @property
     def local_runner(self) -> LocalDockerRunner:
@@ -492,6 +499,98 @@ class ExperimentService:
         host_copy = output_dir / "host_dataset_report.json"
         write_json(host_copy, host_report)
         return comparison
+    def _reconcile_attempt_from_disk(self, attempt: ExecutionAttempt) -> ExecutionAttempt:
+        """When the in-process runner is gone, trust outputs/ + docker state.
+
+        Campaign / API restarts leave SQLite queued|running while scientist-exec
+        already exited and execution.json was harvested. Persist the demotion so
+        the training monitor and execution pages stop showing ghost progress.
+        """
+        from scientist_lab.services.training_monitor import (
+            ACTIVE,
+            reconcile_active_execution_status,
+            resolve_execution_output_dir,
+        )
+
+        status_name = str(getattr(attempt.status, "value", attempt.status) or "").lower()
+        if status_name not in ACTIVE:
+            return attempt
+
+        project_id = None
+        node = self.repo.get_node(attempt.node_id)
+        if node is not None:
+            project_id = node.project_id
+        out_dir = resolve_execution_output_dir(
+            Path(self.settings.outputs_dir),
+            attempt.execution_id,
+            project_id=project_id,
+        )
+        log_path = None
+        if out_dir is not None:
+            candidate = Path(out_dir) / "combined.log"
+            if candidate.is_file():
+                log_path = candidate
+
+        binding_path = (
+            Path(self.settings.runtime_dir) / "remote_jobs" / f"{attempt.execution_id}.json"
+        )
+        job_id = None
+        if binding_path.is_file():
+            try:
+                binding = json.loads(binding_path.read_text(encoding="utf-8-sig"))
+                job_id = binding.get("job_id")
+            except (OSError, json.JSONDecodeError):
+                job_id = None
+
+        reconciled = reconcile_active_execution_status(
+            status=status_name,
+            execution_id=attempt.execution_id,
+            output_dir=out_dir,
+            started_at=attempt.started_at or attempt.created_at,
+            log_path=log_path,
+            job_id=job_id,
+        )
+        if not reconciled.get("changed"):
+            return attempt
+
+        new_status = str(reconciled.get("status") or status_name).lower()
+        try:
+            attempt.status = JobStatus(new_status)
+        except ValueError:
+            attempt.status = (
+                JobStatus.COMPLETED
+                if new_status == "completed"
+                else JobStatus.INTERRUPTED
+            )
+        attempt.completed_at = reconciled.get("completed_at") or utc_now_iso()
+        result = dict(attempt.result_json or {})
+        if out_dir is not None:
+            result.setdefault("output_directory", str(out_dir))
+            metrics_path = Path(out_dir) / "metrics.json"
+            if metrics_path.is_file() and not result.get("metrics"):
+                try:
+                    metrics_payload = json.loads(metrics_path.read_text(encoding="utf-8-sig"))
+                    if isinstance(metrics_payload, dict):
+                        nested = metrics_payload.get("metrics")
+                        result["metrics"] = (
+                            nested if isinstance(nested, dict) else metrics_payload
+                        )
+                        result["disk_metrics_status"] = metrics_payload.get("status")
+                except (OSError, json.JSONDecodeError):
+                    pass
+        result["reconcile_reason"] = reconciled.get("demote_reason")
+        attempt.result_json = result
+        if new_status in {"failed", "interrupted", "cancelled", "timed_out"}:
+            attempt.error_json = {
+                "error_type": new_status,
+                "stage": "reconcile",
+                "message": reconciled.get("error_message")
+                or f"demoted from active via {reconciled.get('demote_reason')}",
+                "retryable": new_status == "interrupted",
+            }
+        self.repo.upsert_attempt(attempt)
+        return attempt
+
     def refresh_execution(self, execution_id: str) -> ExecutionAttempt:
         """同步一次运行中状态到 SQLite，完成后尝试 finalize。"""
         attempt = self.repo.get_attempt(execution_id)
@@ -501,7 +600,7 @@ class ExperimentService:
         try:
             live = self._runner_for_execution(execution_id).get_status(execution_id)
         except KeyError:
-            return attempt
+            return self._reconcile_attempt_from_disk(attempt)
 
         attempt.status = live.status
         attempt.container_id = live.container_id or attempt.container_id
@@ -1472,15 +1571,19 @@ class ExperimentService:
             discover_worker_log,
             enrich_execution_row,
             fetch_docker_job_logs,
+            load_cli_monitor_rows,
             load_gate_campaigns,
+            load_v26_campaigns,
             parse_dfine_log_txt,
             prefer_fresher_log,
+            resolve_execution_output_dir,
             _tail_text,
         )
 
         attempts = self.list_executions(limit=max(limit, 50), project_id=project_id)
         rows: list[dict[str, Any]] = []
         deep_budget = 8  # remote/log enrichment budget for speed
+        outputs_root = Path(self.settings.outputs_dir)
 
         for attempt in attempts[:limit]:
             status_name = str(getattr(attempt.status, "value", attempt.status) or "").lower()
@@ -1519,7 +1622,23 @@ class ExperimentService:
                     job_id = None
 
             log_text = ""
+            log_path: Path | None = None
             dfine = None
+            out_dir = None
+            if binding and binding.get("output_directory"):
+                out_dir = Path(binding["output_directory"])
+            if out_dir is None:
+                out_dir = resolve_execution_output_dir(
+                    outputs_root,
+                    refreshed.execution_id,
+                    project_id=payload.get("project_id"),
+                )
+            if out_dir is None:
+                out_dir = (
+                    outputs_root
+                    / str(payload.get("project_id") or "")
+                    / refreshed.execution_id
+                )
             if want_deep and deep_budget > 0:
                 deep_budget -= 1
                 if status_name in ACTIVE or status_name in FAILED:
@@ -1566,6 +1685,7 @@ class ExperimentService:
                 if job_id:
                     wlog = discover_worker_log(Path(self.settings.runtime_dir), job_id)
                     if wlog is not None:
+                        log_path = wlog
                         log_text = _tail_text(wlog, max_chars=24_000)
                     if status_name in ACTIVE:
                         try:
@@ -1575,27 +1695,20 @@ class ExperimentService:
                             pass
                 if not log_text:
                     out_combined = None
-                    if binding and binding.get("output_directory"):
-                        out_combined = Path(binding["output_directory"]) / "combined.log"
+                    if out_dir is not None:
+                        out_combined = Path(out_dir) / "combined.log"
                     if out_combined and out_combined.is_file():
+                        log_path = out_combined
                         log_text = _tail_text(out_combined, max_chars=24_000)
                     else:
                         try:
                             host_log = self.get_log_path(refreshed.execution_id)
                             if host_log.is_file():
+                                log_path = host_log
                                 log_text = _tail_text(host_log, max_chars=24_000)
                         except Exception:  # noqa: BLE001
                             pass
 
-                out_dir = None
-                if binding and binding.get("output_directory"):
-                    out_dir = Path(binding["output_directory"])
-                if out_dir is None:
-                    out_dir = (
-                        Path(self.settings.outputs_dir)
-                        / str(payload.get("project_id") or "")
-                        / refreshed.execution_id
-                    )
                 dfine_path = discover_dfine_log(
                     Path(self.settings.runtime_dir), job_id, out_dir
                 )
@@ -1608,6 +1721,8 @@ class ExperimentService:
                     "progress": 1.0 if status_name == "completed" else None,
                     "error_message": (err or {}).get("message"),
                 }
+                if out_dir is not None and (Path(out_dir) / "combined.log").is_file():
+                    log_path = Path(out_dir) / "combined.log"
 
             row = enrich_execution_row(
                 attempt=payload,
@@ -1615,6 +1730,8 @@ class ExperimentService:
                 log_text=log_text,
                 dfine=dfine,
                 job_id=job_id,
+                output_dir=out_dir,
+                log_path=log_path,
             )
             if row.get("is_failed"):
                 try:
@@ -1629,7 +1746,22 @@ class ExperimentService:
         active = [r for r in rows if r.get("is_active")]
         failed = [r for r in rows if r.get("is_failed")]
         completed = [r for r in rows if r.get("is_completed")]
-        campaigns = load_gate_campaigns(Path(self.settings.outputs_dir))
+        campaigns = load_v26_campaigns(Path(self.settings.project_root)) + load_gate_campaigns(
+            Path(self.settings.outputs_dir)
+        )
+        cli_rows = load_cli_monitor_rows(Path(self.settings.project_root))
+        seen_ids = {str(r.get("execution_id") or "") for r in rows}
+        for cli in cli_rows:
+            if str(cli.get("execution_id") or "") in seen_ids:
+                continue
+            rows.insert(0, cli)
+            if cli.get("is_active"):
+                active.insert(0, cli)
+            elif cli.get("is_failed"):
+                failed.insert(0, cli)
+            elif cli.get("is_completed"):
+                completed.insert(0, cli)
+            seen_ids.add(str(cli.get("execution_id") or ""))
 
         return {
             "generated_at": utc_now_iso(),
@@ -2612,6 +2744,236 @@ class ExperimentService:
 
     def list_datasets(self) -> list[dict[str, Any]]:
         return [item.model_dump(mode="json") for item in self.datasets.list_datasets()]
+
+    def dataset_workspace(self):
+        from scientist_lab.datasets.workspace import DatasetWorkspace
+
+        root = self.settings.data_workspace_dir or (self.settings.project_root / "data")
+        ws = DatasetWorkspace(root)
+        ws.ensure_layout()
+        return ws
+
+    def list_dataset_workspace(self) -> dict[str, Any]:
+        ws = self.dataset_workspace()
+        payload = ws.overview(project_root=self.settings.project_root)
+        bound = {
+            item.dataset_key: item.model_dump(mode="json")
+            for item in self.datasets.list_datasets()
+        }
+        for row in payload.get("datasets") or []:
+            did = str(row.get("dataset_id") or "")
+            row["sqlite_bound"] = did in bound
+            row["sqlite"] = bound.get(did)
+        payload["sqlite_datasets"] = list(bound.values())
+        return payload
+
+    def resolve_dataset_contract(
+        self,
+        dataset_id: str,
+        *,
+        slice_id: str | None = None,
+    ) -> dict[str, Any]:
+        from scientist_lab.core.schema_registry import validate_named
+        from scientist_lab.datasets.workspace import DatasetContractError, parse_dataset_id
+
+        key = parse_dataset_id(dataset_id)
+        try:
+            contract = self.dataset_workspace().resolve(
+                key,
+                slice_id=slice_id or None,
+                project_root=self.settings.project_root,
+            )
+        except DatasetContractError as exc:
+            raise ValueError(str(exc)) from exc
+        validate_named("dataset_contract", contract)
+        bound = self.datasets.get(key)
+        contract["sqlite_bound"] = bound is not None
+        if bound is not None:
+            contract["sqlite"] = bound.model_dump(mode="json")
+        return contract
+
+    def import_slice_from_freeze_file(
+        self,
+        path: str | Path,
+        *,
+        parent_dataset: str = "rgbt_tiny_v1",
+    ) -> dict[str, Any]:
+        from scientist_lab.datasets.workspace import DatasetContractError
+        from scientist_lab.storage.artifact_store import read_json
+
+        freeze_path = Path(path)
+        if not freeze_path.is_file():
+            raise FileNotFoundError(f"freeze document not found: {freeze_path}")
+        freeze = read_json(freeze_path)
+        if not isinstance(freeze, dict):
+            raise ValueError(f"freeze document must be an object: {freeze_path}")
+        try:
+            spec = self.dataset_workspace().import_slice_from_freeze(
+                freeze,
+                parent_dataset=parent_dataset,
+            )
+        except DatasetContractError as exc:
+            raise ValueError(str(exc)) from exc
+        return spec
+
+    def bind_dataset_workspace(
+        self,
+        dataset_id: str,
+        *,
+        host_path: str | Path | None = None,
+        rebind: bool = False,
+    ) -> dict[str, Any]:
+        """Bind or rebind SQLite mount path. Does not change dataset_id / fingerprint."""
+        from scientist_lab.datasets.registry import is_dangerous_host_path
+        from scientist_lab.datasets.workspace import DatasetContractError, parse_dataset_id
+
+        key = parse_dataset_id(dataset_id)
+        ws = self.dataset_workspace()
+        try:
+            doc = ws.load_dataset(key)
+        except DatasetContractError as exc:
+            raise KeyError(str(exc)) from exc
+        probe = ws.probe_dataset(doc, project_root=self.settings.project_root)
+        existing = self.datasets.get(key)
+
+        if host_path is not None and str(host_path).strip():
+            target = Path(str(host_path).strip()).expanduser().resolve()
+        else:
+            processed = probe.get("processed_root")
+            if not probe.get("processed_present") or not processed:
+                raise FileNotFoundError(f"processed root missing for {key}: {processed}")
+            target = Path(str(processed)).expanduser().resolve()
+
+        if not target.exists() or not target.is_dir():
+            raise FileNotFoundError(f"dataset path missing or not a directory: {target}")
+        danger = is_dangerous_host_path(target, project_root=self.settings.project_root)
+        if danger:
+            raise ValueError(danger)
+
+        task = str(doc.get("task") or "rgbt_detection")
+        if task == "rgbt_object_detection":
+            task = "rgbt_detection"
+
+        if existing is not None:
+            current = Path(existing.host_path).expanduser().resolve()
+            if current == target and not rebind:
+                return {
+                    "ok": True,
+                    "already_bound": True,
+                    "rebound": False,
+                    "path_unchanged": True,
+                    "dataset": existing.model_dump(mode="json"),
+                    "rules": {
+                        "path_rebind_allowed": True,
+                        "dataset_id_change_requires_amendment": True,
+                    },
+                }
+            if not rebind:
+                raise ValueError(
+                    "dataset already bound; pass rebind=true to update host_path "
+                    "(same dataset_id only — swapping dataset identity needs Protocol Amendment)"
+                )
+            updated = self.datasets.update_host_path(key, target)
+            return {
+                "ok": True,
+                "already_bound": False,
+                "rebound": True,
+                "path_unchanged": current == target,
+                "dataset": updated.model_dump(mode="json"),
+                "previous_host_path": str(current),
+                "rules": {
+                    "path_rebind_allowed": True,
+                    "dataset_id_change_requires_amendment": True,
+                },
+            }
+
+        item = self.register_dataset(
+            dataset_key=key,
+            task_type=task,
+            path=target,
+            read_only=True,
+        )
+        return {
+            "ok": True,
+            "already_bound": False,
+            "rebound": False,
+            "dataset": item,
+            "rules": {
+                "path_rebind_allowed": True,
+                "dataset_id_change_requires_amendment": True,
+            },
+        }
+
+    def freeze_v26_r0(
+        self,
+        *,
+        probe_runtime: bool = True,
+        output: Path | str | None = None,
+        metrics_dir: Path | str | None = None,
+    ) -> dict[str, Any]:
+        from scientist_lab.datasets.low_light_subset import SLICE_ID
+        from scientist_lab.tasks.rgbt_detection.v26_r0 import DATASET_ID, freeze_r0_anchor
+
+        doctor = self.dfine_cuda_doctor(probe_runtime=probe_runtime)
+        contract = self.resolve_dataset_contract(DATASET_ID, slice_id=SLICE_ID)
+        metric_contract_output = None
+        if output is not None:
+            metric_contract_output = Path(output).with_name("R0_METRIC_CONTRACT.json")
+        return freeze_r0_anchor(
+            dataset_contract=contract,
+            doctor=doctor,
+            output=output,
+            metric_contract_output=metric_contract_output,
+            metrics_dir=metrics_dir,
+        )
+
+    def run_v26_r0(
+        self,
+        *,
+        output_dir: Path | str,
+        execute: bool = False,
+        confirm_human_gate: bool = False,
+        require_live_ready: bool = False,
+        probe_runtime: bool = True,
+    ) -> dict[str, Any]:
+        from scientist_lab.datasets.low_light_subset import SLICE_ID
+        from scientist_lab.tasks.rgbt_detection.v26_r0 import DATASET_ID, run_r0
+
+        doctor = self.dfine_cuda_doctor(probe_runtime=probe_runtime)
+        contract = self.resolve_dataset_contract(DATASET_ID, slice_id=SLICE_ID)
+        return run_r0(
+            dataset_contract=contract,
+            doctor=doctor,
+            output_dir=output_dir,
+            execute=execute,
+            confirm_human_gate=confirm_human_gate,
+            require_live_ready=require_live_ready,
+            experiments=self,
+        )
+
+    def run_v26_p4(
+        self,
+        *,
+        stage: str = "r0",
+        output_dir: Path | str | None = None,
+        execute: bool = False,
+        confirm_human_gate: bool = False,
+        require_live_ready: bool = False,
+        llm_live: bool = False,
+        max_steps: int = 32,
+    ) -> dict[str, Any]:
+        from scientist_lab.tasks.rgbt_detection.v26_p4 import run_p4_stage
+
+        return run_p4_stage(
+            stage=stage,
+            output_dir=output_dir,
+            execute=execute,
+            confirm_human_gate=confirm_human_gate,
+            require_live_ready=require_live_ready,
+            llm_live=llm_live,
+            max_steps=max_steps,
+            project_root=self.settings.project_root,
+        )
 
     def show_dataset(self, dataset_key: str) -> dict[str, Any]:
         item = self.datasets.get(dataset_key)
@@ -3660,6 +4022,78 @@ class ExperimentService:
             status["ready_for_real_calls"] = False
             status["missing_for_real"] = []
         return status
+
+    def get_literature_config_status(self) -> dict[str, Any]:
+        """Masked Semantic Scholar status for Web/API (no raw key)."""
+        from scientist_lab.literature.runtime_secrets import literature_config_status
+
+        return literature_config_status(runtime_dir=Path(self.settings.runtime_dir))
+
+    def update_literature_config(
+        self,
+        *,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        clear_api_key: bool = False,
+    ) -> dict[str, Any]:
+        from scientist_lab.literature.runtime_secrets import write_runtime_literature_env
+
+        write_runtime_literature_env(
+            Path(self.settings.runtime_dir),
+            api_key=api_key,
+            base_url=base_url,
+            clear_api_key=clear_api_key,
+        )
+        return self.get_literature_config_status()
+
+    def probe_literature_search(self, *, query: str = "RGB-T", limit: int = 1) -> dict[str, Any]:
+        """Opt-in live Semantic Scholar ping. Never returns the API key."""
+        from scientist_lab.llm.errors import MissingAPIKeyError, RealProviderNotEnabledError
+        from scientist_lab.literature.errors import LiteratureProviderError
+        from scientist_lab.literature.retriever import LiteratureRetriever
+        from scientist_lab.literature.runtime_secrets import apply_runtime_literature_env
+
+        apply_runtime_literature_env(Path(self.settings.runtime_dir))
+        status = self.get_literature_config_status()
+        if not status.get("api_key_present"):
+            raise MissingAPIKeyError(
+                "SEMANTIC_SCHOLAR_API_KEY is required for live literature search"
+            )
+        try:
+            retriever = LiteratureRetriever(
+                live=True,
+                provider="semantic_scholar",
+                use_cache=False,
+                provenance_dir=Path(self.settings.runtime_dir) / "literature_probe",
+                cache_dir=Path(self.settings.runtime_dir) / "literature_probe_cache",
+            )
+            packet = retriever.search(
+                str(query or "RGB-T"),
+                limit=max(1, min(int(limit or 1), 3)),
+                year_from=None,
+                round_id="literature_config_probe",
+            )
+        except (MissingAPIKeyError, RealProviderNotEnabledError, LiteratureProviderError):
+            raise
+        papers = list(packet.get("papers") or [])
+        titles = []
+        for row in papers[:3]:
+            if not isinstance(row, dict):
+                continue
+            paper = row.get("paper") if isinstance(row.get("paper"), dict) else row
+            titles.append(str(paper.get("title") or paper.get("paper_id") or "")[:200])
+        provenance = packet.get("provenance") if isinstance(packet.get("provenance"), dict) else {}
+        return {
+            "ok": True,
+            "live": True,
+            "provider": "semantic_scholar",
+            "query": str(query or "RGB-T"),
+            "hit_count": len(papers),
+            "titles": titles,
+            "literature_query_id": provenance.get("literature_query_id"),
+            "api_key_present": True,
+            "note": "LiteratureEvidence is not ExperimentEvidence.",
+        }
 
     def review_plan(
         self,

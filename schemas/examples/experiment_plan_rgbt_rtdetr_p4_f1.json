@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_v26_p4_rtdetr_f1",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_rtdetr_transfer_v26",
+  "protocol_version": 1,
+  "parent_run_id": null,
+  "round_index": 0,
+  "observation": "P4 needs an RT-DETR baseline on the frozen low-light slice before asking whether D-FINE F3 gated_multiscale transfers.",
+  "hypothesis": "RT-DETR F1 early_concat + standard HybridEncoder is the P4 comparator for APS_lowlight. Same data contract as D-FINE R0. Not A4. Not F3.",
+  "modification_scope": ["fusion"],
+  "proposed_changes": [
+    {
+      "target": "fusion",
+      "summary": "P4 RT-DETR baseline HOW F1 early_concat + standard neck. Not A4, not F3, not F2.",
+      "detail": {"how_id": "F1", "neck_type": "standard", "detector": "rtdetr"}
+    }
+  ],
+  "controlled_variables": [
+    "dataset_split",
+    "evaluator",
+    "metric_definition",
+    "condition_slice",
+    "seed"
+  ],
+  "expected_effect": {
+    "primary_metric": "APS_lowlight",
+    "direction": "stabilize",
+    "rationale": "P4 RT-DETR F1 is the transfer comparator, not a claimed improvement."
+  },
+  "evaluation": {
+    "method": "full_train",
+    "seeds": [42],
+    "notes": "budget_class=formal. Same slice/fingerprint family as D-FINE V26. Not 16/8 smoke. Not G3."
+  },
+  "budget_class": "formal",
+  "risk_level": "auto",
+  "memory_refs": {"lesson_ids": [], "strategy_ids": []},
+  "evidence_runs": [],
+  "bootstrap": true,
+  "how_id": "F1",
+  "rationale": "P4 constitution baseline on RT-DETR Adapter. LLM did not select this HOW."
+}

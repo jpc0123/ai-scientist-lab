@@ -42,6 +42,13 @@ ERROR_CATALOG: dict[str, dict[str, Any]] = {
         "retryable": False,
         "suggested_action": "刷新页面查看当前状态，再决定下一步。",
     },
+    "live_gpu_busy": {
+        "retryable": False,
+        "suggested_action": (
+            "等当前战役结束或点停止。若训练页没有任务，点停止即可释放僵尸锁；"
+            "不要并行再开一场真实 GPU。"
+        ),
+    },
     "protocol_mismatch": {
         "retryable": False,
         "suggested_action": "核对协议固定参数、seed 与允许变量后再提交。",
@@ -66,9 +73,13 @@ ERROR_CATALOG: dict[str, dict[str, Any]] = {
         "retryable": False,
         "suggested_action": "查看错误说明；必要时打开系统页做诊断。",
     },
-    "demo_create_failed": {
+    "literature_probe_failed": {
         "retryable": True,
-        "suggested_action": "确认 examples/ 完整后重试；或使用 --force。",
+        "suggested_action": "确认 Semantic Scholar Key 有效、本机可访问 api.semanticscholar.org，然后重试。",
+    },
+    "missing_api_key": {
+        "retryable": False,
+        "suggested_action": "在文献配置页填写并保存 Semantic Scholar Key，再点「试搜一篇」。",
     },
 }
 

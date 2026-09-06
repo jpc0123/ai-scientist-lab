@@ -17,6 +17,13 @@ from scientist_lab.adapters.dfine.how import (
 from scientist_lab.adapters.dfine.metrics_parser import parse_metrics
 from scientist_lab.core.result_parser import build_experiment_result
 from scientist_lab.core.schema_registry import validate_named
+from scientist_lab.datasets.low_light_subset import (
+    SLICE_ID,
+    SliceAmendmentRequired,
+    assert_slice_not_rewritten,
+    rule_hash,
+)
+from scientist_lab.datasets.workspace import DatasetContractError, DatasetWorkspace, parse_dataset_id
 from scientist_lab.instrumentation.appender import EventAppender
 
 LiveRunner = Callable[[Mapping[str, Any], Path], Mapping[str, Any]]
@@ -28,11 +35,21 @@ class DFINEAdapter:
     def __init__(self, events: EventAppender | None = None) -> None:
         self.events = events
 
+    def _resolve_how(
+        self, plan: Mapping[str, Any], protocol: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        return resolve_adapter_how(plan, protocol)
+
     def materialize_contract(
         self, plan: Mapping[str, Any], protocol: Mapping[str, Any]
     ) -> dict[str, Any]:
-        if protocol.get("baseline", {}).get("adapter", "dfine") not in {None, "dfine"}:
-            raise MaterializeRejected("protocol baseline.adapter is not dfine")
+        protocol_adapter = str(
+            (protocol.get("baseline") or {}).get("adapter") or self.adapter_key
+        ).strip().lower()
+        if protocol_adapter not in {self.adapter_key, ""}:
+            raise MaterializeRejected(
+                f"protocol baseline.adapter is not {self.adapter_key}"
+            )
         changes = list(plan.get("proposed_changes") or [])
         scope = list(plan.get("modification_scope") or [])
         if not scope:
@@ -45,8 +62,24 @@ class DFINEAdapter:
         editable = set(protocol.get("editable_scope") or [])
         if any(token not in editable for token in scope):
             raise MaterializeRejected("modification_scope not subset of editable_scope")
+        try:
+            assert_slice_not_rewritten(plan)
+        except SliceAmendmentRequired as exc:
+            raise MaterializeRejected(str(exc)) from exc
 
-        how = resolve_adapter_how(plan)
+        how = self._resolve_how(plan, protocol)
+        if how.get("requires_new_baseline"):
+            expected = str(how.get("how_id") or "").strip().upper()
+            arch = str(
+                (protocol.get("baseline") or {}).get("architecture_id") or ""
+            ).strip().upper()
+            if not expected or arch != expected:
+                raise MaterializeRejected(
+                    f"HOW {expected or how.get('how_id')!r} is a backbone_wrap plugin; "
+                    "protocol.baseline.architecture_id must equal that HOW id after a "
+                    f"new R0 (got {arch or None!r}). Do not compare against the old "
+                    "fusion/neck baseline."
+                )
         fingerprint_id = protocol.get("fingerprint_id")
         run_id = f"run_{plan.get('plan_id', 'unknown')}"
         budget_class = str(plan.get("budget_class") or "probe")
@@ -62,6 +95,28 @@ class DFINEAdapter:
         else:
             timeout = 1200
             max_runtime = "20min"
+        dataset = {
+            "reference": protocol.get("baseline", {}).get("dataset", "dataset:unknown"),
+        }
+        slice_spec = dict(protocol.get("condition_slice") or {})
+        if slice_spec.get("id") == SLICE_ID or "v26" in str(protocol.get("protocol_id") or ""):
+            dataset["split_reference"] = f"{SLICE_ID}@{slice_spec.get('rule_hash') or rule_hash()}"
+            if slice_spec.get("version"):
+                dataset["version"] = str(slice_spec["version"])
+            try:
+                ws = DatasetWorkspace.from_project()
+                ds_id = parse_dataset_id(str(dataset["reference"]))
+                slice_id = str(slice_spec.get("id") or SLICE_ID)
+                slice_frozen = (ws.slice_dir(slice_id) / "slice_spec.json").is_file()
+                if ws.dataset_path(ds_id).is_file() and slice_frozen:
+                    resolved = ws.resolve(ds_id, slice_id=slice_id)
+                    dataset["split_reference"] = str(resolved["split_reference"])
+                    if resolved.get("version"):
+                        dataset["version"] = str(resolved["version"])
+            except DatasetContractError as exc:
+                raise MaterializeRejected(f"Dataset Contract refused: {exc}") from exc
+            except Exception:
+                pass
         contract = {
             "schema_version": "1.0.0",
             "run_id": run_id,
@@ -73,9 +128,7 @@ class DFINEAdapter:
             "hypothesis": plan["hypothesis"],
             "allowed_changes": scope,
             "frozen_variables": list(protocol.get("frozen_scope") or []),
-            "dataset": {
-                "reference": protocol.get("baseline", {}).get("dataset", "dataset:unknown"),
-            },
+            "dataset": dataset,
             "seed": (plan.get("evaluation") or {}).get("seeds", [42])[0],
             "budget_class": budget_class,
             "budget": {

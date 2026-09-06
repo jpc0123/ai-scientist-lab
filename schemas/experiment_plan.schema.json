@@ -103,6 +103,10 @@
     },
     "rationale": { "type": "string" },
     "decision_summary": { "$ref": "common.schema.json#/$defs/decision_summary" },
+    "how_id": {
+      "type": "string",
+      "description": "Trusted HOW catalog id for Adapter translation. Not a newly invented operator."
+    },
     "notes": { "type": "string" },
     "llm_trace": {
       "type": "object",
@@ -133,6 +137,26 @@
         }
       },
       "default": []
+    },
+    "verification_plan": {
+      "type": "object",
+      "description": "LLM-designed verification for this round. Not a Claim.",
+      "additionalProperties": false,
+      "properties": {
+        "scientific_question": { "type": "string" },
+        "what_to_run": { "type": "string" },
+        "how_to_verify": { "type": "string" },
+        "controlled_variables": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "success_criterion": { "type": "string" },
+        "falsified_if": { "type": "string" },
+        "addresses_coverage": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
     }
   }
 }

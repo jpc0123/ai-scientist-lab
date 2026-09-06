@@ -64,6 +64,21 @@ def run_dfine_train(
         )
 
     params = dict(config.get("parameters") or contract.get("parameters") or {})
+    detector = str(
+        params.get("detector") or params.get("dfine_backend") or "dfine"
+    ).strip().lower().replace("-", "_")
+    if detector in {"rt_detr"}:
+        detector = "rtdetr"
+    if detector not in {"dfine", "rtdetr", "dfine_s", "vendor"}:
+        if detector not in {"auto", "standin", "torch_mini", "mini"}:
+            raise RuntimeError(f"unsupported detector={detector!r}")
+        detector = "dfine"
+    if detector == "dfine_s" or detector == "vendor":
+        detector = "dfine"
+    baseline_key = "rtdetr_s" if detector == "rtdetr" else "dfine_s"
+    implementation = (
+        "rtdetr_s_lyuwenyu_zoo" if detector == "rtdetr" else IMPLEMENTATION
+    )
     fusion_method = normalize_fusion_method(fusion_method)
     epochs = int(params.get("epochs") or 2)
     batch_size = int(params.get("batch_size") or 2)
@@ -190,6 +205,7 @@ def run_dfine_train(
         warmup_duration=warmup_duration,
         lr_scheduler_milestones=lr_scheduler_milestones,
         lr_scheduler_gamma=lr_scheduler_gamma,
+        detector=detector,
     )
     # Keep a copy of the label map next to metrics for eval export / audit.
     label_map = stage_paths.get("category_label_map")
@@ -199,8 +215,15 @@ def run_dfine_train(
     # Import vendored D-FINE.
     if str(dfine_root) not in sys.path:
         sys.path.insert(0, str(dfine_root))
+    if str(app_dir) not in sys.path:
+        sys.path.insert(0, str(app_dir))
     from src.core import YAMLConfig  # type: ignore
     from src.solver import TASKS  # type: ignore
+
+    if detector == "rtdetr":
+        from vendor_rtdetr import register_rtdetr_modules
+
+        register_rtdetr_modules()
 
     import torch
 
@@ -224,6 +247,8 @@ def run_dfine_train(
     if hasattr(yaml_cfg, "yaml_cfg"):
         yaml_cfg.yaml_cfg["use_amp"] = bool(params.get("mixed_precision")) and device == "cuda"
         yaml_cfg.yaml_cfg["sync_bn"] = False
+        if detector == "rtdetr":
+            yaml_cfg.yaml_cfg["use_amp"] = False
 
     if deterministic:
         # Force AMP off under strict determinism diagnosis unless explicitly requested.
@@ -264,8 +289,76 @@ def run_dfine_train(
         )
 
     fusion_summary: dict[str, Any] | None = None
+    wrap_summary: dict[str, Any] | None = None
+    from models.how_plugin_loader import (
+        HowPluginError,
+        is_plugin_backbone_wrap,
+        is_plugin_fusion_method,
+        load_how_plugin,
+        load_how_plugin_backbone_wrap,
+        plugin_input_mode,
+        plugin_path_for,
+    )
+
+    wrap_raw = ""
+    wrap_blob = params.get("backbone_wrap")
+    if isinstance(wrap_blob, dict):
+        wrap_raw = str(wrap_blob.get("type") or "").strip()
+    if is_plugin_backbone_wrap(wrap_raw):
+        from apply_backbone_wrap import apply_plugin_backbone_wrap
+
+        try:
+            plugin_wrap = load_how_plugin_backbone_wrap(
+                wrap_raw, yaml_cfg.model.backbone
+            )
+        except HowPluginError as exc:
+            raise RuntimeError(f"HOW backbone_wrap plugin failed to load: {exc}") from exc
+        wrap_mode = plugin_input_mode(plugin_path_for(wrap_raw))
+        thermal_train = stage_paths.get("thermal_train_img")
+        thermal_val = stage_paths.get("thermal_val_img")
+        wrap_summary = apply_plugin_backbone_wrap(
+            yaml_cfg,
+            plugin_wrap,
+            how_id=str(wrap_raw),
+            input_mode=wrap_mode,
+            thermal_train_img=Path(thermal_train) if thermal_train else None,
+            thermal_val_img=Path(thermal_val) if thermal_val else None,
+        )
+        write_json(output_dir / "backbone_wrap_summary.json", wrap_summary)
+
+    if is_plugin_fusion_method(fusion_method):
+        if wrap_summary is not None:
+            raise RuntimeError(
+                "one slot per plugin: backbone_wrap and fusion plugin cannot both apply"
+            )
+        from apply_gated_fusion import apply_plugin_feature_fusion
+
+        thermal_train = stage_paths.get("thermal_train_img")
+        thermal_val = stage_paths.get("thermal_val_img")
+        if thermal_train is None or thermal_val is None:
+            raise RuntimeError(
+                "plugin fusion staging missing thermal_* folders; "
+                f"staging_mode={stage_paths.get('staging_mode')}"
+            )
+        try:
+            plugin_fusion = load_how_plugin(str(fusion_method))
+        except HowPluginError as exc:
+            raise RuntimeError(f"HOW plugin failed to load: {exc}") from exc
+        fusion_summary = apply_plugin_feature_fusion(
+            yaml_cfg,
+            plugin_fusion,
+            thermal_train_img=Path(thermal_train),
+            thermal_val_img=Path(thermal_val),
+            how_id=str(fusion_method),
+        )
+        write_json(output_dir / "fusion_module_summary.json", fusion_summary)
+
     fusion_cfg = parse_fusion_config(params, fusion_method=fusion_method)
-    if fusion_cfg is not None:
+    if fusion_cfg is not None and fusion_summary is None:
+        if wrap_summary is not None:
+            raise RuntimeError(
+                "one slot per plugin: backbone_wrap and gated fusion cannot both apply"
+            )
         from apply_gated_fusion import apply_gated_multiscale_fusion
 
         thermal_train = stage_paths.get("thermal_train_img")
@@ -288,6 +381,11 @@ def run_dfine_train(
     from apply_fdpn_neck import apply_neck
 
     neck_cfg = parse_neck_config(params)
+    if detector == "rtdetr" and neck_cfg.type != "standard":
+        raise RuntimeError(
+            "RT-DETR Adapter does not implement N1/FDPN; "
+            "do not stuff the D-FINE neck into the second detector"
+        )
     if neck_cfg.type != "standard":
         neck_summary = apply_neck(yaml_cfg, neck_cfg)
         write_json(output_dir / "neck_module_summary.json", neck_summary)
@@ -450,6 +548,8 @@ def run_dfine_train(
         solver,
         device=device,
         dump_path=output_dir / "sample_predictions.json",
+        coco_dump_path=output_dir / "val_detections_coco.json",
+        label_map=label_map if isinstance(label_map, dict) else None,
         score_threshold=0.05,
         max_dump_images=8,
     )
@@ -501,15 +601,17 @@ def run_dfine_train(
             "epochs_requested": epochs,
             "epochs_completed": epochs,
             "duration_seconds": duration,
-            "backend": "dfine",
+            "backend": detector,
             "device": device,
             "trained": True,
-            "baseline_key": "dfine_s",
-            "baseline_implementation": IMPLEMENTATION,
+            "baseline_key": baseline_key,
+            "baseline_implementation": implementation,
             "vendor_commit": "7fe2f8889f0b7b817f20c315b40fc15a4fb64ae6",
             "config_path": str(cfg_path),
             "fusion_method": fusion_method,
-            "fusion_applied": fusion_summary is not None,
+            "staging_mode": stage_paths.get("staging_mode"),
+            "fusion_applied": fusion_summary is not None
+            or str(stage_paths.get("staging_mode") or "") == "early_concat_blend",
             "pretrained": pretrained,
             "neck_type": (neck_summary or {}).get("neck_type", "standard"),
             "neck_applied": neck_summary is not None and neck_cfg.type != "standard",
@@ -523,8 +625,8 @@ def run_dfine_train(
         "status": "completed",
     }
     summary = {
-        "baseline_key": "dfine_s",
-        "baseline_implementation": IMPLEMENTATION,
+        "baseline_key": baseline_key,
+        "baseline_implementation": implementation,
         "vendor_status": "vendored",
         "vendor_commit": "7fe2f8889f0b7b817f20c315b40fc15a4fb64ae6",
         "device": device,
@@ -553,8 +655,8 @@ def run_dfine_train(
         output_dir / "execution.json",
         {
             "status": "completed",
-            "baseline_key": "dfine_s",
-            "baseline_implementation": IMPLEMENTATION,
+            "baseline_key": baseline_key,
+            "baseline_implementation": implementation,
             "device": device,
             "protocol": protocol,
             "allow_scientific_claims": claim_meta["allow_scientific_claims"],
@@ -677,11 +779,23 @@ def _audit_val_predictions(
     *,
     device: str,
     dump_path: Path | None = None,
+    coco_dump_path: Path | None = None,
+    label_map: Mapping[str, Any] | None = None,
     score_threshold: float = 0.1,
     max_dump_images: int = 8,
 ) -> dict[str, Any]:
-    """Count non-empty detections on one val pass (Gate D metric-validity signal)."""
+    """Count non-empty detections on one val pass (Gate D metric-validity signal).
+
+    Also dumps full-val COCO detections so host-side APS_lowlight can be computed
+    on the frozen slice. Does not copy AP_small / mAP into APS_lowlight.
+    """
     import torch
+
+    model_to_dataset: dict[int, int] = {}
+    if isinstance(label_map, Mapping):
+        raw_map = label_map.get("model_label_to_dataset_category") or {}
+        if isinstance(raw_map, Mapping):
+            model_to_dataset = {int(k): int(v) for k, v in raw_map.items()}
 
     out: dict[str, Any] = {
         "ok": False,
@@ -691,8 +805,10 @@ def _audit_val_predictions(
         "batches": 0,
         "error": None,
         "score_threshold_for_dump": score_threshold,
+        "coco_detections": 0,
     }
     per_image: list[dict[str, Any]] = []
+    coco_dets: list[dict[str, Any]] = []
     try:
         model = getattr(solver, "ema", None)
         module = model.module if model is not None else getattr(solver, "model", None)
@@ -723,11 +839,31 @@ def _audit_val_predictions(
                     if boxes is not None and boxes.numel():
                         wh = boxes[:, 2:] - boxes[:, :2]
                         box_n += int(((wh[:, 0] > 1e-3) & (wh[:, 1] > 1e-3)).sum().item())
+                    image_id = target.get("image_id")
+                    if torch.is_tensor(image_id):
+                        image_id = (
+                            int(image_id.item())
+                            if image_id.numel() == 1
+                            else int(image_id.reshape(-1)[0].item())
+                        )
+                    score_list = [float(x) for x in scores.detach().cpu().tolist()]
+                    label_list = (
+                        [int(x) for x in labels.detach().cpu().tolist()] if labels is not None else []
+                    )
+                    box_list = boxes.detach().cpu().tolist() if boxes is not None else []
+                    for score, label, box in zip(score_list, label_list, box_list):
+                        x1, y1, x2, y2 = [float(v) for v in box[:4]]
+                        w, h = max(0.0, x2 - x1), max(0.0, y2 - y1)
+                        coco_dets.append(
+                            {
+                                "image_id": int(image_id),
+                                "category_id": int(model_to_dataset.get(int(label), int(label))),
+                                "bbox": [x1, y1, w, h],
+                                "score": float(score),
+                            }
+                        )
                     if dump_path is not None and len(per_image) < int(max_dump_images):
                         keep = scores >= float(score_threshold)
-                        image_id = target.get("image_id")
-                        if torch.is_tensor(image_id):
-                            image_id = int(image_id.item()) if image_id.numel() == 1 else int(image_id.reshape(-1)[0].item())
                         gt_boxes = target.get("boxes")
                         gt_n = int(gt_boxes.shape[0]) if gt_boxes is not None and hasattr(gt_boxes, "shape") else 0
                         per_image.append(
@@ -757,6 +893,7 @@ def _audit_val_predictions(
                 "prediction_count_score_ge_0_1": pred_ge,
                 "nonzero_box_count": box_n,
                 "batches": batches,
+                "coco_detections": len(coco_dets),
             }
         )
         if dump_path is not None:
@@ -775,6 +912,17 @@ def _audit_val_predictions(
                 },
             )
             out["dump_path"] = str(dump_path)
+        if coco_dump_path is not None:
+            write_json(
+                Path(coco_dump_path),
+                {
+                    "schema_version": "1.0",
+                    "format": "coco_bbox_detections",
+                    "n": len(coco_dets),
+                    "detections": coco_dets,
+                },
+            )
+            out["coco_dump_path"] = str(coco_dump_path)
     except Exception as exc:  # noqa: BLE001
         out["error"] = f"{type(exc).__name__}: {exc}"
         if dump_path is not None and not Path(dump_path).exists():

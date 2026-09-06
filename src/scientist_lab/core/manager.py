@@ -26,6 +26,7 @@ from scientist_lab.core.gate_engine import GateEngine, GateStatus
 from scientist_lab.core.git_manager import GitManager, GitManagerError, is_git_repo
 from scientist_lab.release.git_adapter import GitAdapterError
 from scientist_lab.core.invariants import InvariantError, evaluate_stop_rules
+from scientist_lab.core.memory_ids import archive_run_slug
 from scientist_lab.core.memory_writer import MemoryWriter
 from scientist_lab.core.planner import PlanRefused, Planner
 from scientist_lab.core.result_parser import ResultParser
@@ -55,6 +56,17 @@ _TERMINAL_ACTIONS = {
     OrchestrationAction.IDLE.value,
     OrchestrationAction.PROTOCOL_AMENDMENT_REQUIRED.value,
 }
+
+
+def _numeric_metric_map(metrics: Mapping[str, Any]) -> dict[str, Any]:
+    """experiment_result.metrics only allows number|null (not evaluator_backend strings)."""
+    out: dict[str, Any] = {}
+    for key, value in dict(metrics or {}).items():
+        if isinstance(value, bool):
+            continue
+        if value is None or isinstance(value, (int, float)):
+            out[str(key)] = value
+    return out
 
 
 def _now() -> str:
@@ -142,11 +154,13 @@ class Manager:
         llm_provider: Any | None = None,
         llm_live: bool = False,
         fallback_to_rules: bool = False,
+        confirm_human_gate: bool = False,
     ) -> None:
         self.root = Path(project_dir)
         self.root.mkdir(parents=True, exist_ok=True)
         self.execute = bool(execute)
         self.require_live_ready = bool(require_live_ready)
+        self.confirm_human_gate = bool(confirm_human_gate)
         self.live_runner = live_runner
         self.doctor_fn = doctor_fn
         self.doctor_root = Path(doctor_root) if doctor_root is not None else None
@@ -179,12 +193,16 @@ class Manager:
         baseline_file = _load_optional(self.root / "baseline_metrics.json")
         if baseline_file:
             self.baseline_metrics.update(baseline_file)
+        self.previous_round_metrics = dict(
+            _load_optional(self.root / "previous_round_metrics.json") or {}
+        )
         self.adapter = adapter
         self.planner = planner if planner is not None else Planner(
             backend=planner_backend,
             provider=llm_provider,
             live=bool(llm_live),
             fallback_to_rules=bool(fallback_to_rules),
+            pending_store=self.root / "how_pending.json",
         )
         self.reviewer = reviewer if reviewer is not None else Reviewer(
             backend=reviewer_backend,
@@ -198,9 +216,9 @@ class Manager:
 
     def _adapter(self) -> Any:
         if self.adapter is None:
-            from scientist_lab.adapters.dfine.adapter import DFINEAdapter
+            from scientist_lab.adapters.registry import adapter_for_protocol
 
-            self.adapter = DFINEAdapter(events=self.events)
+            self.adapter = adapter_for_protocol(self.protocol, events=self.events)
         return self.adapter
 
     def probe_doctor(self, *, force: bool = False) -> dict[str, Any]:
@@ -732,6 +750,7 @@ class Manager:
                 parent_run_id=parent or str(doc.get("run_id")),
                 last_review_decision=str(doc.get("review_decision") or "") or None,
                 events=self.events,
+                last_metrics=self.previous_round_metrics or None,
             )
         except PlanRefused as exc:
             doc["last_error"] = str(exc)
@@ -766,9 +785,15 @@ class Manager:
     ) -> ManagerStep:
         plan = load_json(self.plan_path)
         from scientist_lab.adapters.base import MaterializeRejected
+        from scientist_lab.core.how_pending import load_store, overlay_from_store
+
+        working = dict(plan)
+        overlay = overlay_from_store(load_store(self.root / "how_pending.json"))
+        if overlay:
+            working["how_overlay"] = overlay
 
         try:
-            contract = self._adapter().materialize_contract(plan, self.protocol)
+            contract = self._adapter().materialize_contract(working, self.protocol)
         except MaterializeRejected as exc:
             status["duplicate_plan_rejects"] = int(status.get("duplicate_plan_rejects") or 0) + 1
             doc["last_error"] = str(exc)
@@ -834,6 +859,32 @@ class Manager:
             self._save_run(doc, state)
             return ManagerStep(OrchestrationAction.NEED_GATE.value, state, report=verdict.to_dict())
         if verdict.status == GateStatus.HUMAN_REQUIRED:
+            if self.confirm_human_gate:
+                self._emit(
+                    event_type="human_governance",
+                    phase="governance",
+                    payload={
+                        "action": "campaign_human_gate_confirmed",
+                        "frozen_bypass": False,
+                        "protocol_unaltered": True,
+                        "gate_status": verdict.status,
+                        "gate_reasons": list(verdict.reasons),
+                    },
+                    run_id=str(doc.get("run_id")),
+                    plan_id=plan.get("plan_id"),
+                )
+                if memory is not None:
+                    self.memory.record_plan_citation(plan)
+                state = transition(state, run_state=RunState.APPROVED)
+                self._save_run(doc, state)
+                report = verdict.to_dict()
+                report["campaign_human_gate"] = True
+                return ManagerStep(
+                    OrchestrationAction.NEED_GATE.value,
+                    state,
+                    reasons=tuple(verdict.reasons),
+                    report=report,
+                )
             state = transition(state, run_state=RunState.GATED)
             self._save_run(doc, state)
             return ManagerStep(
@@ -856,6 +907,26 @@ class Manager:
     def _need_human(
         self, doc: dict[str, Any], state: ExperimentRunState, status: dict[str, Any]
     ) -> ManagerStep:
+        if self.confirm_human_gate and state.run_state == RunState.GATED:
+            self._emit(
+                event_type="human_governance",
+                phase="governance",
+                payload={
+                    "action": "campaign_human_gate_confirmed",
+                    "frozen_bypass": False,
+                    "protocol_unaltered": True,
+                    "run_state": state.run_state.value,
+                },
+                run_id=str(doc.get("run_id")),
+                plan_id=doc.get("plan_id"),
+            )
+            state = transition(state, run_state=RunState.APPROVED)
+            self._save_run(doc, state)
+            return ManagerStep(
+                OrchestrationAction.NEED_HUMAN.value,
+                state,
+                report={"campaign_human_gate": True},
+            )
         self._emit(
             event_type="human_governance",
             phase="governance",
@@ -990,6 +1061,9 @@ class Manager:
     ) -> ManagerStep:
         contract = load_json(self.contract_path)
         handle = load_json(self.handle_path)
+        handle = self._bind_aps_lowlight(handle)
+        metrics = dict(handle.get("metrics") or {})
+        handle["metrics"] = _numeric_metric_map(metrics)
         result = self.parser.from_handle(contract, handle)
         _dump(self.result_path, result)
         doc["result_ref"] = "result.json"
@@ -1010,6 +1084,94 @@ class Manager:
             state,
             report={"result": result, "git": git_report},
         )
+
+    def _bind_aps_lowlight(self, handle: dict[str, Any]) -> dict[str, Any]:
+        """Compute slice APS_lowlight after GPU. Never copies full-set APS/mAP."""
+        if str(handle.get("status") or "") not in {"completed", "success", "dry_run"}:
+            return handle
+        from scientist_lab.tasks.rgbt_detection.v26_r0 import (
+            R0BaselineError,
+            _live_exec_output_dirs,
+            _merge_slice_metrics,
+            compute_aps_lowlight_from_run,
+            sync_aps_lowlight_to_dirs,
+        )
+
+        output = Path(str(handle.get("output_dir") or (self.root / "run")))
+        candidates = [output, self.root]
+        last_error: str | None = None
+        slice_eval: dict[str, Any] | None = None
+        used: Path | None = None
+        for cand in candidates:
+            path = Path(cand)
+            if not path.exists():
+                continue
+            try:
+                slice_eval = compute_aps_lowlight_from_run(path)
+                used = path
+                break
+            except R0BaselineError as exc:
+                last_error = str(exc)
+            except Exception as exc:  # noqa: BLE001 — slice eval must not forge metrics
+                last_error = str(exc)
+        if slice_eval is None or used is None:
+            self._emit(
+                event_type="metrics_parsed",
+                phase="experiment",
+                payload={
+                    "APS_lowlight_bound": False,
+                    "reason": last_error or "val_detections_coco.json missing",
+                    "metrics_forged": False,
+                },
+                run_id=str(handle.get("run_id")),
+                plan_id=None,
+            )
+            return handle
+        _merge_slice_metrics(used / "metrics.json", slice_eval)
+        if used != self.root:
+            _merge_slice_metrics(self.root / "metrics.json", slice_eval)
+        # Mirror slice metrics onto scientist-exec bind mounts so outputs/exec_*/metrics.json
+        # is not missing the protocol primary (APS_lowlight).
+        run_payload = handle.get("run") if isinstance(handle.get("run"), Mapping) else {}
+        sync_targets = [
+            used,
+            self.root,
+            self.root / "run",
+            output,
+            run_payload.get("output_directory") or run_payload.get("output_dir"),
+            *_live_exec_output_dirs(used, self.root, output),
+        ]
+        synced = sync_aps_lowlight_to_dirs(slice_eval, *sync_targets)
+        merged = dict(handle.get("metrics") or {})
+        for key in ("APS_lowlight", "mAP50_95_lowlight", "AP50_lowlight"):
+            if key in slice_eval:
+                merged[key] = slice_eval[key]
+        handle["metrics"] = _numeric_metric_map(merged)
+        refs = list(handle.get("raw_metric_refs") or [])
+        det_path = slice_eval.get("detections_path")
+        if det_path and str(det_path) not in refs:
+            refs.append(str(det_path))
+        for dest in synced:
+            aps_ref = str(Path(dest) / "aps_lowlight.json")
+            if aps_ref not in refs:
+                refs.append(aps_ref)
+        handle["raw_metric_refs"] = refs
+        _dump(self.handle_path, handle)
+        self._emit(
+            event_type="metrics_parsed",
+            phase="experiment",
+            payload={
+                "APS_lowlight_bound": True,
+                "APS_lowlight": slice_eval.get("APS_lowlight"),
+                "evaluator_backend": slice_eval.get("evaluator_backend"),
+                "n_images_lowlight": slice_eval.get("n_images_lowlight"),
+                "synced_dirs": synced,
+                "metrics_forged": False,
+            },
+            run_id=str(handle.get("run_id")),
+            plan_id=None,
+        )
+        return handle
 
     def _need_evidence(
         self, doc: dict[str, Any], state: ExperimentRunState, status: dict[str, Any]
@@ -1070,7 +1232,7 @@ class Manager:
         rubric = evaluate_rubric(
             self.protocol,
             current_metrics=result.get("metrics") or {},
-            baseline_metrics=self.baseline_metrics or None,
+            baseline_metrics=self._rubric_baseline() or None,
         )
         packet = self.reviewer.review(
             result=result,
@@ -1108,6 +1270,7 @@ class Manager:
             review_decision=packet.review_decision,
         )
         git_report = self._apply_review_git(doc, state)
+        self._remember_completed_round_metrics(result)
         return ManagerStep(
             OrchestrationAction.NEED_REVIEW.value,
             state,
@@ -1207,8 +1370,12 @@ class Manager:
             "baseline": {
                 "present": has_baseline,
                 "metrics": dict(self.baseline_metrics or {}),
-                "matched_fingerprint": False,
-                "budget_class": "probe",
+                "matched_fingerprint": bool(handle.get("fingerprint_comparable")),
+                "budget_class": str(
+                    (self.baseline_metrics or {}).get("budget_class")
+                    or plan.get("budget_class")
+                    or "probe"
+                ),
             }
             if has_baseline
             else {"present": False},
@@ -1329,10 +1496,11 @@ class Manager:
 
         previous = load_json(self.plan_path)
         parent = str(doc.get("run_id"))
-        _dump(self.root / "previous_plan.json", previous)
-        archive = self.root / "runs" / f"{parent}.json"
-        _dump(archive, doc)
-        self._archive_round_artifacts(parent)
+        result = _load_optional(self.result_path) or {}
+        review = _load_optional(self.review_path) or {}
+        self._remember_completed_round_metrics(result)
+        # Plan first: archiving moves run/ artifacts. If Planner refuse-closed,
+        # keep the completed round in place so resume/retry can re-plan.
         try:
             packet = self.planner.next_plan(
                 protocol=self.protocol,
@@ -1341,6 +1509,8 @@ class Manager:
                 parent_run_id=parent,
                 last_review_decision=state.review_decision.value,
                 events=self.events,
+                last_metrics=result.get("metrics") or self.previous_round_metrics,
+                last_primary_delta=((review.get("primary_metric_judgment") or {}).get("delta")),
             )
         except PlanRefused as exc:
             return ManagerStep(
@@ -1350,6 +1520,11 @@ class Manager:
                 idle=True,
                 report={"forged_refs": False},
             )
+        _dump(self.root / "previous_plan.json", previous)
+        slug = archive_run_slug(parent)
+        archive = self.root / "runs" / f"{slug}.json"
+        _dump(archive, {**doc, "archived_run_id": parent, "archive_slug": slug})
+        self._archive_round_artifacts(parent)
         _dump(self.plan_path, packet.plan)
         status["extra_rounds"] = extra + 1
         new_doc = self.initialize_run(
@@ -1364,13 +1539,42 @@ class Manager:
         return ManagerStep(
             OrchestrationAction.NEXT_ROUND.value,
             new_state,
-            report={"plan": packet.plan, "parent_run_id": parent},
+            report={
+                "extra_rounds": status["extra_rounds"],
+                "parent_run_id": parent,
+                "plan_id": packet.plan.get("plan_id"),
+                "archive_slug": slug,
+                "plan": packet.plan,
+            },
         )
+
+    def _rubric_baseline(self) -> dict[str, Any]:
+        """Previous shot in this campaign, else the optional campaign-start baseline."""
+        if self.previous_round_metrics:
+            return dict(self.previous_round_metrics)
+        return dict(self.baseline_metrics)
+
+    def _remember_completed_round_metrics(self, result: Mapping[str, Any] | None = None) -> None:
+        """Promote the just-reviewed shot so the next Reviewer Δ is not null."""
+        payload = dict(result or _load_optional(self.result_path) or {})
+        metrics = _numeric_metric_map(payload.get("metrics") or {})
+        if not metrics:
+            return
+        self.previous_round_metrics = dict(metrics)
+        _dump(self.root / "previous_round_metrics.json", self.previous_round_metrics)
 
     def _archive_round_artifacts(self, parent_run_id: str) -> None:
         """Keep N-round GPU artifacts so N+1 does not overwrite Trace evidence."""
-        dest = self.root / "runs" / parent_run_id
+        slug = archive_run_slug(parent_run_id)
+        dest = self.root / "runs" / slug
         dest.mkdir(parents=True, exist_ok=True)
+        _dump(
+            dest / "run_ref.json",
+            {
+                "run_id": str(parent_run_id),
+                "archive_slug": slug,
+            },
+        )
         for name in (
             "result.json",
             "handle.json",

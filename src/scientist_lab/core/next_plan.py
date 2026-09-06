@@ -16,8 +16,10 @@ from scientist_lab.core.invariants import (
     assert_memory_refs_resolvable,
     assert_plan_memory_policy,
 )
+from scientist_lab.core.memory_ids import next_plan_id
 from scientist_lab.core.memory_writer import MemoryWriter
 from scientist_lab.core.schema_registry import validate_named
+from scientist_lab.llm.planner_contract import sanitize_expected_effect
 
 
 def _as_catalog(
@@ -77,6 +79,7 @@ def build_candidate_next_plan(
     memory_refs: Mapping[str, Sequence[str]] | None = None,
     evidence_runs: Sequence[str] | None = None,
     controlled_variables: Sequence[str] | None = None,
+    how_id: str | None = None,
 ) -> dict[str, Any]:
     """Build Round N+1 ExperimentPlan that must cite written memory.
 
@@ -119,7 +122,7 @@ def build_candidate_next_plan(
 
     prev_round = int(previous_plan.get("round_index") or 0)
     round_index = prev_round + 1
-    plan_id = f"plan_round{round_index}_from_{parent_run_id}"
+    plan_id = next_plan_id(round_index=round_index, parent_run_id=str(parent_run_id))
     first_lesson = lessons.get(refs["lesson_ids"][0]) if refs["lesson_ids"] else {}
     lesson_type = str((first_lesson or {}).get("type") or "written_memory")
     statement = str((first_lesson or {}).get("statement") or "").strip()
@@ -152,7 +155,7 @@ def build_candidate_next_plan(
             if controlled_variables is not None
             else previous_plan.get("controlled_variables") or ["evaluator"]
         ),
-        "expected_effect": dict(
+        "expected_effect": sanitize_expected_effect(
             expected_effect
             if expected_effect is not None
             else previous_plan.get("expected_effect") or {}
@@ -175,6 +178,9 @@ def build_candidate_next_plan(
     }
     if decision_summary is not None:
         plan["decision_summary"] = dict(decision_summary)
+    token = str(how_id or "").strip().upper()
+    if token:
+        plan["how_id"] = token
     validate_named("experiment_plan", plan)
     assert_plan_memory_policy(plan)
     assert_memory_refs_resolvable(plan, lesson_ids=lessons, strategy_ids=strategies)

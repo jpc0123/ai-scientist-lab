@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/r0_baseline.schema.json",
+  "title": "V26R0BaselineAnchor",
+  "description": "v2.6 V26.4 D-FINE R0 identity. Metrics may be pending. Not ExperimentEvidence.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "anchor_id",
+    "status",
+    "how",
+    "dataset",
+    "metric_contract",
+    "llm_may_rewrite"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "anchor_id": { "type": "string", "const": "v26_r0_dfine_f1_lowlight" },
+    "status": {
+      "type": "string",
+      "enum": ["protocol_frozen_metrics_pending", "metrics_bound", "blocked"]
+    },
+    "llm_may_rewrite": { "type": "boolean", "const": false },
+    "not_an_agent": { "type": "boolean", "const": true },
+    "how": {
+      "type": "object",
+      "required": ["how_id", "fusion_method", "neck_type"],
+      "properties": {
+        "how_id": { "type": "string", "const": "F1" },
+        "fusion_method": { "type": "string", "const": "early_concat" },
+        "neck_type": { "type": "string", "const": "standard" }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "required": ["dataset_id", "slice_id", "fingerprint"],
+      "properties": {
+        "dataset_id": { "type": "string" },
+        "slice_id": { "type": "string", "const": "low_light_subset_v1" },
+        "fingerprint": { "$ref": "common.schema.json#/$defs/hex_hash" }
+      }
+    },
+    "metric_contract": {
+      "type": "object",
+      "required": ["primary"],
+      "properties": {
+        "primary": { "$ref": "common.schema.json#/$defs/metric_goal" }
+      }
+    }
+  }
+}

@@ -76,6 +76,22 @@ class DatasetRepository:
             session.commit()
             return self._row_to_model(row)
 
+    def update_host_path(
+        self,
+        dataset_key: str,
+        *,
+        host_path: str,
+        updated_at: str,
+    ) -> DatasetRegistration:
+        with self._session() as session:
+            row = session.get(DatasetRegistrationRow, dataset_key)
+            if row is None:
+                raise KeyError(f"数据集未注册：{dataset_key}")
+            row.host_path = host_path
+            row.updated_at = updated_at
+            session.commit()
+            return self._row_to_model(row)
+
     @staticmethod
     def _row_to_model(row: DatasetRegistrationRow) -> DatasetRegistration:
         metadata: dict = {}

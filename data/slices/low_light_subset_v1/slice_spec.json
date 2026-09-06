@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "slice_id": "low_light_subset_v1",
+  "parent_dataset": "rgbt_tiny_v1",
+  "condition": "low_light",
+  "official_labels": false,
+  "selection_rule": "rgb_mean_rec709_luminance_train_p25",
+  "method": "rgb_mean_rec709_luminance_train_p25",
+  "threshold": 0.17730140618417778,
+  "train_percentile": 25.0,
+  "rule_hash": "6aa3cf0a444b0373239c81fec10443e8e067f38f71e4e41dcf57d4d888965c49",
+  "membership_hash": "e716c55469a51bc47b2e9b5983f2c02a7b2e3de901e654ebd4ee832a622c246f",
+  "frozen": true,
+  "llm_may_rewrite": false,
+  "created_at": "2026-08-19T09:08:07+00:00",
+  "amendment": "Protocol Amendment required to change this slice",
+  "note": "Not an official night label. Membership is deterministic RGB Rec.709 luminance at or below the train-split percentile."
+}

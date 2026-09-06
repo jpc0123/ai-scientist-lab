@@ -8,10 +8,15 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 
+HOW_PLUGIN_ALLOWED_PREFIX = (
+    "experiment_apps/rgbt_detection_real/models/how_plugins/"
+)
+
 DEFAULT_ALLOWED_PREFIXES: tuple[str, ...] = (
     "experiment_apps/rgbt_detection_real/adapters/",
     "experiment_apps/rgbt_detection_real/configs/",
     "src/scientist_lab/tasks/rgbt_detection/",
+    HOW_PLUGIN_ALLOWED_PREFIX,
 )
 
 # Digits / local experiment_app (v2.2 CodeContextBundle + future real Diff)
@@ -29,6 +34,7 @@ DEFAULT_DENIED_PREFIXES: tuple[str, ...] = (
     ".git/",
     ".github/",
     "src/scientist_lab/llm/",
+    "third_party/",
 )
 
 DEFAULT_DENIED_NAMES: tuple[str, ...] = (
@@ -69,6 +75,10 @@ class PathPolicy:
     denied_substrings: tuple[str, ...] = DEFAULT_DENIED_SUBSTRINGS
     extra_denied_paths: tuple[str, ...] = (
         "src/scientist_lab/llm/config.py",
+        "experiment_apps/rgbt_detection_real/train_dfine.py",
+        "experiment_apps/rgbt_detection_real/models/feature_fusion.py",
+        "experiment_apps/rgbt_detection_real/models/fusion_factory.py",
+        "experiment_apps/rgbt_detection_real/models/how_plugin_loader.py",
     )
 
     @classmethod

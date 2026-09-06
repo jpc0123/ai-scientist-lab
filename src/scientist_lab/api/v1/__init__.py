@@ -21,6 +21,8 @@ from scientist_lab.api.schemas import (
     DemoCreateBody,
     IterationFinalizeBody,
     LlmConfigUpdateBody,
+    LiteratureConfigUpdateBody,
+    LiteratureProbeBody,
     LlmProfileRegisterBody,
     MergeApproveBody,
     MergeFinalizeBody,
@@ -139,6 +141,71 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except Exception as exc:  # noqa: BLE001 — map config errors
             raise http_error(
                 400, code="llm_config_invalid", message=str(exc)
+            ) from exc
+
+    @router.get("/system/literature-config")
+    def get_literature_config(
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        return service.get_literature_config_status()
+
+    @router.post("/system/literature-config")
+    def update_literature_config(
+        body: LiteratureConfigUpdateBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        try:
+            return service.update_literature_config(
+                api_key=body.api_key,
+                base_url=body.base_url,
+                clear_api_key=body.clear_api_key,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise http_error(
+                400, code="literature_config_invalid", message=str(exc)
+            ) from exc
+
+    @router.post("/system/literature-config/probe")
+    def probe_literature_config(
+        body: LiteratureProbeBody,
+        service: ExperimentService = Depends(service_dep),
+    ) -> dict[str, Any]:
+        import re
+
+        from scientist_lab.llm.config import redact_secrets
+        from scientist_lab.llm.errors import LLMError, MissingAPIKeyError
+        from scientist_lab.literature.errors import LiteratureError, LiteratureProviderError
+
+        def _probe_message(exc: BaseException) -> str:
+            text = redact_secrets(str(exc) or type(exc).__name__)
+            return re.sub(r"\bs2-[A-Za-z0-9\-._]{6,}\b", "[REDACTED]", text)
+
+        try:
+            return service.probe_literature_search(query=body.query, limit=body.limit)
+        except MissingAPIKeyError as exc:
+            raise http_error(
+                409,
+                code="missing_api_key",
+                message=_probe_message(exc),
+                suggested_action="在文献配置页填写并保存 Semantic Scholar Key，再点「试搜一篇」。",
+            ) from exc
+        except (LiteratureProviderError, LiteratureError, LLMError, ValueError) as exc:
+            raise http_error(
+                502,
+                code="literature_probe_failed",
+                message=_probe_message(exc),
+                retryable=bool(getattr(exc, "retryable", False)),
+                details={"provider": "semantic_scholar"},
+                suggested_action="确认 Key 有效且本机可访问 api.semanticscholar.org，然后重试。",
+            ) from exc
+        except Exception as exc:  # noqa: BLE001 — surface probe failures to the UI
+            raise http_error(
+                502,
+                code="literature_probe_failed",
+                message=_probe_message(exc),
+                retryable=True,
+                details={"provider": "semantic_scholar"},
+                suggested_action="可稍后重试；若持续失败，检查网络与 Semantic Scholar 服务状态。",
             ) from exc
 
     @router.get("/llm-profiles")
@@ -1907,9 +1974,17 @@ def build_v1_router(get_service: Callable[[], ExperimentService]) -> APIRouter:
         except (RealLoopValidationError, RealLoopError, ValueError) as exc:
             raise http_error(409, code="conflict", message=str(exc)) from exc
 
+    from scientist_lab.api.v1.autonomous_campaigns import build_autonomous_campaigns_router
     from scientist_lab.api.v1.console import build_console_router
+    from scientist_lab.api.v1.dataset_workspace import build_dataset_workspace_router
     from scientist_lab.api.v1.local_runs import build_local_runs_router
+    from scientist_lab.api.v1.registered_experiments import build_registered_experiments_router
+    from scientist_lab.api.v1.trajectories import build_trajectories_router
 
     router.include_router(build_local_runs_router(get_service))
+    router.include_router(build_dataset_workspace_router(get_service))
+    router.include_router(build_trajectories_router(get_service))
     router.include_router(build_console_router(get_service))
+    router.include_router(build_autonomous_campaigns_router(get_service))
+    router.include_router(build_registered_experiments_router(get_service))
     return router

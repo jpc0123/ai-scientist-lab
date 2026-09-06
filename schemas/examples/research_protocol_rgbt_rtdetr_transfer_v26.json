@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0.0",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_rtdetr_transfer_v26",
+  "protocol_version": 1,
+  "title": "P4 RT-DETR strategy transfer of F3 gated_multiscale (v2.6)",
+  "goal": {
+    "improve": "lowlight_small_object_detection",
+    "task_type": "rgbt_detection",
+    "notes": "Transfer protocol. Same frozen RGB-T slice as D-FINE V26.5. Adapter=HOW for RT-DETR. Not a fifth Agent. A4 stays hidden. F2/T1/T2 not registered. max_claim_strength=C0. Not G2/G3."
+  },
+  "baseline": {
+    "model": "RT-DETR-S",
+    "dataset": "dataset:rgbt_tiny_v1",
+    "adapter": "rtdetr",
+    "reference_run_id": null
+  },
+  "objective": {
+    "primary": { "metric": "APS_lowlight", "direction": "maximize" },
+    "secondary": [
+      { "metric": "mAP50_95_lowlight", "direction": "maximize" },
+      { "metric": "AP50_lowlight", "direction": "maximize" },
+      { "metric": "APS", "direction": "maximize" },
+      { "metric": "mAP50_95", "direction": "maximize" }
+    ]
+  },
+  "editable_scope": [
+    "fusion",
+    "neck",
+    "loss",
+    "optimizer",
+    "hyperparameter",
+    "augmentation"
+  ],
+  "frozen_scope": [
+    "dataset_split",
+    "evaluator",
+    "metric_definition",
+    "condition_slice",
+    "baseline_result",
+    "gate_rule",
+    "human_permission_policy"
+  ],
+  "constraints": {
+    "params_m": { "max": 20 },
+    "flops_g": { "max": 65 },
+    "gpu_memory_gb": { "max": 24 },
+    "max_runtime": "12h"
+  },
+  "experiment_budget": {
+    "probe": "10min",
+    "validation": "60min",
+    "formal": "4h"
+  },
+  "risk_policy": {
+    "probe_training": "auto",
+    "full_training": "approval_required",
+    "install_dependency": "approval_required",
+    "dataset_change": "forbidden",
+    "evaluator_change": "forbidden",
+    "code_outside_editable": "forbidden"
+  },
+  "decision_policy": {
+    "keep_requires": { "primary_not_worse_than": -0.1 },
+    "validate_if": { "primary_gain_at_least": 0.5 },
+    "discard_if": { "primary_worse_than": -0.5 }
+  },
+  "stop_rules": {
+    "max_rounds": 2,
+    "max_consecutive_discards": 3,
+    "max_execution_failures": 2,
+    "stop_if_no_improvement_for": 2,
+    "max_duplicate_plan_rejects": 3
+  },
+  "fingerprint_id": "FP-RGBT-RTDETR-V26-TRANSFER-LOWLIGHT",
+  "claim_policy": {
+    "allow_scientific_claims": false,
+    "allow_significance_claim": false,
+    "allow_sota_claim": false,
+    "default_claim_level": "exploratory_comparison",
+    "max_claim_strength": "C0"
+  },
+  "condition_slice": {
+    "id": "low_light_subset_v1",
+    "version": "v1",
+    "method": "rgb_mean_rec709_luminance_train_p25",
+    "official_labels": false,
+    "rule_hash": "6aa3cf0a444b0373239c81fec10443e8e067f38f71e4e41dcf57d4d888965c49"
+  },
+  "notes": "P4 transfer constitution. Dataset Contract fingerprint 787c65bda4eb31a700e67fba7804f1e7e17079574d24c02399f74bb722d27ea6 is FROZEN (dataset_id+slice_id+membership). Frozen baseline_config_hash differs because adapter=rtdetr. Round 0 = RT-DETR F1 baseline. Round 1 = transfer F3 gated_multiscale HOW (reimplemented on RT-DETR Adapter; not D-FINE FDR/FDPN). HOW allowlist F0/F1/F3/N0/N1; N1/FDPN is MATERIALIZE_REJECTED on this Adapter. F2/T1/T2/A4 not registered. ClaimGate C0. Do not reuse D-FINE max_rounds=6."
+}

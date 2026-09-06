@@ -102,6 +102,7 @@ def write_dfine_fast_config(
     warmup_duration: int | None = None,
     lr_scheduler_milestones: list[int] | None = None,
     lr_scheduler_gamma: float | None = None,
+    detector: str = "dfine",
 ) -> Path:
     dfine_root = Path(dfine_root).resolve()
     config_path = Path(config_path)
@@ -167,6 +168,19 @@ def write_dfine_fast_config(
     if resolved_gamma <= 0:
         raise ValueError(f"lr_scheduler_gamma must be > 0, got {resolved_gamma}")
 
+    detector_name = str(detector or "dfine").strip().lower().replace("-", "_")
+    if detector_name in {"rt_detr"}:
+        detector_name = "rtdetr"
+    if detector_name not in {"dfine", "rtdetr"}:
+        raise ValueError(f"detector must be dfine or rtdetr, got {detector!r}")
+    if detector_name == "rtdetr":
+        # Contrastive denoising NaNs on the frozen 160x160 / scaled-query budget
+        # (observed with AMP on and off). Adapter glue; not a new HOW.
+        num_denoising = 0
+        query_budget = dict(query_budget)
+        query_budget["effective_num_denoising"] = 0
+        query_budget["rtdetr_denoising_disabled"] = True
+
     record = {
         "eval_spatial_size": eval_spatial_size,
         "input_size": [input_h, input_w],
@@ -184,6 +198,7 @@ def write_dfine_fast_config(
         else [500],
         "lr_scheduler_gamma": resolved_gamma,
         "a2_reference_lr_scheduler_milestones": [500],
+        "detector": detector_name,
     }
     record_path = Path(
         budget_record_path
@@ -210,35 +225,75 @@ lr_scheduler:
   milestones: [{ms}]
   gamma: {format(float(resolved_gamma), ".8f")}
 """
-    text = f"""
-# Auto-generated Scientist Lab Fast Eval config for DFINE-S
+    dfine_include = (dfine_root / "configs" / "dfine" / "include" / "dfine_hgnetv2.yml").as_posix()
+    if detector_name == "rtdetr":
+        include_block = f"""
 __include__:
   - { (dfine_root / 'configs' / 'runtime.yml').as_posix() }
   - { (dfine_root / 'configs' / 'dfine' / 'include' / 'dataloader.yml').as_posix() }
   - { (dfine_root / 'configs' / 'dfine' / 'include' / 'optimizer.yml').as_posix() }
-  - { (dfine_root / 'configs' / 'dfine' / 'include' / 'dfine_hgnetv2.yml').as_posix() }
+"""
+        model_block = f"""
+model: RTDETR
+criterion: RTDETRCriterion
+postprocessor: RTDETRPostProcessor
+use_focal_loss: True
 
-task: detection
-evaluator:
-  type: CocoEvaluator
-  iou_types: ['bbox']
+RTDETR:
+  backbone: HGNetv2
+  encoder: HybridEncoder
+  decoder: RTDETRTransformer
 
-num_classes: {int(num_classes)}
-remap_mscoco_category: False
-# Must match Resize/collate size derived from experiment input_size.
-# Included dfine_hgnetv2.yml defaults to 640x640 and would desync pos_embed.
-eval_spatial_size: [{input_h}, {input_w}]
+HGNetv2:
+  name: 'B0'
+  return_idx: [1, 2, 3]
+  freeze_at: -1
+  freeze_norm: False
+  use_lab: True
+  pretrained: {str(bool(pretrained))}
+  local_model_dir: {weight_dir}
 
-output_dir: {out}
-print_freq: 1
-checkpoint_freq: {max(1, int(epochs))}
-epoches: {int(epochs)}
-epochs: {int(epochs)}
-seed: {int(seed)}
-use_amp: False
-sync_bn: False
-find_unused_parameters: True
+RTDETRTransformer:
+  feat_channels: [256, 256, 256]
+  feat_strides: [8, 16, 32]
+  hidden_dim: 256
+  num_levels: 3
+  num_decoder_layers: 3
+  eval_idx: -1
+  num_queries: {int(num_queries)}
+  num_denoising: {int(num_denoising)}
 
+RTDETRPostProcessor:
+  num_top_queries: {int(num_queries)}
+
+RTDETRCriterion:
+  weight_dict: {{loss_vfl: 1, loss_bbox: 5, loss_giou: 2}}
+  losses: ['vfl', 'boxes']
+  alpha: 0.75
+  gamma: 2.0
+  matcher:
+    type: HungarianMatcher
+    weight_dict: {{cost_class: 2, cost_bbox: 5, cost_giou: 2}}
+    alpha: 0.25
+    gamma: 2.0
+    use_focal_loss: True
+
+HybridEncoder:
+  in_channels: [256, 512, 1024]
+  hidden_dim: 256
+  depth_mult: 0.34
+  expansion: 0.5
+"""
+        heading = "# Auto-generated Scientist Lab Fast Eval config for RT-DETR-S"
+    else:
+        include_block = f"""
+__include__:
+  - { (dfine_root / 'configs' / 'runtime.yml').as_posix() }
+  - { (dfine_root / 'configs' / 'dfine' / 'include' / 'dataloader.yml').as_posix() }
+  - { (dfine_root / 'configs' / 'dfine' / 'include' / 'optimizer.yml').as_posix() }
+  - { dfine_include }
+"""
+        model_block = f"""
 DFINE:
   backbone: HGNetv2
 
@@ -265,6 +320,34 @@ HybridEncoder:
   hidden_dim: 256
   depth_mult: 0.34
   expansion: 0.5
+"""
+        heading = "# Auto-generated Scientist Lab Fast Eval config for DFINE-S"
+
+    text = f"""
+{heading}
+{include_block.strip()}
+
+task: detection
+evaluator:
+  type: CocoEvaluator
+  iou_types: ['bbox']
+
+num_classes: {int(num_classes)}
+remap_mscoco_category: False
+# Must match Resize/collate size derived from experiment input_size.
+eval_spatial_size: [{input_h}, {input_w}]
+
+output_dir: {out}
+print_freq: 1
+checkpoint_freq: {max(1, int(epochs))}
+epoches: {int(epochs)}
+epochs: {int(epochs)}
+seed: {int(seed)}
+use_amp: False
+sync_bn: False
+find_unused_parameters: True
+
+{model_block.strip()}
 
 optimizer:
   type: AdamW

@@ -8,6 +8,7 @@ from typing import Any, Sequence
 import torch.nn as nn
 
 from .fdpn import FDPN
+from .how_plugin_loader import is_plugin_neck_type, load_how_plugin_neck, normalize_plugin_how_id
 
 
 @dataclass(frozen=True)
@@ -29,8 +30,10 @@ class NeckConfig:
         ntype = str(data.get("type") or "standard").strip().lower()
         if ntype in {"hybrid", "hybrid_encoder", "default"}:
             ntype = "standard"
-        if ntype not in {"standard", "fdpn"}:
-            raise ValueError(f"Unknown neck type: {ntype!r}; supported: standard, fdpn")
+        if ntype not in {"standard", "fdpn"} and not is_plugin_neck_type(ntype):
+            raise ValueError(
+                f"Unknown neck type: {ntype!r}; supported: standard, fdpn, plugin:<HOW>"
+            )
         in_ch = data.get("in_channels") or (256, 512, 1024)
         levels = data.get("levels") or ("p3", "p4", "p5")
         strides = data.get("feat_strides") or data.get("strides") or (8, 16, 32)
@@ -67,6 +70,7 @@ class NeckFactory:
         *,
         eval_spatial_size: tuple[int, int] | list[int] | None = None,
         existing_encoder: nn.Module | None = None,
+        plugin_path: Any | None = None,
     ) -> nn.Module:
         if config.type == "standard":
             if existing_encoder is None:
@@ -85,4 +89,38 @@ class NeckFactory:
                 eval_spatial_size=eval_spatial_size,
                 residual_scale=config.residual_scale,
             )
+        if is_plugin_neck_type(config.type):
+            hidden = int(config.hidden_dim or config.out_channels)
+            if plugin_path is not None:
+                from .how_plugin_loader import load_plugin_neck
+
+                neck = load_plugin_neck(
+                    plugin_path,
+                    in_channels=config.in_channels,
+                    hidden_dim=hidden,
+                    feat_strides=config.feat_strides,
+                    eval_spatial_size=eval_spatial_size,
+                    residual_scale=config.residual_scale,
+                )
+            else:
+                how_id = normalize_plugin_how_id(config.type)
+                neck = load_how_plugin_neck(
+                    how_id,
+                    in_channels=config.in_channels,
+                    hidden_dim=hidden,
+                    feat_strides=config.feat_strides,
+                    eval_spatial_size=eval_spatial_size,
+                    residual_scale=config.residual_scale,
+                )
+            if not hasattr(neck, "in_channels"):
+                neck.in_channels = list(config.in_channels)
+            if not hasattr(neck, "hidden_dim"):
+                neck.hidden_dim = hidden
+            if not hasattr(neck, "feat_strides"):
+                neck.feat_strides = list(config.feat_strides)
+            if not hasattr(neck, "out_channels"):
+                neck.out_channels = [hidden] * len(config.in_channels)
+            if not hasattr(neck, "out_strides"):
+                neck.out_strides = list(config.feat_strides)
+            return neck
         raise ValueError(f"Unknown neck type: {config.type!r}")
