@@ -1,0 +1,12 @@
+{
+  "suite_version": "eval_suite_v1",
+  "expected_schema": "structured_properties_v1",
+  "notes": "Planner expected properties live inline on each case; this file documents suite-level defaults.",
+  "defaults": {
+    "forbidden_parameter_changes": [
+      "environment_key",
+      "dataset_reference",
+      "code_reference"
+    ]
+  }
+}

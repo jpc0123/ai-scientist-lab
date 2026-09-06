@@ -1,0 +1,158 @@
+{
+  "protocol_id": "protocol_rgbt_formal_a2_a4_v2",
+  "id": "formal_a2_a4_v2_protocol",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "Formal A2 vs A4 v2 under frozen K2-C / A2 baseline v3 candidate",
+  "status": "frozen",
+  "frozen_at": "2026-08-05T19:40:00+00:00",
+  "supersedes": "protocol_rgbt_formal_candidate_a2_a4_v1",
+  "parent_baseline": "formal_a2_baseline_v3_candidate",
+  "parent_baseline_status": "accepted_with_notes__not_absolute_freeze",
+  "task_type": "rgbt_detection",
+  "purpose": "Answer whether FDPN (A4) yields consistent gain vs frozen A2 under the same stable K2-C protocol. Not maximize A2; not open P01.",
+  "research_question": "Under one stable protocol, does A4 bring consistent last@20 gain vs A2 across seeds 42/43/44?",
+  "dataset": {
+    "freeze": "docs/research/v25/gate_k/K2C_DATASET_FREEZE.json",
+    "dataset_reference": "dataset:rgbt_tiny_v1",
+    "dataset_version": "v1_gate_k2c_seq_expand",
+    "split_reference": "split:rgbt_tiny_v1_gate_k2c_seq",
+    "frame_stride": 5,
+    "max_frames_per_seq": 50,
+    "sequence_counts": {
+      "train": 72,
+      "val": 13,
+      "test": 6
+    },
+    "pair_counts": {
+      "train": 3342,
+      "val": 650,
+      "test": 300
+    },
+    "manifest_hashes": {
+      "train_pairs.csv": "2b8730e1ee371bbcdc170926da96c677a32dea8c7e5feb514c75da14fa9bf395",
+      "val_pairs.csv": "bf1f3fab5b5972f14c7d25d0763a46ab60cd273bf80f499176b320028319618a",
+      "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+    },
+    "annotation_hashes": {
+      "instances_train.json": "0640b58829ad1d5eee9ec3bae5b702b661a961c45680746301b930263ffe46ea",
+      "instances_val.json": "ed818b1b04b08d32db5b5af3689a94774e2b53593e0dc84a8d0a5fd8ca6de4bd",
+      "instances_test.json": "8d83d8a71f56a140942e82d20a5a43fe2cf6922d9070a6fabd65545e856cb2cd"
+    }
+  },
+  "arms": {
+    "A2": {
+      "fusion_method": "early_concat",
+      "neck": "standard_HybridEncoder",
+      "reuse_existing_runs": true,
+      "reuse_note": "Do not retrain A2; use K2-C three-seed executions as the fixed comparison arm.",
+      "executions": {
+        "42": "exec_00cc3754ea3d",
+        "43": "exec_d4b4feb6cfb1",
+        "44": "exec_4f4151310027"
+      }
+    },
+    "A4": {
+      "fusion_method": "early_concat",
+      "neck": {
+        "type": "fdpn"
+      },
+      "launch_required": true,
+      "single_allowed_difference_vs_A2": "neck.type = fdpn"
+    }
+  },
+  "training": {
+    "epochs": 20,
+    "seeds": [42, 43, 44],
+    "seed_order": [44, 43, 42],
+    "optimizer": "original_A2",
+    "learning_rate": 0.0002,
+    "backbone_lr": 0.0001,
+    "warmup_duration": 500,
+    "scheduler": "MultiStep milestones=[500] (inactive in 20ep)",
+    "batch_size": 1,
+    "image_width": 640,
+    "image_height": 640,
+    "mixed_precision": true,
+    "pretrained": true,
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "scale_queries_to_tokens": false,
+    "enforce_disk_gate": true,
+    "num_workers": 0
+  },
+  "checkpoint": {
+    "main": "last@20",
+    "aux": "best-on-val",
+    "reporting_protocol": "a2_baseline_checkpoint_v2",
+    "selection_metric": "mAP50_95",
+    "test_set_used_for_selection": false
+  },
+  "metrics": {
+    "primary": "mAP50_95 last@20",
+    "auxiliary": [
+      "best mAP50_95",
+      "best-last gap",
+      "mean/std across seeds",
+      "range across seeds",
+      "per-seed A4-A2 delta"
+    ]
+  },
+  "judgment": {
+    "question": "Under the same stable protocol, does A4 bring consistent gain?",
+    "not_the_question": "Does A4 have the highest score?",
+    "strong_evidence": {
+      "rule": "A4-A2 > 0 on all three seeds AND mean_delta > 0"
+    },
+    "moderate_evidence": {
+      "rule": "2/3 seeds positive",
+      "allowed_claim": "exploratory improvement trend"
+    },
+    "negative_result": {
+      "rule": "A4 <= A2 (no consistent gain)",
+      "allowed_claim": "FDPN under current design has no benefit vs A2 under K2-C; valid research conclusion"
+    }
+  },
+  "allowed_variables": ["seed", "neck.type"],
+  "allowed_difference_note": "Only neck.type may differ: A2=standard(HybridEncoder), A4=fdpn. Everything else matched to K2-C / original A2.",
+  "explicitly_forbidden": [
+    "further_A2_tuning",
+    "cosine",
+    "epoch_extension_for_baseline_move",
+    "EMA_as_baseline_change",
+    "LR_retune",
+    "P01_residual_scaling",
+    "gated_fusion",
+    "K3-B",
+    "changing_dataset_hashes",
+    "mixing_Gate-H_A2_runs"
+  ],
+  "blocked_until_a4_vs_a2_answered": [
+    "P01",
+    "further_FDPN_optimization",
+    "cosine_now",
+    "K3-B",
+    "SOTA_claims"
+  ],
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "allow_significance_claim": false,
+  "allow_sota_claim": false,
+  "contracts": {
+    "A4": [
+      "examples/rgbt_v25_formal_a2_a4_v2_a4_seed44_contract.json",
+      "examples/rgbt_v25_formal_a2_a4_v2_a4_seed43_contract.json",
+      "examples/rgbt_v25_formal_a2_a4_v2_a4_seed42_contract.json"
+    ],
+    "runner_protocol": "examples/rgbt_protocol_formal_a2_a4_v2.json"
+  },
+  "evidence_paths": [
+    "docs/research/v25/gate_k/A2_BASELINE_V3_REPORT.md",
+    "docs/research/v25/gate_k/formal_a2_baseline_v3_candidate.json",
+    "docs/research/v25/gate_k/K2C_DATASET_FREEZE.json",
+    "docs/research/v25/gate_k/DECISION_ACCEPT_A2_V3_FREEZE_A2_A4_V2.json"
+  ]
+}

@@ -1,0 +1,228 @@
+{
+  "gate": "GATE_J4_CURVE_DIAGNOSIS",
+  "scope": "j3b_seed43_rep1_vs_rep2",
+  "completed_at": "2026-08-02T03:10:39.662516+00:00",
+  "parent_claim": "J3b should not be labeled pure training nondeterminism solely from best-epoch gap; diagnose checkpoint-selection noise vs trajectory divergence.",
+  "executions": {
+    "j3b_rep1": "exec_cceebb5a17a4",
+    "j3b_rep2": "exec_e99fc5803811"
+  },
+  "best_snapshot": {
+    "rep1": {
+      "epoch": 2,
+      "mAP50_95": 0.05988165227161271,
+      "last": 0.024335679403732526
+    },
+    "rep2": {
+      "epoch": 8,
+      "mAP50_95": 0.05029766160836068,
+      "last": 0.03418924149075061
+    },
+    "best_mAP_abs_diff": 0.00958399066325203,
+    "best_epoch_abs_diff": 6,
+    "order_hash_match": true
+  },
+  "curve_correlations": {
+    "train_loss": {
+      "pearson": 0.9987173174807463,
+      "spearman": 1.0,
+      "mae": 0.11138172665069206,
+      "max_abs_diff": 0.2601082070697238
+    },
+    "loss_vfl": {
+      "pearson": 0.9946839727000916,
+      "spearman": 0.9984962406015038,
+      "mae": 0.006158911522510646,
+      "max_abs_diff": 0.030444043452437786
+    },
+    "loss_bbox": {
+      "pearson": 0.9994069529384944,
+      "spearman": 1.0,
+      "mae": 0.00192770044367679,
+      "max_abs_diff": 0.005109208268546016
+    },
+    "loss_giou": {
+      "pearson": 0.9996084954729795,
+      "spearman": 1.0,
+      "mae": 0.010259027643627985,
+      "max_abs_diff": 0.02152437243630978
+    },
+    "mAP50_95": {
+      "pearson": -0.376802660890132,
+      "spearman": -0.41654135338345866,
+      "mae": 0.01671025691189716,
+      "max_abs_diff": 0.032982285822781586
+    },
+    "mAP50": {
+      "pearson": -0.09882929396202617,
+      "spearman": -0.4481203007518797,
+      "mae": 0.043807089993963974,
+      "max_abs_diff": 0.09756099831722373
+    },
+    "AP75": {
+      "pearson": -0.3875222858482025,
+      "spearman": -0.06917293233082707,
+      "mae": 0.008855990202883406,
+      "max_abs_diff": 0.019594710770937128
+    },
+    "APS": {
+      "pearson": -0.3874290087573445,
+      "spearman": -0.5112781954887218,
+      "mae": 0.017217728870401242,
+      "max_abs_diff": 0.03833416702034
+    },
+    "lr": {
+      "pearson": 1.0,
+      "spearman": 1.0000000000000002,
+      "mae": 0.0,
+      "max_abs_diff": 0.0
+    }
+  },
+  "windows": {
+    "best_pm2_rep1_centered": {
+      "center": 2,
+      "rep1": 0.03648340100494296,
+      "rep2": 0.03718141642717964,
+      "abs_diff": 0.0006980154222366794
+    },
+    "best_pm2_rep2_centered": {
+      "center": 8,
+      "rep1": 0.019598861629700114,
+      "rep2": 0.03808829471949561,
+      "abs_diff": 0.018489433089795497
+    },
+    "last5_mean": {
+      "rep1": 0.02363921989529571,
+      "rep2": 0.03660991777900622,
+      "abs_diff": 0.01297069788371051
+    },
+    "top3_mean": {
+      "rep1": 0.04368812793664936,
+      "rep2": 0.047586888147980656,
+      "abs_diff": 0.003898760211331294
+    }
+  },
+  "topk": {
+    "top5_epochs_rep1": [
+      2,
+      1,
+      5,
+      20,
+      17
+    ],
+    "top5_epochs_rep2": [
+      8,
+      3,
+      5,
+      4,
+      7
+    ],
+    "top5_overlap": [
+      5
+    ],
+    "top5_jaccard": 0.1111111111111111,
+    "near_best_tol_0.01_rep1": [
+      2
+    ],
+    "near_best_tol_0.01_rep2": [
+      3,
+      5,
+      8
+    ]
+  },
+  "fixed_epoch": [
+    {
+      "epoch": 5,
+      "rep1_mAP50_95": 0.026090158730018142,
+      "rep2_mAP50_95": 0.044111219640066826,
+      "abs_diff": 0.018021060910048684,
+      "rep1_train_loss": 18.39427947168443,
+      "rep2_train_loss": 18.468001391496916,
+      "loss_abs_diff": 0.07372191981248477
+    },
+    {
+      "epoch": 10,
+      "rep1_mAP50_95": 0.018794584909528154,
+      "rep2_mAP50_95": 0.03673351159182869,
+      "abs_diff": 0.017938926682300533,
+      "rep1_train_loss": 16.787702739834227,
+      "rep2_train_loss": 16.859057849518386,
+      "loss_abs_diff": 0.07135510968415915
+    },
+    {
+      "epoch": 15,
+      "rep1_mAP50_95": 0.023675954454036953,
+      "rep2_mAP50_95": 0.034961666309612234,
+      "abs_diff": 0.011285711855575281,
+      "rep1_train_loss": 15.722031306215342,
+      "rep2_train_loss": 15.69758199032681,
+      "loss_abs_diff": 0.02444931588853194
+    },
+    {
+      "epoch": 20,
+      "rep1_mAP50_95": 0.024335679403732526,
+      "rep2_mAP50_95": 0.03418924149075061,
+      "abs_diff": 0.009853562087018083,
+      "rep1_train_loss": 14.843847933403964,
+      "rep2_train_loss": 14.768389282304325,
+      "loss_abs_diff": 0.07545865109963934
+    }
+  ],
+  "early_divergence": [
+    {
+      "epoch": 1,
+      "map_diff": 0.019505917818457258,
+      "loss_diff": 0.17876382317563255
+    },
+    {
+      "epoch": 2,
+      "map_diff": 0.024825202119920516,
+      "loss_diff": 0.10202653127655026
+    },
+    {
+      "epoch": 3,
+      "map_diff": 0.02836426226153298,
+      "loss_diff": 0.04453634720548649
+    }
+  ],
+  "missing_metrics": [
+    "precision",
+    "recall",
+    "preds@0.1"
+  ],
+  "missing_note": "training_history.csv lacks precision/recall/preds@0.1; loss_vfl used as classification-loss proxy.",
+  "notes": [
+    "order_hash matched; best |\u0394|mAP=0.0096 \u2264 0.01; best-epoch |\u0394|=6.",
+    "train_loss / loss_bbox / loss_giou / loss_vfl curves are highly correlated.",
+    "Both runs show an early high mAP spike then collapse to a lower plateau (~0.02\u20130.03), so best-on-val is selecting a brief noisy peak rather than a flat near-best band.",
+    "Fixed-epoch and last-5 means are close; top-5 epoch overlap may be limited because peaks are short-lived spikes on a noisy small-val curve.",
+    "precision/recall/preds@0.1 were not logged in training_history.csv."
+  ],
+  "decision": "caseC_metric_reproducible_checkpoint_unstable",
+  "decision_support": {
+    "supports_caseC": true,
+    "needs_cuda_hunt": false,
+    "loss_pearson": 0.9987173174807463,
+    "map_pearson": -0.376802660890132,
+    "fixed_epoch_max_map_diff": 0.018021060910048684,
+    "last5_mean_map_diff": 0.01297069788371051,
+    "top3_mean_map_diff": 0.003898760211331294,
+    "train_loss_mae": 0.11138172665069206
+  },
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "revised_j3b_interpretation": {
+    "reject": "caseB_still_nondeterministic as sole label",
+    "prefer": "caseC_metric_reproducible_checkpoint_unstable",
+    "rationale": "Same-seed final/best mAP within 0.01 and matched order_hash; residual failure is best-on-val peak timing on a small-val noisy curve, not evidence of large final capability drift."
+  },
+  "checkpoint_policy_recommendation": [
+    "primary_report_last_epoch_20",
+    "auxiliary_report_best_on_val",
+    "report_best_minus_last_gap",
+    "optional_smoothed_best_or_larger_val_before_formal_freeze"
+  ],
+  "next": "Do not deep-dive CUDA now. Freeze revised checkpoint/repro protocol (prefer last@20 + best aux + best-last gap); keep A4/P01 blocked until protocol freeze."
+}

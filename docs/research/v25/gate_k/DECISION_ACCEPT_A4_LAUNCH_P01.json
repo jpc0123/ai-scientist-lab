@@ -1,0 +1,51 @@
+{
+  "decision_id": "decision_accept_a4_launch_p01_2026-08-07",
+  "question": "After Formal A2 vs A4 v2 three-seed strong consistent gain, accept A4 and open P01?",
+  "verdict": "accept_a4_formal_candidate_method__launch_p01_residual_scale_only",
+  "action": "launch_experiment",
+  "canonical_actions": ["reuse_baseline", "launch_experiment"],
+  "rejected_alternatives": [
+    "keep_A4_exploratory_only_and_stop",
+    "declare_significant_or_SOTA",
+    "open_P01_while_also_changing_data_or_scheduler_or_fusion",
+    "reopen_gated_fusion_P00_style_stack",
+    "further_A2_tuning"
+  ],
+  "reason": "Under frozen formal_a2_a4_v2 (K2-C + original A2 opt + last@20), A4 exceeds A2 on all three seeds (Δlast +0.095/+0.029/+0.049; mean Δ≈+0.058). This upgrades A4 from exploratory structure to formal candidate method. Next smallest question is whether residual_scale α<1 on the same A4 stack yields additional consistent gain — single factor only.",
+  "evidence_paths": [
+    "docs/research/v25/gate_k/FORMAL_A2_A4_V2_COMPARISON.md",
+    "docs/research/v25/gate_k/FORMAL_A2_A4_V2_COMPARISON.json",
+    "docs/research/v25/gate_k/formal_a2_a4_v2_protocol.json",
+    "docs/research/v25/gate_k/formal_a2_baseline_v3_candidate.json"
+  ],
+  "claim_policy": {
+    "allowed": [
+      "Under frozen A2 baseline v3 / formal_a2_a4_v2, A4 (early_concat+FDPN) gains on all three seeds; mean last@20 lift ≈0.058; consistent improvement trend.",
+      "A4 has stable gain vs A2 under the current RGB-T protocol (exploratory_comparison claim level)."
+    ],
+    "disallowed": [
+      "statistically significant improvement (no CI / significance test)",
+      "SOTA",
+      "external public benchmark superiority"
+    ]
+  },
+  "a4_acceptance": {
+    "status": "accepted_formal_candidate_method",
+    "protocol": "protocol_rgbt_formal_a2_a4_v2",
+    "seeds_positive": 3,
+    "mean_delta_last": 0.057716387861385096,
+    "deltas_last": {"42": 0.09542241254508091, "43": 0.028829769834119987, "44": 0.04889698120495439}
+  },
+  "blocked": [
+    "further_A2_tuning",
+    "cosine_now",
+    "K3-B",
+    "gated_fusion_reopen",
+    "changing_dataset_or_scheduler_with_P01",
+    "SOTA_claims",
+    "significance_claims"
+  ],
+  "unblocked": ["P01_residual_scaling_on_A4"],
+  "next_stage": "formal_a4_p01_v1",
+  "next_direction": "Launch P01 seeds 44→43→42: identical to A4 except neck.residual_scale=0.25; enable mechanism diagnostics; judge vs A4 last@20."
+}

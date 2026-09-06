@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/claim.schema.json",
+  "title": "Claim",
+  "description": "Candidate scientific or engineering statement. ClaimGate decides allow/deny. Not a Reviewer KEEP/DISCARD.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_id",
+    "claim_type",
+    "claim_text",
+    "claim_strength"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "claim_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "claim_type": { "$ref": "common.schema.json#/$defs/claim_type" },
+    "claim_text": { "type": "string", "minLength": 1 },
+    "claim_strength": { "$ref": "common.schema.json#/$defs/claim_strength" },
+    "metric": { "$ref": "common.schema.json#/$defs/metric_name" },
+    "run_id": { "type": ["string", "null"] },
+    "asserts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "outperform": { "type": "boolean" },
+        "component_effective": { "type": "boolean" },
+        "module_ineffective": { "type": "boolean" },
+        "sota": { "type": "boolean" },
+        "significance": { "type": "boolean" }
+      }
+    }
+  }
+}

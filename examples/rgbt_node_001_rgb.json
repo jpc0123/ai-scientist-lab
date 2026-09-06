@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.1",
+  "project_id": "project_rgbt_001",
+  "node_id": "rgbt_node_001",
+  "parent_node_id": null,
+  "title": "RGB-T debug baseline RGB-only",
+  "research_goal": "Validate paired RGB-thermal detection execution",
+  "hypothesis": "The RGB-only detection pipeline can complete a smoke training run.",
+  "task_type": "rgbt_detection",
+  "runner_profile": "local",
+  "environment_key": "rgbt-detection-v1",
+  "code_reference": "local:rgbt_detector",
+  "dataset_reference": "dataset:rgbt_debug_v1",
+  "entrypoint": "run_detection_experiment.py",
+  "execution_mode": "smoke_train",
+  "parameters": {
+    "model": "tiny_detector",
+    "input_mode": "rgb",
+    "fusion_method": "none",
+    "epochs": 2,
+    "batch_size": 2,
+    "image_width": 640,
+    "image_height": 512,
+    "smoke_image_width": 160,
+    "smoke_image_height": 128,
+    "learning_rate": 0.01,
+    "num_workers": 0,
+    "max_train_images": 20,
+    "max_val_images": 8
+  },
+  "task_config": {
+    "modalities": ["rgb", "thermal"],
+    "annotation_format": "coco",
+    "primary_metric": "mAP50_95",
+    "metrics": ["mAP50", "mAP50_95", "AP_small", "precision", "recall"],
+    "claim_level": "pipeline_validation_only"
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 4,
+    "timeout_seconds": 600
+  },
+  "expected_outputs": [
+    "dataset_report.json",
+    "metrics.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "training_history.csv",
+    "checkpoint/last.npz",
+    "model_summary.json",
+    "combined.log"
+  ]
+}

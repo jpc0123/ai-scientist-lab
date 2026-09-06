@@ -1,0 +1,288 @@
+{
+  "gate": "K2-C44_audit",
+  "execution_id": "exec_4f4151310027",
+  "created_at": "2026-08-04T13:29:53.231034+00:00",
+  "decision": "audit_pass__launch_seed43",
+  "engineering_anomalies": false,
+  "reeval": {
+    "best": {
+      "logged_train": 0.14317638008409922,
+      "reeval_coco_print": 0.143,
+      "map50_print": 0.299,
+      "aps_print": 0.155,
+      "pass": true,
+      "note": "parser previously misread AP_small=0.155 as all; corrected from log"
+    },
+    "last": {
+      "logged_train": 0.07284228851267373,
+      "reeval_coco_print": 0.073,
+      "map50_print": 0.145,
+      "aps_print": 0.074,
+      "pass": true
+    }
+  },
+  "checkpoint_epoch_alignment": {
+    "best_weights_last_epoch_0based": 1,
+    "best_expected_0based": 1,
+    "best_ok": true,
+    "last_pt_last_epoch_0based": 19,
+    "last_expected_0based": 19,
+    "last_ok": true,
+    "selection_best_epoch": 2,
+    "selection_last_epoch": 20
+  },
+  "val_consistency": {
+    "registered_val_images": 650,
+    "registered_val_anns": 4526,
+    "stage_val_images": 650,
+    "stage_val_anns": 4526,
+    "val_pairs_count": 650,
+    "annotation_hash_registered": "ed818b1b04b08d32db5b5af3689a94774e2b53593e0dc84a8d0a5fd8ca6de4bd",
+    "manifest_hash_val": "bf1f3fab5b5972f14c7d25d0763a46ab60cd273bf80f499176b320028319618a",
+    "freeze_annotation_hash_val": "ed818b1b04b08d32db5b5af3689a94774e2b53593e0dc84a8d0a5fd8ca6de4bd",
+    "freeze_manifest_hash_val": "bf1f3fab5b5972f14c7d25d0763a46ab60cd273bf80f499176b320028319618a",
+    "prediction_audit_batches": 650,
+    "val_aug_in_config": "only Resize+ConvertPILImage (no RandomFlip)",
+    "hash_match_ann": true,
+    "hash_match_manifest": true,
+    "counts_match_stage": true
+  },
+  "curve_morphology": {
+    "class": "B",
+    "best_epoch": 2,
+    "best": 0.14317638008409922,
+    "last": 0.07284228851267373,
+    "gap": 0.07033409157142549,
+    "ep1_5_mean": 0.12711486309548703,
+    "ep2_8_min": 0.10845956585518078,
+    "ep2_8_max": 0.14317638008409922,
+    "last5_mean": 0.05820605623134123,
+    "sign_flips": 10,
+    "interpretation": "B: ep2 peak starts a high band (~0.11-0.14 through ep8), then soft mid/late decline to ~0.07; not a single-point spike-only nor irregular oscillation."
+  },
+  "curve": [
+    {
+      "epoch": 1,
+      "mAP50_95": 0.11837715554487532,
+      "mAP50": 0.2593036738450227,
+      "train_loss": 22.419114284186165,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 1
+    },
+    {
+      "epoch": 2,
+      "mAP50_95": 0.14317638008409922,
+      "mAP50": 0.2985519292467027,
+      "train_loss": 20.813010427344786,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 2
+    },
+    {
+      "epoch": 3,
+      "mAP50_95": 0.13349696225327037,
+      "mAP50": 0.2919545698789042,
+      "train_loss": 19.92642471219198,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 3
+    },
+    {
+      "epoch": 4,
+      "mAP50_95": 0.12688371201716647,
+      "mAP50": 0.2924954793587595,
+      "train_loss": 19.38466954257939,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 4
+    },
+    {
+      "epoch": 5,
+      "mAP50_95": 0.11364010557802381,
+      "mAP50": 0.2773633774939387,
+      "train_loss": 19.004261874005195,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 5
+    },
+    {
+      "epoch": 6,
+      "mAP50_95": 0.11289902008394662,
+      "mAP50": 0.2722392789367236,
+      "train_loss": 18.740275416158784,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 6
+    },
+    {
+      "epoch": 7,
+      "mAP50_95": 0.10845956585518078,
+      "mAP50": 0.2680667208310432,
+      "train_loss": 18.51971855368351,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 7
+    },
+    {
+      "epoch": 8,
+      "mAP50_95": 0.11951651111913271,
+      "mAP50": 0.2935890947892605,
+      "train_loss": 18.299669888448516,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 8
+    },
+    {
+      "epoch": 9,
+      "mAP50_95": 0.1062067057186064,
+      "mAP50": 0.2714894417187633,
+      "train_loss": 18.096777043526604,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 9
+    },
+    {
+      "epoch": 10,
+      "mAP50_95": 0.11595406193626336,
+      "mAP50": 0.2693107260244766,
+      "train_loss": 17.976917506666002,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 10
+    },
+    {
+      "epoch": 11,
+      "mAP50_95": 0.10917531495913105,
+      "mAP50": 0.24365695905501825,
+      "train_loss": 17.800231975211776,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 11
+    },
+    {
+      "epoch": 12,
+      "mAP50_95": 0.07316340032297643,
+      "mAP50": 0.1508338477641806,
+      "train_loss": 17.62296490346258,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 12
+    },
+    {
+      "epoch": 13,
+      "mAP50_95": 0.07327343922112646,
+      "mAP50": 0.1383629179201728,
+      "train_loss": 17.50575801736008,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 13
+    },
+    {
+      "epoch": 14,
+      "mAP50_95": 0.06940778576404566,
+      "mAP50": 0.12843884811483933,
+      "train_loss": 17.409039442943,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 14
+    },
+    {
+      "epoch": 15,
+      "mAP50_95": 0.06495862727660666,
+      "mAP50": 0.12422310342960612,
+      "train_loss": 17.272430265807216,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 15
+    },
+    {
+      "epoch": 16,
+      "mAP50_95": 0.050515374167211295,
+      "mAP50": 0.09800972656817636,
+      "train_loss": 17.159629502400026,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 16
+    },
+    {
+      "epoch": 17,
+      "mAP50_95": 0.05695163348222529,
+      "mAP50": 0.1182531822705562,
+      "train_loss": 17.02690147761175,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 17
+    },
+    {
+      "epoch": 18,
+      "mAP50_95": 0.05001784218381824,
+      "mAP50": 0.12233975390372569,
+      "train_loss": 16.92617948440515,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 18
+    },
+    {
+      "epoch": 19,
+      "mAP50_95": 0.06070314281077763,
+      "mAP50": 0.13088444107016226,
+      "train_loss": 16.89104378180504,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 19
+    },
+    {
+      "epoch": 20,
+      "mAP50_95": 0.07284228851267373,
+      "mAP50": 0.14549104790075876,
+      "train_loss": 16.81823895557074,
+      "backbone_actual_lr": 0.0001,
+      "non_backbone_actual_lr": 0.0002,
+      "scheduler_last_epoch": 20
+    }
+  ],
+  "endpoint_prediction_audit": {
+    "ok": true,
+    "prediction_count": 195000,
+    "prediction_count_score_ge_0_1": 27019,
+    "nonzero_box_count": 195000,
+    "batches": 650,
+    "error": null,
+    "score_threshold_for_dump": 0.05
+  },
+  "data_comparison_caveat": {
+    "val_changed": true,
+    "gate_h_val_sequences": 10,
+    "k2c_val_sequences": 13,
+    "added_val_sequences": [
+      "DJI_0115_2",
+      "DJI_0229_2",
+      "DJI_0309_1"
+    ],
+    "retained_gate_h_val": [
+      "DJI_0085_2",
+      "DJI_0089_2",
+      "DJI_0125_1",
+      "DJI_0157_2",
+      "DJI_0273_1",
+      "DJI_0273_3",
+      "DJI_0279_2",
+      "DJI_0287_2",
+      "DJI_0293_1",
+      "DJI_0341_2"
+    ],
+    "claim_allowed": "In expanded K2-C data protocol, seed44 fixed endpoint reached 0.073, clearly above the preset stability floor. Do NOT claim strict +0.051 on the identical Gate-H val set."
+  },
+  "routing": {
+    "next": "launch_k2c_seed43_identical_protocol",
+    "mark": null,
+    "blocked": [
+      "A4",
+      "P01",
+      "cosine_now",
+      "K3-B",
+      "change_lr_warmup_scheduler_checkpoint"
+    ]
+  }
+}

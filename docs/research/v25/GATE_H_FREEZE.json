@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "curve_healthy": true,
+  "decision": "freeze_formal_a2_multiseed_candidates",
+  "execution_id": "exec_4088755cafc6",
+  "claim_authority": "baseline_probe",
+  "allow_multiseed": true,
+  "allow_40ep_extension": false
+}

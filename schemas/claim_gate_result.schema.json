@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/claim_gate_result.schema.json",
+  "title": "ClaimGateResult",
+  "description": "Deterministic ClaimGate verdict. KEEP ≠ Claim. Does not decide next-round action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_id",
+    "claim_type",
+    "claim_text",
+    "claim_strength",
+    "status",
+    "reason",
+    "required_evidence",
+    "evidence_refs"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "claim_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "claim_type": { "$ref": "common.schema.json#/$defs/claim_type" },
+    "claim_text": { "type": "string", "minLength": 1 },
+    "claim_strength": { "$ref": "common.schema.json#/$defs/claim_strength" },
+    "status": { "$ref": "common.schema.json#/$defs/claim_gate_status" },
+    "reason": { "type": "string", "minLength": 1 },
+    "required_evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 0
+    },
+    "run_level": { "$ref": "common.schema.json#/$defs/budget_class" },
+    "review_decision": {
+      "type": ["string", "null"],
+      "description": "Copied for audit. Must not determine status."
+    },
+    "keep_is_not_claim": { "type": "boolean", "const": true },
+    "scientific_outcome": { "$ref": "common.schema.json#/$defs/scientific_outcome" }
+  }
+}

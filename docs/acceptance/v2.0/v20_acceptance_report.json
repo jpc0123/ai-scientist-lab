@@ -1,0 +1,211 @@
+{
+  "version": "v2.0.0",
+  "tag_target": "v2.0.0",
+  "package_version": "2.0.0",
+  "passed": 30,
+  "total": 30,
+  "groups": {
+    "A": {
+      "passed": 5,
+      "total": 5
+    },
+    "B": {
+      "passed": 5,
+      "total": 5
+    },
+    "C": {
+      "passed": 5,
+      "total": 5
+    },
+    "D": {
+      "passed": 7,
+      "total": 7
+    },
+    "E": {
+      "passed": 8,
+      "total": 8
+    }
+  },
+  "results": [
+    {
+      "group": "A",
+      "name": "A1-workbench-scripts",
+      "ok": true,
+      "detail": "install/start/stop/doctor scripts"
+    },
+    {
+      "group": "A",
+      "name": "A2-api-health",
+      "ok": true,
+      "detail": "version=v2.0.0"
+    },
+    {
+      "group": "A",
+      "name": "A3-web-entrypoint",
+      "ok": true,
+      "detail": "web/index.html or dist"
+    },
+    {
+      "group": "A",
+      "name": "A4-db-and-doctor",
+      "ok": true,
+      "detail": "overall=warning version=v2.0.0"
+    },
+    {
+      "group": "A",
+      "name": "A5-system-doctor-security",
+      "ok": true,
+      "detail": "overall=ok"
+    },
+    {
+      "group": "B",
+      "name": "B6-create-project",
+      "ok": true,
+      "detail": "project_id=project_6dcfb642186c status=ready"
+    },
+    {
+      "group": "B",
+      "name": "B7-datasets-list",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "group": "B",
+      "name": "B8-create-protocol",
+      "ok": true,
+      "detail": "protocol_digits_demo_001"
+    },
+    {
+      "group": "B",
+      "name": "B9-baseline-via-demo",
+      "ok": true,
+      "detail": "nodes=2"
+    },
+    {
+      "group": "B",
+      "name": "B10-project-status-ready",
+      "ok": true,
+      "detail": "status=ready"
+    },
+    {
+      "group": "C",
+      "name": "C11-run-or-seed-executions",
+      "ok": true,
+      "detail": "count=6 (seeded offline; Docker not required)"
+    },
+    {
+      "group": "C",
+      "name": "C12-show-execution",
+      "ok": true,
+      "detail": "status=200 attempt_id=accept_node_003_s42"
+    },
+    {
+      "group": "C",
+      "name": "C13-aggregate-node",
+      "ok": true,
+      "detail": "keys=['aggregate_metrics', 'aggregate_path', 'aggregation_policy', 'executions', 'node_id', 'primary_metric', 'project_id', 'seed_count']"
+    },
+    {
+      "group": "C",
+      "name": "C14-compare-nodes",
+      "ok": true,
+      "detail": "keys=['baseline_execution_id', 'baseline_node_id', 'candidate_execution_id', 'candidate_node_id', 'compare_mode', 'conclusion', 'conclusion_label', 'conclusion_note', 'execution_a', 'execution_b']"
+    },
+    {
+      "group": "C",
+      "name": "C15-feedback",
+      "ok": true,
+      "detail": "keys=['baseline_node_id', 'candidate_node_id', 'claim_restrictions', 'comparison_summary', 'engineering_findings', 'evidence_gaps', 'evidence_strength', 'feedback_path', 'group_comparison_path', 'hypothesis_status']"
+    },
+    {
+      "group": "D",
+      "name": "D16-planner-candidates",
+      "ok": true,
+      "detail": "plan_id=plan_0676946143d5 valid=3"
+    },
+    {
+      "group": "D",
+      "name": "D17-critic-review",
+      "ok": true,
+      "detail": "status=reviewed"
+    },
+    {
+      "group": "D",
+      "name": "D18-human-approve-candidate",
+      "ok": true,
+      "detail": "candidate=candidate_1d370b33c04d"
+    },
+    {
+      "group": "D",
+      "name": "D19-generate-contract",
+      "ok": true,
+      "detail": "D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v20\\main_outputs\\project_rgbt_003\\plans\\plan_0676946143d5\\candidate_1d370b33c04d_rgbt_formal_node_004_contract.json"
+    },
+    {
+      "group": "D",
+      "name": "D20-create-iteration",
+      "ok": true,
+      "detail": "iteration=iter_bbae1ac2c6b6"
+    },
+    {
+      "group": "D",
+      "name": "D21-tree-advance",
+      "ok": true,
+      "detail": "status=advanced advanced=1"
+    },
+    {
+      "group": "D",
+      "name": "D22-evidence-claim",
+      "ok": true,
+      "detail": "evidence_keys=['project_id', 'evidence_ids', 'records', 'evidence_dir'] claims=5"
+    },
+    {
+      "group": "E",
+      "name": "E23-build-report",
+      "ok": true,
+      "detail": "report_id=report_313df85fb510"
+    },
+    {
+      "group": "E",
+      "name": "E24-verify-report",
+      "ok": true,
+      "detail": "keys=['blocking_issues', 'conclusion_count', 'forbidden_phrase_list', 'project_id', 'report_id', 'valid', 'warnings']"
+    },
+    {
+      "group": "E",
+      "name": "E25-build-audit",
+      "ok": true,
+      "detail": "bundle_id=audit_cb2ae981b2e1"
+    },
+    {
+      "group": "E",
+      "name": "E26-export-import-project",
+      "ok": true,
+      "detail": "path=D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v20\\export\\demo_digits_v20_bundle.json nodes=2"
+    },
+    {
+      "group": "E",
+      "name": "E27-recover-dry-run",
+      "ok": true,
+      "detail": "keys=['action_count', 'actions', 'applied_count', 'dry_run', 'message', 'policy']"
+    },
+    {
+      "group": "E",
+      "name": "E28-frontend-key-pages",
+      "ok": true,
+      "detail": "missing=[]"
+    },
+    {
+      "group": "E",
+      "name": "E29-no-arbitrary-shell-api",
+      "ok": true,
+      "detail": "shell_paths=[]"
+    },
+    {
+      "group": "E",
+      "name": "E30-focused-regression",
+      "ok": true,
+      "detail": "ages\\fastapi\\testclient.py:1\n  D:\\AI Scientist_tiao\\scientist-lab\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n    from starlette.testclient import TestClient as TestClient  # noqa\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n15 passed, 1 warning in 4.23s\n"
+    }
+  ]
+}

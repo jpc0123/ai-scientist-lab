@@ -1,0 +1,63 @@
+{
+  "exporter_version": "atdp6_v1",
+  "reward_export_version": "contrast_v1",
+  "run_id": "run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c",
+  "reconstructed": false,
+  "contrast_label": "seed_contrast",
+  "bucket": "sft_positive",
+  "training_eligible": true,
+  "high_trust_sft": true,
+  "machine": {
+    "anchor": {
+      "how_id": "F3",
+      "how_zh": "可见光、热成像各走一路，再用门控融合",
+      "seeds": [
+        43
+      ],
+      "dataset_id": "rgbt_tiny_v1",
+      "slice_id": "low_light_subset_v1",
+      "budget_class": "formal",
+      "stop": false,
+      "status": "success",
+      "missing": false,
+      "parent_run_id": "run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c"
+    },
+    "plan": {
+      "how_id": "F3",
+      "how_zh": "可见光、热成像各走一路，再用门控融合",
+      "seeds": [
+        44
+      ],
+      "dataset_id": "rgbt_tiny_v1",
+      "slice_id": "low_light_subset_v1",
+      "budget_class": "formal",
+      "stop": false
+    },
+    "executed": {
+      "how_id": "F3",
+      "how_zh": "可见光、热成像各走一路，再用门控融合",
+      "seeds": [
+        44
+      ],
+      "dataset_id": "rgbt_tiny_v1",
+      "slice_id": "low_light_subset_v1",
+      "budget_class": "formal",
+      "stop": false
+    }
+  },
+  "story": {
+    "see": "上一轮已经用「可见光、热成像各走一路，再用门控融合」（F3）跑过了，随机种子 [43]。数据 rgbt_tiny_v1，切片 low_light_subset_v1，预算档 formal。协议规定不能改数据集/切片。只能从已接好的做法里做单变量对照。",
+    "decide": "决定保持「可见光、热成像各走一路，再用门控融合」（F3），只换种子为 [44]。",
+    "happen": "实际执行 F3/[44]，与计划一致。评审 KEEP。声称闸门 BLOCKED（KEEP ≠ 声称成立）。"
+  },
+  "reward_export": {
+    "version": "contrast_v1",
+    "r": 1.0,
+    "note": "contrast rule score; not APS / mAP"
+  },
+  "gate": {
+    "training_eligible": true,
+    "human_gate_confirmed": true,
+    "status": "HUMAN_REQUIRED"
+  }
+}

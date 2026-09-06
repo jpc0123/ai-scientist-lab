@@ -1,0 +1,19 @@
+{
+  "origin_run_dir": ".run/real_fast_eval_m4_rounds3",
+  "exam_point": "after_round1_DISCARD",
+  "round1_run_id": "run_plan_round1_neck_hr",
+  "round1_exec": "exec_ef974841f0b8",
+  "review_decision": "DISCARD",
+  "lesson_id": "LESSON-run_plan_round1_neck_hr-001",
+  "strategy_id": "STRATEGY-run_plan_round1_neck_hr-001",
+  "discarded_module": "neck",
+  "gpu_metrics_aps": 0.0,
+  "control_baseline_aps": 0.6,
+  "primary_delta": -0.6,
+  "note": "Slim copy of frozen M4 rounds3 Round1 DISCARD. Metrics blobs and full .run/ omitted. baseline APS=0.6 is labeled synthetic_control, not a GPU metric from this campaign.",
+  "historical_rules_dead_cycle": {
+    "round2_selected": "fusion",
+    "round3_selected": "neck",
+    "meaning": "Rules Planner flipped neck->fusion->neck after consecutive DISCARDs (editable[0] after removing the last discarded token)."
+  }
+}

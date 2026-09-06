@@ -1,0 +1,429 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/common.schema.json",
+  "title": "ScientistLabCommon",
+  "description": "Shared enums and fragments for Autonomous Research Loop (Architecture Freeze).",
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{7,64}$"
+    },
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{16,128}$"
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["auto", "approval_required", "forbidden"]
+    },
+    "budget_class": {
+      "type": "string",
+      "enum": ["probe", "validation", "formal"]
+    },
+    "run_state": {
+      "type": "string",
+      "description": "Orchestration fact for one ExperimentRun. Not a scientific decision.",
+      "enum": [
+        "CREATED",
+        "PLANNED",
+        "MATERIALIZED",
+        "GATED",
+        "CONTRACTED",
+        "APPROVED",
+        "RUNNING",
+        "COMPLETED",
+        "FAILED",
+        "BLOCKED",
+        "MEMORY_WRITTEN",
+        "STOPPED"
+      ]
+    },
+    "evidence_status": {
+      "type": "string",
+      "description": "Whether results are eligible for scientific review.",
+      "enum": ["PENDING", "NOT_APPLICABLE", "VALID", "INVALID", "INCOMPLETE"]
+    },
+    "review_decision": {
+      "type": "string",
+      "description": "Scientific next-action after VALID evidence. Not 1:1 with scientific_outcome.",
+      "enum": [
+        "PENDING",
+        "KEEP",
+        "DISCARD",
+        "REPLICATE",
+        "VALIDATE",
+        "ESCALATE",
+        "STOP"
+      ]
+    },
+    "scientific_outcome": {
+      "type": "string",
+      "description": "Read-only projection from run_state + evidence + metrics. No independent evaluator. Not 1:1 with review_decision.",
+      "enum": ["POSITIVE", "NEGATIVE", "INCONCLUSIVE", "NOT_EVALUATED"]
+    },
+    "orchestration_action": {
+      "type": "string",
+      "description": "Manager-facing next actions derived from state facts.",
+      "enum": [
+        "NEED_PLAN",
+        "NEED_MATERIALIZE",
+        "NEED_GATE",
+        "NEED_HUMAN",
+        "NEED_EXECUTION",
+        "NEED_PARSE",
+        "NEED_EVIDENCE_CHECK",
+        "NEED_REVIEW",
+        "NEED_MEMORY",
+        "RETRY_EXECUTION",
+        "NEXT_ROUND",
+        "STOP",
+        "PROTOCOL_AMENDMENT_REQUIRED",
+        "NOVELTY_EXHAUSTED"
+      ]
+    },
+    "metric_name": {
+      "type": "string",
+      "minLength": 1,
+      "examples": ["APS", "mAP50_95", "mAP50", "AP_small", "params_m", "flops_g"]
+    },
+    "metric_direction": {
+      "type": "string",
+      "enum": ["maximize", "minimize"]
+    },
+    "metric_goal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "direction"],
+      "properties": {
+        "metric": { "$ref": "#/$defs/metric_name" },
+        "direction": { "$ref": "#/$defs/metric_direction" }
+      }
+    },
+    "scope_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Editable/frozen scope token, e.g. neck, fusion, evaluator.",
+      "examples": [
+        "fusion",
+        "neck",
+        "loss",
+        "optimizer",
+        "hyperparameter",
+        "augmentation",
+        "dataset_split",
+        "evaluator",
+        "metric_definition"
+      ]
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/metric_goal" },
+        "secondary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metric_goal" },
+          "default": []
+        }
+      }
+    },
+    "numeric_bound": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max": { "type": "number" },
+        "min": { "type": "number" }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "params_m": { "$ref": "#/$defs/numeric_bound" },
+        "flops_g": { "$ref": "#/$defs/numeric_bound" },
+        "gpu_memory_gb": { "$ref": "#/$defs/numeric_bound" },
+        "max_runtime": { "type": "string", "description": "e.g. 12h or 43200s" }
+      }
+    },
+    "decision_policy": {
+      "type": "object",
+      "description": "Deterministic DecisionRubric thresholds. Reviewer explains after rules fire.",
+      "additionalProperties": false,
+      "properties": {
+        "keep_requires": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary_not_worse_than": { "type": "number" }
+          }
+        },
+        "validate_if": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary_gain_at_least": { "type": "number" }
+          }
+        },
+        "discard_if": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary_worse_than": { "type": "number" }
+          }
+        }
+      }
+    },
+    "stop_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_rounds": { "type": "integer", "minimum": 1 },
+        "max_consecutive_discards": { "type": "integer", "minimum": 1 },
+        "max_execution_failures": { "type": "integer", "minimum": 1 },
+        "stop_if_no_improvement_for": { "type": "integer", "minimum": 1 },
+        "max_duplicate_plan_rejects": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Consecutive highly-duplicate plans rejected → NOVELTY_EXHAUSTED"
+        }
+      }
+    },
+    "pass_fail": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "NOT_CHECKED"]
+    },
+    "objective_check": {
+      "type": "object",
+      "description": "DecisionRubric numeric comparison. Not a scientific KEEP/DISCARD.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["baseline", "current", "delta"],
+        "properties": {
+          "baseline": { "type": ["number", "null"] },
+          "current": { "type": ["number", "null"] },
+          "delta": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "constraint_check": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/pass_fail"
+      }
+    },
+    "memory_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lesson_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "default": []
+        },
+        "strategy_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "default": []
+        }
+      }
+    },
+    "lesson_type": {
+      "type": "string",
+      "enum": [
+        "positive_evidence",
+        "negative_evidence",
+        "inconclusive",
+        "constraint_violation",
+        "process"
+      ]
+    },
+    "lesson_status": {
+      "type": "string",
+      "enum": ["active", "superseded", "expired", "contradicted"]
+    },
+    "research_lesson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lesson_id",
+        "type",
+        "statement",
+        "status",
+        "evidence",
+        "created_from"
+      ],
+      "properties": {
+        "lesson_id": { "$ref": "#/$defs/non_empty_string" },
+        "type": { "$ref": "#/$defs/lesson_type" },
+        "statement": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/lesson_status" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["run_id"],
+            "properties": {
+              "run_id": { "$ref": "#/$defs/non_empty_string" },
+              "metric": { "$ref": "#/$defs/metric_name" },
+              "delta": { "type": ["number", "null"] }
+            }
+          }
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "task": { "type": "string" },
+            "module": { "type": "string" }
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "created_from": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "contradicted_by": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "default": []
+        },
+        "supersedes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "default": []
+        },
+        "expires_when": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        }
+      }
+    },
+    "strategy_action": {
+      "type": "string",
+      "enum": ["prioritize", "deprioritize", "ban", "keep"]
+    },
+    "strategy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy_id", "action", "target", "reason_lesson_ids", "status"],
+      "properties": {
+        "strategy_id": { "$ref": "#/$defs/non_empty_string" },
+        "action": { "$ref": "#/$defs/strategy_action" },
+        "target": { "$ref": "#/$defs/non_empty_string" },
+        "reason_lesson_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "status": { "type": "string", "enum": ["active", "retired"] }
+      }
+    },
+    "decision_summary": {
+      "type": "object",
+      "description": "Structured decision rationale. Not hidden thought / CoT.",
+      "additionalProperties": false,
+      "properties": {
+        "problem_observed": { "type": "string" },
+        "hypothesis": { "type": "string" },
+        "candidate_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "selected_action": { "type": "string" },
+        "decision_basis": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "expected_effect": { "type": "string" },
+        "risk": { "type": "string" }
+      }
+    },
+    "phase": {
+      "type": "string",
+      "description": "Research stage, not actor identity.",
+      "enum": ["planning", "experiment", "review", "governance"]
+    },
+    "actor_role": {
+      "type": "string",
+      "enum": [
+        "human",
+        "manager",
+        "planner",
+        "reviewer",
+        "executor",
+        "adapter",
+        "gate",
+        "system"
+      ]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "plan_proposal",
+        "materialize",
+        "gate_decision",
+        "human_governance",
+        "tool_call",
+        "execution",
+        "metrics_parsed",
+        "evidence_check",
+        "review_decision",
+        "strategy_revision",
+        "memory_write",
+        "fingerprint_check",
+        "claim_gate"
+      ]
+    },
+    "signal_level": {
+      "type": "string",
+      "description": "Human-involvement signal for later training buckets. Not autonomy_level.",
+      "enum": ["S0", "S1", "S2", "S3"]
+    },
+    "autonomy_level": {
+      "type": "string",
+      "description": "Autonomy grade. Distinct from signal_level.",
+      "enum": ["A1", "A2", "A3", "A4"]
+    },
+    "canonical_metrics": {
+      "type": "object",
+      "description": "Normalized metrics after ResultParser. Keys are metric names.",
+      "additionalProperties": {
+        "type": ["number", "null"]
+      }
+    },
+    "claim_type": {
+      "type": "string",
+      "description": "Structured claim kind. Not a review_decision.",
+      "enum": [
+        "observational",
+        "comparative",
+        "component_effectiveness",
+        "robustness",
+        "sota"
+      ]
+    },
+    "claim_strength": {
+      "type": "string",
+      "description": "C0 observational … C4 SOTA. Independent of KEEP/DISCARD.",
+      "enum": ["C0", "C1", "C2", "C3", "C4"]
+    },
+    "claim_gate_status": {
+      "type": "string",
+      "description": "What existing Evidence allows the claim text to say. Not next-round action.",
+      "enum": ["BLOCKED", "INCONCLUSIVE", "PARTIALLY_SUPPORTED", "SUPPORTED"]
+    }
+  }
+}

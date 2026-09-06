@@ -1,0 +1,7 @@
+{
+  "APS": 0.6,
+  "mAP50_95": 0.6,
+  "mAP50": 0.6,
+  "source": "synthetic_control_point",
+  "note": "Not a GPU metric from this campaign. Control APS=0.6 is chosen so a real probe APS=0.0 yields delta=-0.6, which is below Protocol discard_if.primary_worse_than=-0.5. Historical recovered fixture recovered_k2c44_best_metrics.json has APS=15.5 and would also DISCARD; 0.6 is the minimal labeled control requested for this run."
+}

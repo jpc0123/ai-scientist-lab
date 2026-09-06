@@ -1,0 +1,5 @@
+{
+  "suite_version": "eval_suite_v1",
+  "expected_schema": "structured_properties_v1",
+  "notes": "Critic expectations are inline; fixtures provide deterministic review text for offline grading."
+}

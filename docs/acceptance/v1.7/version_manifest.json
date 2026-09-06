@@ -1,0 +1,26 @@
+{
+  "version": "v1.7.0",
+  "tag": "v1.7.0",
+  "branch": "feat/v1.7-web-console",
+  "baseline_tag": "v1.6.0",
+  "title": "Scientist Lab Web Console MVP",
+  "principles": [
+    "Local single-user workbench",
+    "All writes via ExperimentService state machines",
+    "No arbitrary shell / terminal",
+    "Patch apply sandbox-only; merge is intent only",
+    "UI confirmations are not authorization"
+  ],
+  "completed_subversions": [
+    "v1.7.1",
+    "v1.7.2",
+    "v1.7.3",
+    "v1.7.4",
+    "v1.7.5",
+    "v1.7.6",
+    "v1.7.7",
+    "v1.7.8"
+  ],
+  "acceptance_script": "scripts/accept_v17.py",
+  "frontend": "web/"
+}

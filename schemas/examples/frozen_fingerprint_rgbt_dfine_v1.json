@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "fingerprint_id": "FP-RGBT-DFINE-V1",
+  "protocol_id": "research_protocol_rgbt_dfine_v1",
+  "protocol_version": 1,
+  "dataset_split_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evaluator_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "metric_definition_hash": "cccccccccccccccccccccccccccccccc",
+  "baseline_config_hash": "dddddddddddddddddddddddddddddddd",
+  "annotation_version": "rgbt_tiny_v1",
+  "data_manifest_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "notes": "Placeholder hashes until Adapter computes live fingerprints in M2."
+}

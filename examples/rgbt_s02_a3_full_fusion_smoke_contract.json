@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.2",
+  "project_id": "project_rgbt_002",
+  "node_id": "rgbt_s02_a3_full_fusion_smoke_001",
+  "parent_node_id": null,
+  "title": "S02 A3 full-fusion gated multiscale Fast Eval smoke",
+  "research_goal": "Verify dual-stream gated multiscale fusion (A3) executes on CUDA Vendor path with FDPN off.",
+  "hypothesis": "Config-driven gated_multiscale completes exploratory Fast Eval smoke; not a scientific comparison.",
+  "task_type": "rgbt_detection",
+  "runner_profile": "remote_gpu_01",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "dataset_reference": "dataset:rgbt_fast_eval_v1",
+  "entrypoint": "run_detection_experiment.py",
+  "execution_mode": "fast_eval",
+  "parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "gated_multiscale",
+    "fusion": {
+      "type": "gated_multiscale",
+      "levels": ["p3", "p4", "p5"],
+      "share_backbone": false,
+      "residual": true
+    },
+    "protocol": "smoke",
+    "epochs": 1,
+    "batch_size": 2,
+    "learning_rate": 0.0002,
+    "image_width": 160,
+    "image_height": 160,
+    "max_train_images": 24,
+    "max_val_images": 12,
+    "num_workers": 0,
+    "mixed_precision": true,
+    "scale_queries_to_tokens": true
+  },
+  "task_config": {
+    "modalities": ["rgb", "thermal"],
+    "annotation_format": "coco",
+    "primary_metric": "mAP50_95",
+    "metrics": ["mAP50", "mAP50_95", "AP_small", "precision", "recall"],
+    "evaluation_scope": "fast_eval_subset",
+    "claim_level": "pipeline_validation_only",
+    "protocol": "smoke",
+    "allow_scientific_claims": false,
+    "experiment_id": "S02_A3_FULL_FUSION_SMOKE"
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 1,
+    "cpu_count": 4,
+    "memory_gb": 8,
+    "timeout_seconds": 3600
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "training_history.csv",
+    "model_summary.json",
+    "resource_usage.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "checkpoint/last.pt",
+    "combined.log",
+    "category_label_map.json",
+    "dfine_spatial_query_budget.json",
+    "rgbt_pair_audit.json",
+    "fusion_module_summary.json"
+  ]
+}

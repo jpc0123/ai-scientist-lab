@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/low_light_subset.schema.json",
+  "title": "LowLightSubsetV1",
+  "description": "Frozen RGB-T low-light condition slice. Not official night labels. LLM cannot rewrite.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "slice_id", "official_labels", "rule", "rule_hash", "llm_may_rewrite"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "slice_id": { "type": "string", "const": "low_light_subset_v1" },
+    "official_labels": { "type": "boolean", "const": false },
+    "rule": { "type": "object" },
+    "rule_hash": { "$ref": "common.schema.json#/$defs/hex_hash" },
+    "threshold": { "type": ["number", "null"] },
+    "membership": { "type": "object" },
+    "counts": { "type": "object" },
+    "membership_hash": { "type": ["string", "null"] },
+    "llm_may_rewrite": { "type": "boolean", "const": false },
+    "amendment": { "type": "string" }
+  }
+}

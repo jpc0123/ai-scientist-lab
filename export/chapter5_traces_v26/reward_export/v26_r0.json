@@ -1,0 +1,8 @@
+{
+  "run_id": "v26_r0",
+  "version": "contrast_v1",
+  "r": null,
+  "contrast_label": "unlabeled",
+  "source_trace": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\v26_r0.jsonl",
+  "note": "sidecar only; research_events.jsonl is unchanged"
+}

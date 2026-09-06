@@ -1,0 +1,21 @@
+{
+  "release": "v1.4.0",
+  "package_version": "1.4.0",
+  "commit": "725db35",
+  "tag": "v1.4.0",
+  "tag_tip_note": "annotated tag points at docs tip that includes this manifest",
+  "acceptance": "scripts/accept_v14.py",
+  "acceptance_result": "17/17 ok",
+  "regression": "306 passed",
+  "default_provider": "mock",
+  "real_llm": false,
+  "real_network_required_for_ci": false,
+  "features": [
+    "OpenAICompatibleProvider + MockTransport",
+    "LLMConfig / OpenAICompatibleConfig key boundary",
+    "RetryPolicy / LLMBudget / ConcurrencyGate / schema repair",
+    "llm-eval suites with real gates",
+    "plan-next/review-plan/tree-plan-next --provider real --allow-network",
+    "context_sanitizer + real_provider_failed fail-closed"
+  ]
+}

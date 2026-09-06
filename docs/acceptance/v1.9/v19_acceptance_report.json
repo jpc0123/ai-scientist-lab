@@ -1,0 +1,107 @@
+{
+  "version": "v1.9.0",
+  "passed": 20,
+  "total": 20,
+  "results": [
+    {
+      "name": "api-health-v19",
+      "ok": true,
+      "detail": "version=v1.9.0"
+    },
+    {
+      "name": "git-adapter-denies-reset-hard",
+      "ok": true,
+      "detail": "args=['reset', '--hard', 'HEAD']"
+    },
+    {
+      "name": "git-adapter-denies-push",
+      "ok": true,
+      "detail": "args=['push', 'origin', 'HEAD']"
+    },
+    {
+      "name": "git-adapter-denies-force-flag",
+      "ok": true,
+      "detail": "args=['merge', '-f', 'HEAD']"
+    },
+    {
+      "name": "openapi-merge-rc-paths",
+      "ok": true,
+      "detail": "missing=[]"
+    },
+    {
+      "name": "frontend-merge-rollback-rc-pages",
+      "ok": true,
+      "detail": "D:\\AI Scientist_tiao\\scientist-lab\\web\\src\\pages\\MergeReleasePages.tsx"
+    },
+    {
+      "name": "merge-profiles-registry",
+      "ok": true,
+      "detail": "ids=['acceptance', 'full_regression', 'smoke', 'syntax', 'unit']"
+    },
+    {
+      "name": "prepare-rejects-missing-patch",
+      "ok": true,
+      "detail": "status=404"
+    },
+    {
+      "name": "prepare-requires-evidence",
+      "ok": true,
+      "detail": "ValueError expected"
+    },
+    {
+      "name": "merge-prepare-worktree",
+      "ok": true,
+      "detail": "status=created mc=mc_45d57d564f06"
+    },
+    {
+      "name": "merge-apply-in-worktree",
+      "ok": true,
+      "detail": "status=preparing"
+    },
+    {
+      "name": "merge-approve-commit-keeps-main-head",
+      "ok": true,
+      "detail": "head=ed13ded9ee5f commit=d0d0c79d0e62"
+    },
+    {
+      "name": "merge-finalize-merged",
+      "ok": true,
+      "detail": "status=merged"
+    },
+    {
+      "name": "merge-rollback-revert",
+      "ok": true,
+      "detail": "status=rolled_back"
+    },
+    {
+      "name": "finalize-auto-rollback-on-failure",
+      "ok": true,
+      "detail": "status=rolled_back auto=True"
+    },
+    {
+      "name": "release-candidate-create-verify",
+      "ok": true,
+      "detail": "rc=rc_aeeb0d1eeaad valid=True"
+    },
+    {
+      "name": "rc-rejects-non-merged-candidate",
+      "ok": true,
+      "detail": "ValueError expected for non-merged MC"
+    },
+    {
+      "name": "merge-test-rejects-unknown-profile",
+      "ok": true,
+      "detail": "ValueError"
+    },
+    {
+      "name": "api-release-candidates-list",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "cli-merge-and-rc-commands",
+      "ok": true,
+      "detail": "cli.py command strings"
+    }
+  ]
+}

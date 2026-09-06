@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_v26_p4_rtdetr_f3",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_rtdetr_transfer_v26",
+  "protocol_version": 1,
+  "parent_run_id": "run_plan_v26_p4_rtdetr_f1",
+  "round_index": 1,
+  "observation": "D-FINE V26.5 kept F3 gated_multiscale over F1 on four seeds. P4 asks whether that fusion strategy transfers when HOW is reimplemented on RT-DETR.",
+  "hypothesis": "Gated multiscale RGB-T fusion (F3) as a strategy — not the D-FINE FDR decoder — can be materialized by the RT-DETR Adapter and compared to RT-DETR F1 on the same low_light_subset_v1 slice.",
+  "modification_scope": ["fusion"],
+  "proposed_changes": [
+    {
+      "target": "fusion",
+      "summary": "Transfer D-FINE F3 strategy: gated_multiscale dual-stream wrap on RT-DETR backbone. Not FDPN, not A4, not F2.",
+      "detail": {"how_id": "F3", "neck_type": "standard", "detector": "rtdetr"}
+    }
+  ],
+  "controlled_variables": [
+    "dataset_split",
+    "evaluator",
+    "metric_definition",
+    "condition_slice",
+    "seed"
+  ],
+  "expected_effect": {
+    "primary_metric": "APS_lowlight",
+    "direction": "increase",
+    "rationale": "Directional transfer test vs RT-DETR F1. ClaimGate stays C0. Not a G3 success claim."
+  },
+  "evaluation": {
+    "method": "full_train",
+    "seeds": [42],
+    "notes": "Same formal budget as P4 F1. APS_lowlight on frozen slice val. LiteratureEvidence cannot enter ClaimGate."
+  },
+  "budget_class": "formal",
+  "risk_level": "auto",
+  "memory_refs": {
+    "lesson_ids": ["LESSON-V26-P4-TRANSFER-001"],
+    "strategy_ids": ["STRATEGY-V26-P4-TRANSFER-001"]
+  },
+  "evidence_runs": ["run_plan_v26_p4_rtdetr_f1"],
+  "bootstrap": false,
+  "how_id": "F3",
+  "rationale": "P4 constitution transfer of F3. Adapter reimplements HOW on RT-DETR. Not LLM discovery of A4."
+}

@@ -1,0 +1,40 @@
+{
+  "ablation_id": "ablation_rgbt_modality_001",
+  "project_id": "project_rgbt_003",
+  "reference_node_id": "rgbt_formal_node_003",
+  "protocol_id": "protocol_rgbt_001",
+  "title": "RGB-T modality ablation (A0/A1/A2)",
+  "controlled_variables": ["input_mode", "fusion_method"],
+  "variants": [
+    {
+      "variant_id": "A0",
+      "title": "RGB-only",
+      "parameter_changes": {
+        "input_mode": "rgb",
+        "fusion_method": "none"
+      },
+      "expected_effect": "Single-modality RGB baseline.",
+      "node_id": "rgbt_formal_node_001"
+    },
+    {
+      "variant_id": "A1",
+      "title": "Thermal-only",
+      "parameter_changes": {
+        "input_mode": "thermal",
+        "fusion_method": "none"
+      },
+      "expected_effect": "Single-modality thermal baseline.",
+      "node_id": "rgbt_formal_node_002"
+    },
+    {
+      "variant_id": "A2",
+      "title": "Early Fusion",
+      "parameter_changes": {
+        "input_mode": "rgbt",
+        "fusion_method": "early_concat"
+      },
+      "expected_effect": "Early-concat RGB-T fusion candidate.",
+      "node_id": "rgbt_formal_node_003"
+    }
+  ]
+}

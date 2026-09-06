@@ -1,0 +1,98 @@
+{
+  "version": "v1.4",
+  "release": "v1.4.0",
+  "offline_acceptance": true,
+  "real_network_called": false,
+  "api_key_required_for_ci": false,
+  "default_provider": "mock",
+  "checks": [
+    {
+      "name": "default-provider-mock",
+      "ok": true,
+      "detail": "provider=mock"
+    },
+    {
+      "name": "mock-without-api-key",
+      "ok": true,
+      "detail": "provider=fake"
+    },
+    {
+      "name": "missing-api-key-error",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "missing-base-url-error",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "missing-model-error",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "real-blocked-without-allow-network",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "plan-next-mock-transport",
+      "ok": true,
+      "detail": "status=verified actual=audit:openai-compatible"
+    },
+    {
+      "name": "real-output-candidate-verifier",
+      "ok": true,
+      "detail": "candidates=1"
+    },
+    {
+      "name": "review-plan-mock-transport",
+      "ok": true,
+      "detail": "status=reviewed"
+    },
+    {
+      "name": "real-fail-closed-no-silent-mock",
+      "ok": true,
+      "detail": "status=real_provider_failed err=RealProviderNotEnabledError"
+    },
+    {
+      "name": "schema-repair-once",
+      "ok": true,
+      "detail": "calls=2 repaired=True"
+    },
+    {
+      "name": "retry-429-then-success",
+      "ok": true,
+      "detail": "calls=2"
+    },
+    {
+      "name": "budget-exceeded-blocks",
+      "ok": true,
+      "detail": "calls=0"
+    },
+    {
+      "name": "no-secret-in-safe-views",
+      "ok": true,
+      "detail": "safe_api_key=[REDACTED] redacted=Authorization=[REDACTED] [REDACTED]"
+    },
+    {
+      "name": "fake-then-replay",
+      "ok": true,
+      "detail": "replay matched fake planner output"
+    },
+    {
+      "name": "tree-plan-next-mock-default",
+      "ok": true,
+      "detail": "status=planned provider=mock"
+    },
+    {
+      "name": "tree-plan-next-real-fail-closed",
+      "ok": true,
+      "detail": "status=real_provider_failed"
+    }
+  ],
+  "passed": 17,
+  "total": 17,
+  "real_llm": false
+}

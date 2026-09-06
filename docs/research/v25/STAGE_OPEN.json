@@ -1,0 +1,36 @@
+{
+  "stage": "v2.5_high_resolution_baseline",
+  "status": "active",
+  "opened_at": "2026-07-29",
+  "parent_archive": "docs/research/v24/",
+  "route": "priority_1_realistic_input_size_plus_reproducible_baseline",
+  "blocked_from_reopening": [
+    "A4_formal_promotion",
+    "P01_formal_multiseed",
+    "gated_plus_fdpn_active_spend"
+  ],
+  "gate_e": {
+    "status": "passed",
+    "experiment_id": "V25_GATE_E_DEBUG40",
+    "execution_id": "exec_d774fd58d6dc",
+    "allow_gate_f": true,
+    "freeze_doc": "GATE_E_FREEZE.json"
+  },
+  "gate_f": {
+    "status": "waiting_for_raw",
+    "dataset": "RGBT-Tiny",
+    "configured_raw": "D:/datasets/RGBT-Tiny/raw",
+    "registered_root": "datasets/registered/rgbt_tiny_v1",
+    "doc": "GATE_F.md",
+    "open_doc": "GATE_F_OPEN.json",
+    "default_subset": true,
+    "split_method": "sequence_level",
+    "path_policy": "hardlink_or_symlink_no_copy"
+  },
+  "next": [
+    "User: apply + download RGBT-Tiny into D:/datasets/RGBT-Tiny/raw",
+    "Run F0 subset registration then F1 probe",
+    "Only after F0+F1 pass: plan formal A2 baseline on registered data",
+    "Do not launch A4/P01 on Gate F path"
+  ]
+}

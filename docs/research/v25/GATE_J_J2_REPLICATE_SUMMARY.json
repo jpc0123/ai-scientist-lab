@@ -1,0 +1,55 @@
+{
+  "gate": "GATE_J_SEED_INSTABILITY_DIAGNOSIS",
+  "phase": "J2_REPLICATE_COMPARE",
+  "completed_at": "2026-07-31T07:34:30.340788+00:00",
+  "rows": {
+    "seed43_original": {
+      "execution_id": "exec_a6f6dff68971",
+      "best_epoch": 3,
+      "mAP50_95": 0.10817447410080037,
+      "mAP50": 0.2261890568007816,
+      "last_mAP50_95": 0.037971074226580484,
+      "best_minus_last": 0.07020339987421989
+    },
+    "seed43_rep1": {
+      "execution_id": "exec_f542d7eea047",
+      "best_epoch": 4,
+      "mAP50_95": 0.07333747401988738,
+      "mAP50": 0.1361518622673711,
+      "last_mAP50_95": 0.013970008620566392,
+      "best_minus_last": 0.05936746539932099
+    },
+    "seed44_original": {
+      "execution_id": "exec_373196093d79",
+      "best_epoch": 15,
+      "mAP50_95": 0.04143016439577045,
+      "mAP50": 0.10661741229116238,
+      "last_mAP50_95": 0.022242537998124878,
+      "best_minus_last": 0.019187626397645572
+    },
+    "seed44_rep1": {
+      "execution_id": "exec_755b00bebeaf",
+      "best_epoch": 5,
+      "mAP50_95": 0.04038283666714197,
+      "mAP50": 0.12442212892217247,
+      "last_mAP50_95": 0.017332450326333487,
+      "best_minus_last": 0.023050386340808485
+    }
+  },
+  "classify": {
+    "seed43": "moderate_replicate_gap",
+    "seed44": "reproducible_near_original"
+  },
+  "decision": "inconclusive_need_j3_j4",
+  "blocked": [
+    "A4",
+    "P01",
+    "pick_best_seed",
+    "drop_seed44_average"
+  ],
+  "next": "Run curve/detection diagnosis before protocol change.",
+  "gaps": {
+    "seed43_abs": 0.03483700008091299,
+    "seed44_abs": 0.0010473277286284777
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "experiment_id": "V25_GATE_E_DEBUG40",
+  "execution_id": "exec_d774fd58d6dc",
+  "audit": "GATE_E_AUDIT.json",
+  "claim_support_matrix": "claim_support_matrix.json",
+  "allow_gate_f": true
+}

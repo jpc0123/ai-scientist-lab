@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0.0",
+  "claim_id": "claim_c4_sota",
+  "claim_type": "sota",
+  "claim_text": "This method is SOTA on RGBT-Tiny APS.",
+  "claim_strength": "C4",
+  "metric": "APS",
+  "asserts": { "sota": true }
+}

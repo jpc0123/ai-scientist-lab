@@ -1,0 +1,23 @@
+{
+  "decision_id": "decision_gate_k1_2026-08-02",
+  "question": "After checkpoint v2, what is the next smallest action for A2 seed instability?",
+  "verdict": "proceed_k2_single_factor_sensitivity",
+  "action": "prepare_and_await_or_launch_k2a_lr_half_on_seeds_43_44",
+  "rejected_alternatives": [
+    "unblock_A4_P01",
+    "jump_to_40_epochs",
+    "change_lr_warmup_and_data_together",
+    "retrain_seed42_first",
+    "deep_cuda_rng_hunt"
+  ],
+  "reason": "K1 shows three distinct trajectories under the same protocol. seed43 has a late cliff after a long high plateau while losses improve and preds@0.1 are high; seed44 starts low with under-activated preds@0.1. This is A2 seed/protocol sensitivity, not checkpoint-rule failure.",
+  "evidence_paths": [
+    "docs/research/v25/gate_k/K1_REPORT.md",
+    "docs/research/v25/gate_k/K1_CURVE_AUDIT.json",
+    "docs/research/v25/protocols/gate_k_seed_sensitivity.json",
+    "docs/research/v25/A2_BASELINE_V2_REPORT.md"
+  ],
+  "blocked": ["A4", "P01"],
+  "next_stage": "K2-A",
+  "next_direction": "Single-factor LR×0.5 on seeds 43 and 44; judge by last@20, min seed, range, and collapse gap."
+}

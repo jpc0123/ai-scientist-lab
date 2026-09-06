@@ -1,0 +1,33 @@
+{
+  "freeze_commit": "0befdd77c45972507e3f9191ccf8dd656681a229",
+  "tag": "v2.3.0",
+  "version": "v2.3.0",
+  "tag_target": "v2.3.0",
+  "package_version": "2.3.0",
+  "branch": "feat/v2.2-real-provider-restricted-diff",
+  "baseline_tag": "v2.1.0",
+  "title": "Scientist Lab v2.3 CUDA + Vendor DFINE",
+  "principles": [
+    "Zero GPU / zero network by default",
+    "Explicit gates for live CUDA (RUN_REAL_DFINE_TESTS + RUN_REAL_CUDA)",
+    "Stand-in evidence cannot support formal DFINE claims",
+    "Fast Eval / path-open does not equal formal DFINE superiority",
+    "No silent mock/stand-in fallback marked as vendor formal"
+  ],
+  "completed_subversions": [
+    "v2.3.1",
+    "v2.3.2",
+    "v2.3.3",
+    "v2.3.4",
+    "v2.3.5",
+    "v2.3.6",
+    "v2.3.7",
+    "v2.3.8"
+  ],
+  "acceptance_script": "scripts/accept_v23.py",
+  "real_acceptance_script": "scripts/accept_v23_real.py",
+  "docs": [
+    "docs/dfine-cuda-runthrough.md",
+    "docs/plans/第二十三步制作方案.md"
+  ]
+}

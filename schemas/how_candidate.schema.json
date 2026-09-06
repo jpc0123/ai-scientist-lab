@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/how_candidate.schema.json",
+  "title": "HowCandidate",
+  "description": "LLM-proposed HOW draft. Not executable until a human registers it. Literature cannot enter ClaimGate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "how_id",
+    "family",
+    "mechanism",
+    "status",
+    "literature_query_id",
+    "paper_refs",
+    "invented_operators",
+    "needs_adapter_work"
+  ],
+  "properties": {
+    "candidate_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "how_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "family": {
+      "type": "string",
+      "enum": ["fusion", "neck", "training", "backbone_wrap"]
+    },
+    "mechanism": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "rejected", "approved_pending_adapter", "registered"]
+    },
+    "fusion_method": { "type": ["string", "null"] },
+    "neck_type": { "type": ["string", "null"] },
+    "map_to_existing": { "type": ["string", "null"] },
+    "needs_adapter_work": { "type": "boolean" },
+        "literature_query_id": { "type": "string" },
+        "paper_refs": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/non_empty_string" }
+        },
+    "invented_operators": {
+      "type": "array",
+      "maxItems": 0,
+      "items": { "type": "string" }
+    },
+    "source": {
+      "type": "string",
+      "enum": ["llm", "evidence_explore", "plugin_explore", "draft_arm", "invent_fallback"]
+    },
+    "round_id": { "type": ["string", "null"] },
+    "human_decision": { "type": ["string", "null"] },
+    "human_actor": { "type": ["string", "null"] },
+    "decided_by": { "type": ["string", "null"] },
+    "lifecycle_attempts": { "type": "integer", "minimum": 0 },
+    "decided_at": { "type": ["string", "null"] },
+    "decision_note": { "type": ["string", "null"] },
+        "created_at": { "type": ["string", "null"] },
+        "from_selected": { "type": "boolean" },
+        "requires_human_review": { "type": "boolean" },
+        "draft_origin": {
+          "type": ["string", "null"],
+          "enum": ["literature", "invent", null]
+        },
+        "can_enter_claim_gate": { "type": "boolean", "const": false },
+        "implementation_intent": { "type": ["string", "null"] },
+        "smoke_ok": { "type": "boolean" },
+        "smoke_detail": { "type": ["object", "null"] },
+        "plugin_relpath": { "type": ["string", "null"] },
+        "patch_id": { "type": ["string", "null"] },
+        "plugin_authored_by": { "type": ["string", "null"] },
+        "plugin_worker_id": { "type": ["string", "null"] },
+        "plugin_kind": {
+          "type": ["string", "null"],
+          "enum": ["fusion", "neck", "backbone_wrap", null]
+        },
+        "backbone_wrap_method": { "type": ["string", "null"] }
+  }
+}

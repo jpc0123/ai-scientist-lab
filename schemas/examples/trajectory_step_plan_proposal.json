@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "step_index": 1,
+  "step_kind": "plan_proposal",
+  "o": {
+    "anchor": {
+      "how_id": "F1",
+      "how_zh": "可见光和热成像一开始就拼成一张图",
+      "seeds": [42],
+      "dataset_id": "rgbt_tiny_v1",
+      "slice_id": "low_light_subset_v1",
+      "budget_class": "formal",
+      "missing": false
+    },
+    "protocol": {
+      "may_change_dataset": false,
+      "frozen_scope": ["dataset_split", "evaluator"]
+    }
+  },
+  "h": {
+    "problem_observed": "上一轮已用简单拼接融合跑过",
+    "selected_action": "contrast_F3",
+    "decision_basis": ["single variable", "catalog how"]
+  },
+  "a": {
+    "tool": "propose_plan",
+    "how_id": "F3",
+    "how_zh": "可见光、热成像各走一路，再用门控融合",
+    "seeds": [42],
+    "stop": false
+  },
+  "y": {
+    "plan_schema_valid": true,
+    "how_in_catalog": true,
+    "how_visible_to_planner": true
+  },
+  "r": null,
+  "m": {
+    "exporter_version": "atdp6_v1",
+    "step_kind": "plan_proposal",
+    "project_id": "project_rgbt_cuda_001",
+    "round_id": "1",
+    "run_id": "run_v26_r1",
+    "event_id": "evt_plan_proposal",
+    "actor_role": "planner",
+    "phase": "planning",
+    "plan_id": "plan_v26_r1",
+    "fingerprint_id": "FP-RGBT-DFINE-V26-LOWLIGHT",
+    "git_sha": null,
+    "reconstructed": false,
+    "source_event_types": ["plan_proposal"]
+  }
+}

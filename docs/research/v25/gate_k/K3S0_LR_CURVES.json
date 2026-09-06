@@ -1,0 +1,1416 @@
+{
+  "orig_42": [
+    {
+      "epoch": 1,
+      "global_step_end": 1830,
+      "backbone_lr": 8.642065573770436e-05,
+      "non_backbone_lr": 0.00017284131147540872,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.043873213958774256,
+      "train_loss": 22.669126872237914
+    },
+    {
+      "epoch": 2,
+      "global_step_end": 3660,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.024780425228598604,
+      "train_loss": 21.219440441199865
+    },
+    {
+      "epoch": 3,
+      "global_step_end": 5490,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07089996445997432,
+      "train_loss": 20.33015776007828
+    },
+    {
+      "epoch": 4,
+      "global_step_end": 7320,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.0641557412913164,
+      "train_loss": 19.741506682672217
+    },
+    {
+      "epoch": 5,
+      "global_step_end": 9150,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06093702722362189,
+      "train_loss": 19.298575689265082
+    },
+    {
+      "epoch": 6,
+      "global_step_end": 10980,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05513084117831684,
+      "train_loss": 19.101723219496275
+    },
+    {
+      "epoch": 7,
+      "global_step_end": 12810,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04874723244692796,
+      "train_loss": 18.84198177118119
+    },
+    {
+      "epoch": 8,
+      "global_step_end": 14640,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05075879993671871,
+      "train_loss": 18.63636623249501
+    },
+    {
+      "epoch": 9,
+      "global_step_end": 16470,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05420989331110171,
+      "train_loss": 18.398035939876245
+    },
+    {
+      "epoch": 10,
+      "global_step_end": 18300,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05970148164132395,
+      "train_loss": 18.320079854358994
+    },
+    {
+      "epoch": 11,
+      "global_step_end": 20130,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05721529910741394,
+      "train_loss": 18.174557844345596
+    },
+    {
+      "epoch": 12,
+      "global_step_end": 21960,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05999880564274642,
+      "train_loss": 17.996094554255983
+    },
+    {
+      "epoch": 13,
+      "global_step_end": 23790,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.0643333030363744,
+      "train_loss": 17.797419805690147
+    },
+    {
+      "epoch": 14,
+      "global_step_end": 25620,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06639242371603081,
+      "train_loss": 17.683610328955098
+    },
+    {
+      "epoch": 15,
+      "global_step_end": 27450,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05359409261504311,
+      "train_loss": 17.571654767219915
+    },
+    {
+      "epoch": 16,
+      "global_step_end": 29280,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05517649829929882,
+      "train_loss": 17.445899324940996
+    },
+    {
+      "epoch": 17,
+      "global_step_end": 31110,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.056796236025940035,
+      "train_loss": 17.41171999388766
+    },
+    {
+      "epoch": 18,
+      "global_step_end": 32940,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07395294661293245,
+      "train_loss": 17.24084077743518
+    },
+    {
+      "epoch": 19,
+      "global_step_end": 34770,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08334684868325494,
+      "train_loss": 17.094577473362328
+    },
+    {
+      "epoch": 20,
+      "global_step_end": 36600,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08218029641794485,
+      "train_loss": 17.020683148092097
+    }
+  ],
+  "orig_43": [
+    {
+      "epoch": 1,
+      "global_step_end": 1830,
+      "backbone_lr": 8.642065573770436e-05,
+      "non_backbone_lr": 0.00017284131147540872,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.028199488769758755,
+      "train_loss": 22.894661255482117
+    },
+    {
+      "epoch": 2,
+      "global_step_end": 3660,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.034515461878914536,
+      "train_loss": 21.359179575602354
+    },
+    {
+      "epoch": 3,
+      "global_step_end": 5490,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.10817447410080037,
+      "train_loss": 20.458703235965068
+    },
+    {
+      "epoch": 4,
+      "global_step_end": 7320,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.09012611611448759,
+      "train_loss": 19.82647861411688
+    },
+    {
+      "epoch": 5,
+      "global_step_end": 9150,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08085193922301191,
+      "train_loss": 19.35390316080213
+    },
+    {
+      "epoch": 6,
+      "global_step_end": 10980,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08870601043372636,
+      "train_loss": 19.11395351922539
+    },
+    {
+      "epoch": 7,
+      "global_step_end": 12810,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.09546510525784696,
+      "train_loss": 18.983608561739214
+    },
+    {
+      "epoch": 8,
+      "global_step_end": 14640,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.0931609400506223,
+      "train_loss": 18.709695333372444
+    },
+    {
+      "epoch": 9,
+      "global_step_end": 16470,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.09409640194087661,
+      "train_loss": 18.55796422769514
+    },
+    {
+      "epoch": 10,
+      "global_step_end": 18300,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08965476625571647,
+      "train_loss": 18.387580376205957
+    },
+    {
+      "epoch": 11,
+      "global_step_end": 20130,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.09270253166427102,
+      "train_loss": 18.275143221122484
+    },
+    {
+      "epoch": 12,
+      "global_step_end": 21960,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.09702176902160284,
+      "train_loss": 18.017727663576643
+    },
+    {
+      "epoch": 13,
+      "global_step_end": 23790,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.10208260386579743,
+      "train_loss": 17.92148552282912
+    },
+    {
+      "epoch": 14,
+      "global_step_end": 25620,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.10155945936739062,
+      "train_loss": 17.776007156894426
+    },
+    {
+      "epoch": 15,
+      "global_step_end": 27450,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.09999553231496147,
+      "train_loss": 17.67767566371648
+    },
+    {
+      "epoch": 16,
+      "global_step_end": 29280,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.10319333848007754,
+      "train_loss": 17.59605190656224
+    },
+    {
+      "epoch": 17,
+      "global_step_end": 31110,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08194302717113454,
+      "train_loss": 17.431305385686336
+    },
+    {
+      "epoch": 18,
+      "global_step_end": 32940,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.058916243976144346,
+      "train_loss": 17.353997701675187
+    },
+    {
+      "epoch": 19,
+      "global_step_end": 34770,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04405143440830732,
+      "train_loss": 17.177734852034618
+    },
+    {
+      "epoch": 20,
+      "global_step_end": 36600,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.037971074226580484,
+      "train_loss": 17.162201549397793
+    }
+  ],
+  "orig_44": [
+    {
+      "epoch": 1,
+      "global_step_end": 1830,
+      "backbone_lr": 8.642065573770436e-05,
+      "non_backbone_lr": 0.00017284131147540872,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.012571828310514224,
+      "train_loss": 22.63533351543497
+    },
+    {
+      "epoch": 2,
+      "global_step_end": 3660,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03329204334718606,
+      "train_loss": 21.207987650610058
+    },
+    {
+      "epoch": 3,
+      "global_step_end": 5490,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.026974371484831824,
+      "train_loss": 20.367840925347927
+    },
+    {
+      "epoch": 4,
+      "global_step_end": 7320,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.019799903404612636,
+      "train_loss": 19.80055823475924
+    },
+    {
+      "epoch": 5,
+      "global_step_end": 9150,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.023725717114842587,
+      "train_loss": 19.333431793008664
+    },
+    {
+      "epoch": 6,
+      "global_step_end": 10980,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.027835860467279393,
+      "train_loss": 18.996239598380896
+    },
+    {
+      "epoch": 7,
+      "global_step_end": 12810,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.029547373387394233,
+      "train_loss": 18.900316825101395
+    },
+    {
+      "epoch": 8,
+      "global_step_end": 14640,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.033998818288091544,
+      "train_loss": 18.64480789730407
+    },
+    {
+      "epoch": 9,
+      "global_step_end": 16470,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03870714613617098,
+      "train_loss": 18.48481582009184
+    },
+    {
+      "epoch": 10,
+      "global_step_end": 18300,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.041412551607608046,
+      "train_loss": 18.358852447039332
+    },
+    {
+      "epoch": 11,
+      "global_step_end": 20130,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.041128428750563495,
+      "train_loss": 18.2071528169455
+    },
+    {
+      "epoch": 12,
+      "global_step_end": 21960,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04063511344679094,
+      "train_loss": 18.022316547051513
+    },
+    {
+      "epoch": 13,
+      "global_step_end": 23790,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03998301606672142,
+      "train_loss": 17.972758232960935
+    },
+    {
+      "epoch": 14,
+      "global_step_end": 25620,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04057056651601135,
+      "train_loss": 17.78858387730914
+    },
+    {
+      "epoch": 15,
+      "global_step_end": 27450,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04143016439577045,
+      "train_loss": 17.639725811163707
+    },
+    {
+      "epoch": 16,
+      "global_step_end": 29280,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03509670251242088,
+      "train_loss": 17.49747989489977
+    },
+    {
+      "epoch": 17,
+      "global_step_end": 31110,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.029682331584642972,
+      "train_loss": 17.37280145662282
+    },
+    {
+      "epoch": 18,
+      "global_step_end": 32940,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.025960914835066122,
+      "train_loss": 17.25631351883172
+    },
+    {
+      "epoch": 19,
+      "global_step_end": 34770,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.022497134463818978,
+      "train_loss": 17.209221501339
+    },
+    {
+      "epoch": 20,
+      "global_step_end": 36600,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.022242537998124878,
+      "train_loss": 17.02555370071058
+    }
+  ],
+  "k2a_43": [
+    {
+      "epoch": 1,
+      "global_step_end": 1830,
+      "backbone_lr": 4.321032786885218e-05,
+      "non_backbone_lr": 8.642065573770436e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.01245882611395008,
+      "train_loss": 22.81159296988464
+    },
+    {
+      "epoch": 2,
+      "global_step_end": 3660,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03261554308417353,
+      "train_loss": 21.23297995937978
+    },
+    {
+      "epoch": 3,
+      "global_step_end": 5490,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.02547537165710648,
+      "train_loss": 20.4261991310969
+    },
+    {
+      "epoch": 4,
+      "global_step_end": 7320,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03310090764741001,
+      "train_loss": 20.055586199160498
+    },
+    {
+      "epoch": 5,
+      "global_step_end": 9150,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03164473777834229,
+      "train_loss": 19.61187350253226
+    },
+    {
+      "epoch": 6,
+      "global_step_end": 10980,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03379737762978739,
+      "train_loss": 19.16768319878722
+    },
+    {
+      "epoch": 7,
+      "global_step_end": 12810,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03509147706385643,
+      "train_loss": 18.863876117139295
+    },
+    {
+      "epoch": 8,
+      "global_step_end": 14640,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03425930372110995,
+      "train_loss": 18.709785207032223
+    },
+    {
+      "epoch": 9,
+      "global_step_end": 16470,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03399672818947462,
+      "train_loss": 18.455777161383665
+    },
+    {
+      "epoch": 10,
+      "global_step_end": 18300,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03340238899793399,
+      "train_loss": 18.365976342967013
+    },
+    {
+      "epoch": 11,
+      "global_step_end": 20130,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03272688124507376,
+      "train_loss": 18.22343084161053
+    },
+    {
+      "epoch": 12,
+      "global_step_end": 21960,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.030122132660987032,
+      "train_loss": 18.017550066639185
+    },
+    {
+      "epoch": 13,
+      "global_step_end": 23790,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03271690933790706,
+      "train_loss": 17.866308647171273
+    },
+    {
+      "epoch": 14,
+      "global_step_end": 25620,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.032828267796225975,
+      "train_loss": 17.702692227954138
+    },
+    {
+      "epoch": 15,
+      "global_step_end": 27450,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03381095173888526,
+      "train_loss": 17.63787000274866
+    },
+    {
+      "epoch": 16,
+      "global_step_end": 29280,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.0354210797936297,
+      "train_loss": 17.487079908515586
+    },
+    {
+      "epoch": 17,
+      "global_step_end": 31110,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03893215017107908,
+      "train_loss": 17.41420492981179
+    },
+    {
+      "epoch": 18,
+      "global_step_end": 32940,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03889944567841621,
+      "train_loss": 17.287887263699062
+    },
+    {
+      "epoch": 19,
+      "global_step_end": 34770,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.037393175408528566,
+      "train_loss": 17.119371608380085
+    },
+    {
+      "epoch": 20,
+      "global_step_end": 36600,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03945653131694295,
+      "train_loss": 17.11279670692207
+    }
+  ],
+  "k2a_44": [
+    {
+      "epoch": 1,
+      "global_step_end": 1830,
+      "backbone_lr": 4.321032786885218e-05,
+      "non_backbone_lr": 8.642065573770436e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.015285342522312473,
+      "train_loss": 22.7053535113732
+    },
+    {
+      "epoch": 2,
+      "global_step_end": 3660,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07414000737365455,
+      "train_loss": 21.16072191433177
+    },
+    {
+      "epoch": 3,
+      "global_step_end": 5490,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07136666400643232,
+      "train_loss": 20.422352472810797
+    },
+    {
+      "epoch": 4,
+      "global_step_end": 7320,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08159592984284147,
+      "train_loss": 19.929499725028275
+    },
+    {
+      "epoch": 5,
+      "global_step_end": 9150,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06560982146607848,
+      "train_loss": 19.50604535090461
+    },
+    {
+      "epoch": 6,
+      "global_step_end": 10980,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06355257478207743,
+      "train_loss": 19.181842494548597
+    },
+    {
+      "epoch": 7,
+      "global_step_end": 12810,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06418292147321741,
+      "train_loss": 18.968294424974598
+    },
+    {
+      "epoch": 8,
+      "global_step_end": 14640,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.068252129790449,
+      "train_loss": 18.706370200063333
+    },
+    {
+      "epoch": 9,
+      "global_step_end": 16470,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07255416996723088,
+      "train_loss": 18.536292729742414
+    },
+    {
+      "epoch": 10,
+      "global_step_end": 18300,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07121954441438004,
+      "train_loss": 18.388074644520888
+    },
+    {
+      "epoch": 11,
+      "global_step_end": 20130,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07318754298688757,
+      "train_loss": 18.239607383448458
+    },
+    {
+      "epoch": 12,
+      "global_step_end": 21960,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07222302062670784,
+      "train_loss": 18.10950210345349
+    },
+    {
+      "epoch": 13,
+      "global_step_end": 23790,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07079738566122565,
+      "train_loss": 17.95753132245895
+    },
+    {
+      "epoch": 14,
+      "global_step_end": 25620,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07020247409813499,
+      "train_loss": 17.852933984210136
+    },
+    {
+      "epoch": 15,
+      "global_step_end": 27450,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06478119965193745,
+      "train_loss": 17.675564034244484
+    },
+    {
+      "epoch": 16,
+      "global_step_end": 29280,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.0625486243254723,
+      "train_loss": 17.556782819711366
+    },
+    {
+      "epoch": 17,
+      "global_step_end": 31110,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05805307898734114,
+      "train_loss": 17.517167816285674
+    },
+    {
+      "epoch": 18,
+      "global_step_end": 32940,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05332614050945277,
+      "train_loss": 17.4248729560626
+    },
+    {
+      "epoch": 19,
+      "global_step_end": 34770,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05307790862682601,
+      "train_loss": 17.309830792071146
+    },
+    {
+      "epoch": 20,
+      "global_step_end": 36600,
+      "backbone_lr": 4.999999999999895e-05,
+      "non_backbone_lr": 9.99999999999979e-05,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06023719831194385,
+      "train_loss": 17.091137782012016
+    }
+  ],
+  "k2b_43": [
+    {
+      "epoch": 1,
+      "global_step_end": 1830,
+      "backbone_lr": 7.275950819672198e-05,
+      "non_backbone_lr": 0.00014551901639344396,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.018550195119222512,
+      "train_loss": 22.855915382064758
+    },
+    {
+      "epoch": 2,
+      "global_step_end": 3660,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.042255836915894275,
+      "train_loss": 21.355622014614926
+    },
+    {
+      "epoch": 3,
+      "global_step_end": 5490,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04075436969295922,
+      "train_loss": 20.540722038967363
+    },
+    {
+      "epoch": 4,
+      "global_step_end": 7320,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.039185493511322673,
+      "train_loss": 19.829227452444186
+    },
+    {
+      "epoch": 5,
+      "global_step_end": 9150,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04228988055017607,
+      "train_loss": 19.37234839253106
+    },
+    {
+      "epoch": 6,
+      "global_step_end": 10980,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04024315040293978,
+      "train_loss": 19.05856679318049
+    },
+    {
+      "epoch": 7,
+      "global_step_end": 12810,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.038169713613923545,
+      "train_loss": 18.916552703480537
+    },
+    {
+      "epoch": 8,
+      "global_step_end": 14640,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03489324044866298,
+      "train_loss": 18.758299264167004
+    },
+    {
+      "epoch": 9,
+      "global_step_end": 16470,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03455478867337017,
+      "train_loss": 18.522450771224985
+    },
+    {
+      "epoch": 10,
+      "global_step_end": 18300,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.035413860298558475,
+      "train_loss": 18.3827938887638
+    },
+    {
+      "epoch": 11,
+      "global_step_end": 20130,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03523861011748054,
+      "train_loss": 18.1647043857746
+    },
+    {
+      "epoch": 12,
+      "global_step_end": 21960,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03148621028853727,
+      "train_loss": 18.109698737624782
+    },
+    {
+      "epoch": 13,
+      "global_step_end": 23790,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.030450213104961436,
+      "train_loss": 17.910557557941704
+    },
+    {
+      "epoch": 14,
+      "global_step_end": 25620,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03512637530010476,
+      "train_loss": 17.853747081308743
+    },
+    {
+      "epoch": 15,
+      "global_step_end": 27450,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03650031349576437,
+      "train_loss": 17.654903998132287
+    },
+    {
+      "epoch": 16,
+      "global_step_end": 29280,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03846023734824451,
+      "train_loss": 17.4914687568047
+    },
+    {
+      "epoch": 17,
+      "global_step_end": 31110,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03976451364095424,
+      "train_loss": 17.355637211778042
+    },
+    {
+      "epoch": 18,
+      "global_step_end": 32940,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.04280653170348169,
+      "train_loss": 17.24519666503158
+    },
+    {
+      "epoch": 19,
+      "global_step_end": 34770,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.042286564934623676,
+      "train_loss": 17.195750535206226
+    },
+    {
+      "epoch": 20,
+      "global_step_end": 36600,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03936315898396162,
+      "train_loss": 17.06850321599654
+    }
+  ],
+  "k2b_44": [
+    {
+      "epoch": 1,
+      "global_step_end": 1830,
+      "backbone_lr": 7.275950819672198e-05,
+      "non_backbone_lr": 0.00014551901639344396,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.025354361969550706,
+      "train_loss": 22.905763947002875
+    },
+    {
+      "epoch": 2,
+      "global_step_end": 3660,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.061838718107398376,
+      "train_loss": 21.38688405590969
+    },
+    {
+      "epoch": 3,
+      "global_step_end": 5490,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06088147422851295,
+      "train_loss": 20.49615206632183
+    },
+    {
+      "epoch": 4,
+      "global_step_end": 7320,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.06569748528642953,
+      "train_loss": 19.879140797126887
+    },
+    {
+      "epoch": 5,
+      "global_step_end": 9150,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08213645156317198,
+      "train_loss": 19.520547950235475
+    },
+    {
+      "epoch": 6,
+      "global_step_end": 10980,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08961173744168563,
+      "train_loss": 19.267534725833684
+    },
+    {
+      "epoch": 7,
+      "global_step_end": 12810,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08872138989190415,
+      "train_loss": 19.117280154195335
+    },
+    {
+      "epoch": 8,
+      "global_step_end": 14640,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08859926930862737,
+      "train_loss": 18.844330281457392
+    },
+    {
+      "epoch": 9,
+      "global_step_end": 16470,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08211395079725513,
+      "train_loss": 18.60377318254695
+    },
+    {
+      "epoch": 10,
+      "global_step_end": 18300,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07709980764701684,
+      "train_loss": 18.44533831916719
+    },
+    {
+      "epoch": 11,
+      "global_step_end": 20130,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08124364775528518,
+      "train_loss": 18.284587036042165
+    },
+    {
+      "epoch": 12,
+      "global_step_end": 21960,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08240382698647533,
+      "train_loss": 18.17038642587293
+    },
+    {
+      "epoch": 13,
+      "global_step_end": 23790,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.08724817669430146,
+      "train_loss": 18.029106299276844
+    },
+    {
+      "epoch": 14,
+      "global_step_end": 25620,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07628066127476198,
+      "train_loss": 17.82287275000104
+    },
+    {
+      "epoch": 15,
+      "global_step_end": 27450,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.07804513567610748,
+      "train_loss": 17.626099057025353
+    },
+    {
+      "epoch": 16,
+      "global_step_end": 29280,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.0782498748642382,
+      "train_loss": 17.520019312605996
+    },
+    {
+      "epoch": 17,
+      "global_step_end": 31110,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.05671748389391733,
+      "train_loss": 17.39882940193791
+    },
+    {
+      "epoch": 18,
+      "global_step_end": 32940,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.0428329669779029,
+      "train_loss": 17.285662783181568
+    },
+    {
+      "epoch": 19,
+      "global_step_end": 34770,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.038985279526700944,
+      "train_loss": 17.170367045991654
+    },
+    {
+      "epoch": 20,
+      "global_step_end": 36600,
+      "backbone_lr": 9.99999999999979e-05,
+      "non_backbone_lr": 0.0001999999999999958,
+      "warmup_finished_by_epoch_end": true,
+      "scheduler_stage": "constant_peak_post_warmup",
+      "mAP50_95": 0.03303498629371634,
+      "train_loss": 17.099030546080627
+    }
+  ]
+}

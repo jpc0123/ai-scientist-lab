@@ -1,0 +1,19 @@
+{
+  "version": "v1.8.0",
+  "tag": "v1.8.0",
+  "branch": "feat/v1.8-workspace-release",
+  "baseline_tag": "v1.7.0",
+  "title": "Scientist Lab Workspace & Release Management",
+  "principles": [
+    "Export-only releases; no main workspace writes",
+    "No git commit/push from release freeze",
+    "Report/Audit build-export via /api/v1",
+    "Patch merge remains intent-only until v1.9"
+  ],
+  "completed_subversions": [
+    "v1.8.1",
+    "v1.8.2",
+    "frontend-chat-workspace"
+  ],
+  "acceptance_script": "scripts/accept_v18.py"
+}

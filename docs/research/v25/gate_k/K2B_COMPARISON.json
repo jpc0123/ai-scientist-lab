@@ -1,0 +1,125 @@
+{
+  "gate": "GATE_K2B_WARMUP_X2",
+  "completed_at": "2026-08-03T07:12:50.098711+00:00",
+  "factor": "warmup_duration_x2",
+  "learning_rate": 0.0002,
+  "warmup_duration": 1000,
+  "a2_reference_warmup_duration": 500,
+  "stacked_with_k2a_lr_half": false,
+  "reporting_protocol": "a2_baseline_checkpoint_v2",
+  "baseline": {
+    "43": {
+      "execution_id": "exec_a6f6dff68971",
+      "best": 0.10817447410080037,
+      "last": 0.037971074226580484,
+      "gap": 0.07020339987421989,
+      "best_epoch": 3
+    },
+    "44": {
+      "execution_id": "exec_373196093d79",
+      "best": 0.04143016439577045,
+      "last": 0.022242537998124878,
+      "gap": 0.019187626397645572,
+      "best_epoch": 15
+    }
+  },
+  "k2b": {
+    "43": {
+      "execution_id": "exec_9c4eec74f789",
+      "best_epoch": 18,
+      "best": 0.04280653170348169,
+      "last": 0.03936315898396162,
+      "gap": 0.0034433727195200686,
+      "late_cliff": false,
+      "pre_last_max": 0.04280653170348169,
+      "mid_max": 0.04228988055017607,
+      "ep1_5_mean": 0.03660715515791495,
+      "ep17_20": [
+        0.03976451364095424,
+        0.04280653170348169,
+        0.042286564934623676,
+        0.03936315898396162
+      ],
+      "preds_ge_0_1": 2036
+    },
+    "44": {
+      "execution_id": "exec_1bdc6e7cb416",
+      "best_epoch": 6,
+      "best": 0.08961173744168563,
+      "last": 0.03303498629371634,
+      "gap": 0.05657675114796929,
+      "late_cliff": true,
+      "pre_last_max": 0.0782498748642382,
+      "mid_max": 0.08961173744168563,
+      "ep1_5_mean": 0.059181698231012714,
+      "ep17_20": [
+        0.05671748389391733,
+        0.0428329669779029,
+        0.038985279526700944,
+        0.03303498629371634
+      ],
+      "preds_ge_0_1": 1401
+    }
+  },
+  "comparison_table": [
+    {
+      "seed": 43,
+      "old_best": 0.10817447410080037,
+      "new_best": 0.04280653170348169,
+      "old_last": 0.037971074226580484,
+      "new_last": 0.03936315898396162,
+      "old_gap": 0.07020339987421989,
+      "new_gap": 0.0034433727195200686,
+      "old_best_epoch": 3,
+      "new_best_epoch": 18,
+      "new_late_cliff": false,
+      "new_mid_max": 0.04228988055017607,
+      "new_preds_ge_0_1": 2036
+    },
+    {
+      "seed": 44,
+      "old_best": 0.04143016439577045,
+      "new_best": 0.08961173744168563,
+      "old_last": 0.022242537998124878,
+      "new_last": 0.03303498629371634,
+      "old_gap": 0.019187626397645572,
+      "new_gap": 0.05657675114796929,
+      "old_best_epoch": 15,
+      "new_best_epoch": 6,
+      "new_late_cliff": true,
+      "new_ep1_5_mean": 0.059181698231012714,
+      "new_preds_ge_0_1": 1401
+    }
+  ],
+  "judgements": {
+    "43": {
+      "improved": false,
+      "signals": {
+        "retained_peak": false,
+        "no_late_cliff": true,
+        "last_up": 0.0013920847573811387,
+        "gap_down": 0.06676002715469982,
+        "best": 0.04280653170348169,
+        "mid_max": 0.04228988055017607
+      },
+      "phenotype": "stable_but_capped"
+    },
+    "44": {
+      "improved": true,
+      "signals": {
+        "early_mean_up": 0.03590892549861525,
+        "last_up": 0.01079244829559146,
+        "best_up": 0.04818157304591518,
+        "preds_ge_0_1": 1401
+      },
+      "phenotype": "other"
+    }
+  },
+  "decision": "only_44_improve__43_not_cliff__scheduler_or_lr_schedule_review",
+  "notes": [],
+  "blocked": [
+    "A4",
+    "P01"
+  ],
+  "next": "44 improved; 43 no longer cliffs but did not retain mid peak \u2192 schedule/LR shape review."
+}

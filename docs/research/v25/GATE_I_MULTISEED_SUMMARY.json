@@ -1,0 +1,72 @@
+{
+  "gate": "GATE_I_A2_FORMAL_MULTISEED",
+  "claim_authority": "baseline_formal_candidates",
+  "allow_scientific_claims": false,
+  "allow_method_ranking": false,
+  "blocked": [
+    "A4",
+    "P01",
+    "fdpn",
+    "gated_multiscale"
+  ],
+  "inherits_subset_from": "GATE_H_A2_CURVE_HEALTH",
+  "seeds": [
+    {
+      "seed": 42,
+      "policy": "reuse_gate_h",
+      "execution_id": "exec_4088755cafc6",
+      "status": "completed",
+      "engineering_pass": true,
+      "best_epoch": 19,
+      "mAP50_95": 0.08334684868325494,
+      "mAP50": 0.18967608702891092,
+      "last_mAP50_95": 0.08218029641794485,
+      "best_minus_last": 0.0011665522653100946,
+      "preds_at_0_1": 12698.0,
+      "duration_seconds": 12144.936772823334,
+      "peak_gpu_memory_mb": 833.37451171875
+    },
+    {
+      "seed": 43,
+      "policy": "fresh",
+      "execution_id": "exec_a6f6dff68971",
+      "status": "completed",
+      "engineering_pass": true,
+      "best_epoch": 3,
+      "mAP50_95": 0.10817447410080037,
+      "mAP50": 0.2261890568007816,
+      "last_mAP50_95": 0.037971074226580484,
+      "best_minus_last": 0.07020339987421989,
+      "preds_at_0_1": 17125.0,
+      "duration_seconds": 11884.032341480255,
+      "peak_gpu_memory_mb": 829.7734375
+    },
+    {
+      "seed": 44,
+      "policy": "fresh",
+      "execution_id": "exec_373196093d79",
+      "status": "completed",
+      "engineering_pass": true,
+      "best_epoch": 15,
+      "mAP50_95": 0.04143016439577045,
+      "mAP50": 0.10661741229116238,
+      "last_mAP50_95": 0.022242537998124878,
+      "best_minus_last": 0.019187626397645572,
+      "preds_at_0_1": 3769.0,
+      "duration_seconds": 12149.051622152328,
+      "peak_gpu_memory_mb": 832.0654296875
+    }
+  ],
+  "aggregate": {
+    "n": 3,
+    "mAP50_95_mean": 0.07765049572660859,
+    "mAP50_95_stdev": 0.03373480468678095,
+    "mAP50_95_min": 0.04143016439577045,
+    "mAP50_95_max": 0.10817447410080037,
+    "spread_ok": false
+  },
+  "engineering_all_pass": true,
+  "complete": true,
+  "formal_candidates_ok": false,
+  "decision": "diagnose_seed_instability"
+}

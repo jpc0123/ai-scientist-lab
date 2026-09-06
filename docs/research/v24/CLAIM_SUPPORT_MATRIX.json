@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "stage": "v2.4_rgbt_fusion_campaign",
+  "updated_at": "2026-07-29",
+  "claims": [
+    {
+      "claim_id": "C1_A4_consistently_outperforms_A2",
+      "claim": "A4 consistently outperforms A2.",
+      "status": "not_supported",
+      "protocol": "protocol_rgbt_formal_candidate_a2_a4_v1",
+      "evidence": {
+        "paired_deltas_best_on_val": [0.0406, -0.0384, 0.0432],
+        "positive_seeds": 2,
+        "total_seeds": 3,
+        "mean_delta": 0.0151,
+        "A2": "0.4069 ± 0.0401 (sample std)",
+        "A4": "0.4220 ± 0.0205 (sample std)"
+      },
+      "reason": "Matched-seed effects are directionally inconsistent.",
+      "artifacts": [
+        "outputs/experiments/v24_a3/formal_candidate/FORMAL_CANDIDATE_PAIRED_REPORT.json",
+        "outputs/experiments/v24_a3/formal_candidate/CLAIM_GATE_A4_VS_A2.json"
+      ]
+    },
+    {
+      "claim_id": "C2_A4_more_stable_than_A2",
+      "claim": "A4 is more stable than A2 (lower variance).",
+      "status": "not_supported",
+      "reason": "n=3 is insufficient to claim greater stability despite lower sample std.",
+      "artifacts": [
+        "outputs/experiments/v24_a3/formal_candidate/FORMAL_CANDIDATE_PAIRED_REPORT.json"
+      ]
+    },
+    {
+      "claim_id": "C3_P00_negative_interaction",
+      "claim": "Gated fusion + FDPN (P00) shows negative interaction vs gated fusion alone (A3) under matched exploratory budget.",
+      "status": "supported_exploratory",
+      "claim_authority": "exploratory_comparison",
+      "evidence": {
+        "A3_mean_mAP50_95": 0.1866,
+        "P00_mean_mAP50_95": 0.1502,
+        "note": "2x2 factor matrix / multi-seed exploratory; not a formal superiority package."
+      },
+      "artifacts": [
+        "outputs/experiments/v24_a3/factor_matrix_2x2/FACTOR_2x2_SUMMARY.json",
+        "outputs/experiments/v24_a3/P00_seeds/P00_SEED_SUMMARY.json",
+        "outputs/experiments/v24_a3/A3_seeds/A3_SEED_SUMMARY.json"
+      ]
+    },
+    {
+      "claim_id": "C4_P00_fusion_grad_suppression",
+      "claim": "In P00, FDPN suppresses gated-fusion gradients relative to A3.",
+      "status": "supported_diagnostic_only",
+      "claim_authority": "diagnostic_only",
+      "evidence": {
+        "fusion_grad_l2_A3": 8.76,
+        "fusion_grad_l2_P00": 3.48,
+        "fdpn_grad_l2_P00": 10.54,
+        "gate_more_saturated_in_P00": false,
+        "redundant_fused_fdpn_cosine": false
+      },
+      "artifacts": [
+        "outputs/experiments/v24_a3/p00_diagnostics/DIAGNOSTIC_ANALYSIS.json",
+        "outputs/experiments/v24_a3/p00_diagnostics/DIAGNOSTIC_REPORT.md"
+      ]
+    },
+    {
+      "claim_id": "C5_P01_stable_improvement",
+      "claim": "P01 residual scaling yields a stable improvement over A3.",
+      "status": "not_supported",
+      "claim_authority": "exploratory_single_seed",
+      "evidence": {
+        "observed_delta_seed42": 0.035,
+        "seeds": 1,
+        "formal_validation_completed": false
+      },
+      "reason": "Single-seed evidence only; P01 archived as exploratory candidate.",
+      "artifacts": [
+        "docs/research/v24/P01_ARCHIVE.json",
+        "outputs/experiments/v24_a3/p00_diagnostics/P01_RESULT.json"
+      ]
+    },
+    {
+      "claim_id": "C6_A4_inference_faster",
+      "claim": "A4 is faster at inference than A2.",
+      "status": "not_supported",
+      "reason": "Forward-only bench: lower mean but higher p95; incomplete pipeline; not multi-session.",
+      "artifacts": [
+        "outputs/experiments/v24_a3/budget_scale/INFER_A2_bs1.json",
+        "outputs/experiments/v24_a3/budget_scale/INFER_A4_bs1.json"
+      ]
+    }
+  ],
+  "summary": {
+    "supported_for_action": [
+      "Close A4 formal promotion",
+      "Pause gated+FDPN joint spend",
+      "Archive P01 without formalization"
+    ],
+    "not_supported_for_action": [
+      "Promote A4",
+      "Extend formal seeds 45/46",
+      "Promote P01",
+      "Claim statistical significance / SOTA"
+    ]
+  }
+}

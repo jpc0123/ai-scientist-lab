@@ -1,0 +1,60 @@
+{
+  "ablation_id": "ablation_rgbt_cuda_modality_001",
+  "project_id": "project_rgbt_cuda_001",
+  "reference_node_id": "rgbt_b02_early_fusion_001",
+  "protocol_id": "protocol_rgbt_cuda_001",
+  "title": "RGB-T CUDA modality ablation (A0/A1/A2 ≡ B00/B01/B02)",
+  "controlled_variables": ["input_mode", "fusion_method"],
+  "notes": [
+    "A0/A1/A2 are the only implemented ablation axes today.",
+    "A3 (完整融合 beyond early_concat) and FDPN/P00 remain blocked.",
+    "Protocol seeds: 42,43,44."
+  ],
+  "variants": [
+    {
+      "variant_id": "A0",
+      "alias": "B00",
+      "title": "RGB-only",
+      "parameter_changes": {
+        "input_mode": "rgb",
+        "fusion_method": "none"
+      },
+      "contract": "examples/rgbt_b00_rgb_only_contract.json",
+      "expected_effect": "Single-modality RGB baseline."
+    },
+    {
+      "variant_id": "A1",
+      "alias": "B01",
+      "title": "Thermal-only",
+      "parameter_changes": {
+        "input_mode": "thermal",
+        "fusion_method": "none"
+      },
+      "contract": "examples/rgbt_b01_thermal_only_contract.json",
+      "expected_effect": "Single-modality thermal baseline."
+    },
+    {
+      "variant_id": "A2",
+      "alias": "B02",
+      "title": "Early Fusion",
+      "parameter_changes": {
+        "input_mode": "rgbt",
+        "fusion_method": "early_concat"
+      },
+      "contract": "examples/rgbt_b02_early_fusion_contract.json",
+      "expected_effect": "Early-concat RGB-T fusion candidate (not FDPN)."
+    }
+  ],
+  "blocked_variants": [
+    {
+      "variant_id": "A3",
+      "title": "Full fusion beyond early_concat",
+      "reason": "No implemented fusion_method beyond early_concat."
+    },
+    {
+      "variant_id": "P00",
+      "title": "Full method + FDPN",
+      "reason": "FDPN/dual-stream not implemented; see P00_BLOCKER.md."
+    }
+  ]
+}

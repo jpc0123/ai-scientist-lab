@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/research_event.schema.json",
+  "title": "ResearchEvent",
+  "description": "One append-only canonical fact. Not a domain aggregate. Trace and Trajectory are projections of this stream. Not trajectory_step Export Schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "ts",
+    "project_id",
+    "event_type",
+    "actor_role",
+    "phase"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "event_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "parent_event_id": { "type": ["string", "null"] },
+    "ts": { "type": "string", "format": "date-time" },
+    "project_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "round_id": { "type": ["string", "null"] },
+    "run_id": { "type": ["string", "null"] },
+    "event_type": { "$ref": "common.schema.json#/$defs/event_type" },
+    "actor_role": { "$ref": "common.schema.json#/$defs/actor_role" },
+    "phase": { "$ref": "common.schema.json#/$defs/phase" },
+    "protocol_version": { "type": "integer", "minimum": 1 },
+    "plan_id": { "type": ["string", "null"] },
+    "fingerprint_id": { "type": ["string", "null"] },
+    "git_sha": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/sha" },
+        { "type": "null" }
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "memory_refs": { "$ref": "common.schema.json#/$defs/memory_refs" },
+    "decision_summary": { "$ref": "common.schema.json#/$defs/decision_summary" },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific facts. Must not contain hidden thought."
+    },
+    "reconstructed": {
+      "type": "boolean",
+      "default": false,
+      "description": "true = coarse historical reconstruction; never high-trust training."
+    }
+  }
+}

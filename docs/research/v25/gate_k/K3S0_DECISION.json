@@ -1,0 +1,26 @@
+{
+  "status": "k3s0_complete",
+  "decision": "k3s0_complete__prefer_k3a_earlier_decay__not_more_warmup_or_lr025",
+  "k2b_reading_accepted": {
+    "seed43": "stable_but_capped_not_healthier_mid_peak",
+    "seed44": "early_start_improved_but_late_cliff_remains"
+  },
+  "two_stage_model": [
+    "early_start_stability",
+    "mid_late_generalization_stability"
+  ],
+  "k3s0_key_findings": [
+    "MultiStep milestones=[500] never fires in 20ep; late cliffs at constant peak LR",
+    "warmup\u00d72 only shifts ~0.27ep inside epoch1; not multi-epoch budget theft",
+    "ep16 helps diagnose seed43 cliff timing but does not unify cross-seed range"
+  ],
+  "next_train": "K3-A original warmup + original peak LR + earlier late decay",
+  "blocked": [
+    "A4",
+    "P01",
+    "more_warmup",
+    "lr_x0.25"
+  ],
+  "do_not_train_yet": false,
+  "note": "K3-S0 complete; K3-A contracts not launched until user requests start."
+}

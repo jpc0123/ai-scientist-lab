@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_formal_01_rgb_none",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_formal_c1_v1",
+  "protocol_version": 1,
+  "parent_run_id": null,
+  "round_index": 0,
+  "observation": "ClaimGate C1 is missing a formal rgb+none APS under a matched Frozen Fingerprint. Probe 16/8 APS=0 is not C1 evidence.",
+  "hypothesis": "Record APS of DFINE rgb + fusion_method=none under the formal C1 protocol (full_train, not a 16/8 probe subset).",
+  "modification_scope": ["hyperparameter"],
+  "proposed_changes": [
+    {
+      "target": "hyperparameter",
+      "summary": "Formal rgb+none / single_modality baseline; no fusion operator, not FDPN."
+    }
+  ],
+  "controlled_variables": ["dataset_split", "evaluator", "metric_definition", "seed"],
+  "expected_effect": {
+    "primary_metric": "APS",
+    "direction": "stabilize",
+    "rationale": "Baseline arm. Adapter HOW fallback is rgb+none. Do not interpret KEEP/DISCARD as a fusion claim."
+  },
+  "evaluation": {
+    "method": "full_train",
+    "seeds": [42],
+    "notes": "execution_mode=full_train; full rgbt_tiny_v1 split; epochs=2; 160x160 with scale_queries_to_tokens; timeout 4h. Not fast_eval 16/8. Not 640 unscaled."
+  },
+  "budget_class": "formal",
+  "risk_level": "auto",
+  "memory_refs": { "lesson_ids": [], "strategy_ids": [] },
+  "evidence_runs": [],
+  "bootstrap": true,
+  "rationale": "Independent formal baseline arm. Seed/dataset/metric/budget aligned with Formal-02. Human Gate already started."
+}

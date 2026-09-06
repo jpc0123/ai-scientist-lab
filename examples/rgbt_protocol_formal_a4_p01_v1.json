@@ -1,0 +1,92 @@
+{
+  "protocol_id": "protocol_rgbt_formal_a4_p01_v1",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "Formal P01 residual_scale=0.25 on A4 (K2-C, early_concat+FDPN, last@20, seeds 42/43/44)",
+  "status": "frozen",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_tiny_v1",
+  "dataset_version": "v1_gate_k2c_seq_expand",
+  "split_reference": "split:rgbt_tiny_v1_gate_k2c_seq",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "seed_order": [
+    44,
+    43,
+    42
+  ],
+  "primary_metric": "mAP50_95",
+  "reporting_protocol": "a2_baseline_checkpoint_v2",
+  "primary_report": "last_epoch_20",
+  "secondary_report": "best_on_val",
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "neck": {
+      "type": "fdpn",
+      "residual_scale": 0.25
+    },
+    "protocol": "formal_a4_p01_v1",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 1,
+    "image_width": 640,
+    "image_height": 640,
+    "learning_rate": 0.0002,
+    "a2_reference_learning_rate": 0.0002,
+    "warmup_duration": 500,
+    "a2_reference_warmup_duration": 500,
+    "num_workers": 0,
+    "mixed_precision": true,
+    "scale_queries_to_tokens": false,
+    "enforce_disk_gate": true,
+    "mechanism_diagnosis": {
+      "enabled": true,
+      "sample_epochs_1based": [
+        1,
+        10,
+        20
+      ]
+    },
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    },
+    "reporting_protocol": "a2_baseline_checkpoint_v2"
+  },
+  "allowed_variables": [
+    "seed"
+  ],
+  "allowed_difference_note": "Vs accepted A4: only neck.residual_scale=0.25; everything else matched.",
+  "a4_arm_reuse": {
+    "42": "exec_e5e0067e8d1b",
+    "43": "exec_1f526b78bc5f",
+    "44": "exec_8bffa02fe333"
+  },
+  "dataset_freeze": "docs/research/v25/gate_k/K2C_DATASET_FREEZE.json",
+  "docs_protocol": "docs/research/v25/gate_k/formal_a4_p01_v1_protocol.json",
+  "blocked": [
+    "further_A2_tuning",
+    "cosine_now",
+    "K3-B",
+    "gated_fusion",
+    "change_dataset",
+    "change_scheduler"
+  ],
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "allow_significance_claim": false,
+  "allow_sota_claim": false
+}

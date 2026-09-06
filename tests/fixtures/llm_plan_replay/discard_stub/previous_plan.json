@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan_round1_neck_hr",
+  "project_id": "project_rgbt_cuda_001",
+  "protocol_id": "research_protocol_rgbt_dfine_v1",
+  "protocol_version": 1,
+  "parent_run_id": "EXP-007",
+  "round_index": 1,
+  "observation": "localization still weak after the neck probe.",
+  "hypothesis": "high-res neck path helps APS",
+  "modification_scope": ["neck"],
+  "proposed_changes": [
+    { "target": "neck", "summary": "Adjust high-resolution feature path" }
+  ],
+  "controlled_variables": ["evaluator"],
+  "expected_effect": {
+    "primary_metric": "APS",
+    "direction": "increase",
+    "rationale": "Better small-object localization features."
+  },
+  "evaluation": { "method": "fast_eval", "seeds": [42] },
+  "budget_class": "probe",
+  "risk_level": "auto",
+  "memory_refs": {
+    "lesson_ids": ["LESSON-NECK-DISCARD"],
+    "strategy_ids": ["STRATEGY-DEPRIORITIZE-NECK"]
+  },
+  "evidence_runs": ["EXP-007"],
+  "bootstrap": false,
+  "rationale": "Round 1 neck probe prior to DISCARD memory."
+}

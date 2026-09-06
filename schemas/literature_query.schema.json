@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/literature_query.schema.json",
+  "title": "LiteratureQueryProvenance",
+  "description": "Per-round literature retrieval provenance. Hypothesis must cite used_by_plan.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "literature_query_id",
+    "round_id",
+    "queries",
+    "paper_refs",
+    "used_by_plan"
+  ],
+  "properties": {
+    "literature_query_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "round_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "queries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "common.schema.json#/$defs/non_empty_string" }
+    },
+    "paper_refs": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/non_empty_string" }
+    },
+    "used_by_plan": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/non_empty_string" }
+    },
+    "provider": { "type": "string" },
+    "year_from": { "type": ["integer", "null"] },
+    "limit": { "type": ["integer", "null"] }
+  }
+}

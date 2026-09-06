@@ -1,0 +1,77 @@
+{
+  "protocol_id": "protocol_rgbt_v25_gate_j_deterministic_diagnosis",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "v2.5 Gate J3: A2 seed43 deterministic diagnosis",
+  "status": "frozen",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_tiny_v1",
+  "dataset_version": "v1_gate_h_expand",
+  "split_reference": "split:rgbt_tiny_v1_gate_h_seq",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [
+    43
+  ],
+  "replicates": [
+    "det_rep1",
+    "det_rep2"
+  ],
+  "primary_metric": "mAP50_95",
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "fusion_method": "early_concat",
+    "protocol": "gate_j_deterministic_diagnosis",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 1,
+    "image_width": 640,
+    "image_height": 640,
+    "learning_rate": 0.0002,
+    "num_workers": 0,
+    "mixed_precision": false,
+    "deterministic_algorithms": true,
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": true,
+    "disable_multiscale_collate": true,
+    "scale_queries_to_tokens": false,
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "enforce_disk_gate": true,
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    },
+    "augmentation_seeded": true,
+    "sampler_seeded": true
+  },
+  "allowed_variables": [
+    "replicate_index"
+  ],
+  "success_criteria": {
+    "best_mAP50_95_abs_diff_max": 0.01,
+    "best_epoch_abs_diff_max": 2,
+    "epoch0_order_hash_must_match": true
+  },
+  "blocked": [
+    "A4",
+    "P01",
+    "fdpn",
+    "gated_multiscale"
+  ],
+  "diagnosis_deltas_vs_gate_i": [
+    "num_workers forced 0",
+    "strict/warn deterministic algorithms",
+    "cudnn deterministic + benchmark false",
+    "DataLoader Generator + worker_init_fn",
+    "BatchImageCollate multiscale disabled (base_size_repeat null)",
+    "AMP off"
+  ]
+}

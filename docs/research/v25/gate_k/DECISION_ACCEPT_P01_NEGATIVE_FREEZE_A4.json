@@ -1,0 +1,57 @@
+{
+  "decision_id": "decision_accept_p01_negative__freeze_a4_final_2026-08-08",
+  "question": "After P01 residual_scale=0.25 three-seed failure vs A4, what is the route?",
+  "verdict": "accept_p01_as_valuable_negative__converge_to_a4_final__enter_finalize_packaging",
+  "action": "finalize",
+  "canonical_actions": ["finalize"],
+  "rejected_alternatives": [
+    "P02_scale_0_5",
+    "P03_scale_0_75_or_learnable",
+    "reopen_gated_fusion_P00",
+    "further_A2_tuning",
+    "continue_parameter_search_on_residual_scale",
+    "claim_significance_or_SOTA"
+  ],
+  "reason": "P01 answered its research question with 0/3 positive seeds and mean Δlast≈−0.040 vs accepted A4. Residual scaling does not add gain under the frozen A4 stack; weakening the residual path hurts. Combined with prior P00 (gated+FDPN negative) vs A4 (early_concat+FDPN positive), the line converges to A4 as the final method. Further α search would become parameter hunting and weaken the paper narrative.",
+  "evidence_paths": [
+    "docs/research/v25/gate_k/FORMAL_A4_P01_V1_COMPARISON.md",
+    "docs/research/v25/gate_k/FORMAL_A4_P01_V1_COMPARISON.json",
+    "docs/research/v25/gate_k/FORMAL_A2_A4_V2_COMPARISON.md",
+    "docs/research/v25/gate_k/DECISION_ACCEPT_A4_LAUNCH_P01.json",
+    "docs/research/v25/gate_k/FINAL_METHOD_FREEZE.json"
+  ],
+  "p01_result": {
+    "decision": "failure_or_null__no_extra_gain_vs_a4",
+    "n_positive": 0,
+    "mean_delta_last": -0.03984689294278009,
+    "deltas_last": {
+      "42": -0.03284042254773019,
+      "43": -0.02419582008791509,
+      "44": -0.062504436192695
+    }
+  },
+  "method_selection": {
+    "keep": "A4 early_concat + FDPN (formal candidate → final method)",
+    "drop": [
+      "P01 residual_scale=0.25",
+      "P00 gated fusion + FDPN"
+    ]
+  },
+  "allowed_conclusion": "Under the K2-C formal protocol, A4 (early_concat+FDPN) consistently outperforms A2 across three seeds; residual scaling (0.25) yields no extra gain and degrades last@20; gated fusion + FDPN previously showed no synergistic gain, indicating structure dependence between fusion strategy and multi-scale enhancement.",
+  "disallowed_claims": [
+    "significant improvement",
+    "SOTA",
+    "FDPN always helps regardless of fusion"
+  ],
+  "blocked": [
+    "P02",
+    "P03",
+    "residual_scale_grid_search",
+    "gated_fusion_reopen",
+    "further_A2_tuning",
+    "cosine_now",
+    "K3-B"
+  ],
+  "next_stage": "finalize_packaging",
+  "next_direction": "Freeze FINAL_METHOD_FREEZE.json; fill efficiency table (FLOPs/FPS if missing); write thesis/defense experiment report — do not retune."
+}

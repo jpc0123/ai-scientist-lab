@@ -1,0 +1,33 @@
+{
+  "gate": "G",
+  "status": "passed_probe",
+  "experiment_id": "V25_GATE_G_TINY_A2",
+  "execution_id": "exec_a14287829eeb",
+  "claim_authority": "probe_only",
+  "dataset": "dataset:rgbt_tiny_v1",
+  "arm": "A2_early_concat",
+  "seed": 42,
+  "epochs": 10,
+  "input_size": [640, 640],
+  "metrics_best": {
+    "epoch": 2,
+    "mAP50_95": 0.0063245812335118515,
+    "mAP50": 0.03079809847109158,
+    "prediction_count_score_ge_0_1": 375.0
+  },
+  "resources": {
+    "duration_seconds": 1162.9,
+    "peak_gpu_memory_mb": 831.9
+  },
+  "notes": [
+    "Non-degenerate predictions and mAP>0 on real RGBT-Tiny subset.",
+    "Best early (ep2); last degraded — expect longer budget and/or larger subset for stable learning.",
+    "Not a formal baseline; no A4/P01 comparison."
+  ],
+  "forbidden": ["formal_superiority", "A4", "P01", "SOTA"],
+  "next": [
+    "Optional: expand subset (more sequences / lower stride) then 20–40ep A2 seed42",
+    "Defer multi-seed formal until single-seed curve is healthy",
+    "Do not launch A4/P01"
+  ]
+}

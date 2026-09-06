@@ -1,0 +1,87 @@
+{
+  "exporter_version": "atdp6_v1",
+  "reward_export_version": "contrast_v1",
+  "exported_at": "2026-09-03T07:44:35.084811+00:00",
+  "runs": [
+    {
+      "run_id": "v26_r0",
+      "run_dir": "outputs\\v26_r0",
+      "reconstructed": true,
+      "contrast_label": "unlabeled",
+      "bucket": "drop",
+      "high_trust_sft": false,
+      "traces": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\v26_r0.jsonl",
+      "story": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\stories\\v26_r0.json",
+      "n_steps": 4,
+      "events_source": "reconstructed"
+    },
+    {
+      "run_id": "run_plan_round1_from_exec_31eff20c4e0c",
+      "run_dir": "outputs\\v26_r1",
+      "reconstructed": false,
+      "contrast_label": "how_contrast",
+      "bucket": "sft_positive",
+      "high_trust_sft": true,
+      "traces": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\run_plan_round1_from_exec_31eff20c4e0c.jsonl",
+      "story": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\stories\\run_plan_round1_from_exec_31eff20c4e0c.json",
+      "n_steps": 4,
+      "events_source": "research_events.jsonl"
+    },
+    {
+      "run_id": "run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c",
+      "run_dir": "outputs\\v26_r2",
+      "reconstructed": false,
+      "contrast_label": "how_contrast",
+      "bucket": "sft_positive",
+      "high_trust_sft": true,
+      "traces": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.jsonl",
+      "story": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\stories\\run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.json",
+      "n_steps": 4,
+      "events_source": "research_events.jsonl"
+    },
+    {
+      "run_id": "run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c",
+      "run_dir": "outputs\\v26_r3",
+      "reconstructed": false,
+      "contrast_label": "confound",
+      "bucket": "dpo_rejected",
+      "high_trust_sft": false,
+      "traces": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.jsonl",
+      "story": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\stories\\run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.json",
+      "n_steps": 4,
+      "events_source": "research_events.jsonl"
+    },
+    {
+      "run_id": "run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c",
+      "run_dir": "outputs\\v26_r4",
+      "reconstructed": false,
+      "contrast_label": "seed_contrast",
+      "bucket": "sft_positive",
+      "high_trust_sft": true,
+      "traces": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.jsonl",
+      "story": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\stories\\run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.json",
+      "n_steps": 4,
+      "events_source": "research_events.jsonl"
+    },
+    {
+      "run_id": "run_plan_round5_from_run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c",
+      "run_dir": "outputs\\v26_r5",
+      "reconstructed": false,
+      "contrast_label": "seed_contrast",
+      "bucket": "sft_positive",
+      "high_trust_sft": true,
+      "traces": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\run_plan_round5_from_run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.jsonl",
+      "story": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\stories\\run_plan_round5_from_run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.json",
+      "n_steps": 4,
+      "events_source": "research_events.jsonl"
+    }
+  ],
+  "counts": {
+    "runs": 6,
+    "sft": 0,
+    "dpo": 0,
+    "rl": 0
+  },
+  "holdout_isolated": true,
+  "note": "SFT input is step-1 observation only; do not concatenate four steps. r in traces is null. Contrast reward is sidecar-only."
+}

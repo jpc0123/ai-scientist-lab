@@ -1,0 +1,19 @@
+{
+  "gate": "K2-C",
+  "seed43_execution_id": "exec_d4b4feb6cfb1",
+  "best": 0.15306521940521006,
+  "best_epoch": 17,
+  "last": 0.10926466873726258,
+  "gap": 0.04380055066794748,
+  "ep1_5_mean": 0.13776600162144143,
+  "last5_mean": 0.13270444018314256,
+  "seed44_ref": {
+    "last": 0.07284228851267373,
+    "best": 0.14317638008409922,
+    "gap": 0.07033409157142549
+  },
+  "created_at": "2026-08-05T00:19:46.941757+00:00",
+  "cross_seed_last_range": 0.03642238022458885,
+  "seed43_last_ge_0_05": true,
+  "decision": "both_last_ok__rematch_seed42_v3_candidate"
+}

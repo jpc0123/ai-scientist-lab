@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/paper_record.schema.json",
+  "title": "PaperRecord",
+  "description": "Structured literature metadata only. Never full text. Not ExperimentEvidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "paper_id",
+    "title",
+    "source",
+    "retrieval_query",
+    "retrieved_at"
+  ],
+  "properties": {
+    "paper_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "title": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "year": { "type": ["integer", "null"] },
+    "authors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "abstract": { "type": ["string", "null"] },
+    "doi": { "type": ["string", "null"] },
+    "venue": { "type": ["string", "null"] },
+    "citation_count": { "type": ["integer", "null"] },
+    "url": { "type": ["string", "null"] },
+    "arxiv_id": { "type": ["string", "null"] },
+    "source": {
+      "type": "string",
+      "enum": ["semantic_scholar", "arxiv", "crossref", "openalex", "fake"]
+    },
+    "retrieval_query": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "retrieved_at": { "$ref": "common.schema.json#/$defs/non_empty_string" }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.2",
+  "project_id": "project_rgbt_003",
+  "node_id": "rgbt_formal_node_003",
+  "parent_node_id": null,
+  "title": "Formal RGB-T early-fusion Fast Eval (matched protocol)",
+  "research_goal": "Evaluate early fusion under protocol_rgbt_001 matched budget and seeds.",
+  "hypothesis": "Early fusion improves AP_small relative to single-modality nodes under exploratory_comparison.",
+  "task_type": "rgbt_detection",
+  "protocol_id": "protocol_rgbt_001",
+  "runner_profile": "local",
+  "environment_key": "rgbt-detection-v2",
+  "code_reference": "image:rgbt-detection-v2",
+  "code_version": "v0.8.0",
+  "dataset_reference": "dataset:rgbt_fast_eval_v1",
+  "entrypoint": "run_detection_experiment.py",
+  "execution_mode": "fast_eval",
+  "parameters": {
+    "baseline": "dfine_s",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "epochs": 5,
+    "batch_size": 4,
+    "learning_rate": 0.0001,
+    "image_width": 640,
+    "image_height": 512
+  },
+  "task_config": {
+    "modalities": ["rgb", "thermal"],
+    "annotation_format": "coco",
+    "primary_metric": "mAP50_95",
+    "metrics": ["mAP50", "mAP50_95", "AP_small", "precision", "recall"],
+    "evaluation_scope": "fast_eval_subset",
+    "claim_level": "exploratory_comparison",
+    "split_reference": "split:fast_eval_fixed_v1",
+    "dataset_version": "v1",
+    "implementation": "stand_in",
+    "hardware": "cpu_or_available_runner"
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 4,
+    "timeout_seconds": 1800
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "combined.log"
+  ]
+}

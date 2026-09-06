@@ -1,0 +1,159 @@
+{
+  "gate": "K2-C",
+  "dropped": [
+    {
+      "id": 1369,
+      "image_id": 120,
+      "bbox": [
+        -1.0,
+        489.0,
+        17.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1377,
+      "image_id": 121,
+      "bbox": [
+        -1.0,
+        489.0,
+        17.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1385,
+      "image_id": 122,
+      "bbox": [
+        -1.0,
+        489.0,
+        17.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1609,
+      "image_id": 150,
+      "bbox": [
+        -1.0,
+        458.0,
+        19.0,
+        11.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1617,
+      "image_id": 151,
+      "bbox": [
+        -1.0,
+        458.0,
+        19.0,
+        11.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1625,
+      "image_id": 152,
+      "bbox": [
+        -1.0,
+        458.0,
+        19.0,
+        11.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1633,
+      "image_id": 153,
+      "bbox": [
+        -1.0,
+        458.0,
+        19.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1641,
+      "image_id": 154,
+      "bbox": [
+        -1.0,
+        458.0,
+        19.0,
+        11.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1649,
+      "image_id": 155,
+      "bbox": [
+        -1.0,
+        458.0,
+        19.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1657,
+      "image_id": 156,
+      "bbox": [
+        -1.0,
+        459.0,
+        19.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1665,
+      "image_id": 157,
+      "bbox": [
+        -1.0,
+        459.0,
+        19.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1673,
+      "image_id": 158,
+      "bbox": [
+        -1.0,
+        459.0,
+        19.0,
+        12.0
+      ],
+      "category_id": 1
+    },
+    {
+      "id": 1879,
+      "image_id": 181,
+      "bbox": [
+        -5.0,
+        455.0,
+        13.0,
+        11.0
+      ],
+      "category_id": 1
+    }
+  ],
+  "annotation_hashes": {
+    "instances_train.json": "0640b58829ad1d5eee9ec3bae5b702b661a961c45680746301b930263ffe46ea",
+    "instances_val.json": "ed818b1b04b08d32db5b5af3689a94774e2b53593e0dc84a8d0a5fd8ca6de4bd",
+    "instances_test.json": "8d83d8a71f56a140942e82d20a5a43fe2cf6922d9070a6fabd65545e856cb2cd"
+  },
+  "manifest_hashes": {
+    "train_pairs.csv": "2b8730e1ee371bbcdc170926da96c677a32dea8c7e5feb514c75da14fa9bf395",
+    "val_pairs.csv": "bf1f3fab5b5972f14c7d25d0763a46ab60cd273bf80f499176b320028319618a",
+    "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+  },
+  "audit_ok": true
+}

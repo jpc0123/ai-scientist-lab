@@ -1,0 +1,30 @@
+{
+  "gate": "F",
+  "status": "passed",
+  "dataset_name": "RGBT-Tiny",
+  "source_raw": "D:/BaiduNetdiskDownload/RGBT-Tiny",
+  "registered_root": "datasets/registered/rgbt_tiny_v1",
+  "dataset_key": "rgbt_tiny_v1",
+  "phases": {
+    "F0": {
+      "status": "registered_subset",
+      "leakage_check": "passed",
+      "frames": {"train": 304, "val": 80, "test": 80}
+    },
+    "F1": {
+      "status": "passed",
+      "host_dataloader": true,
+      "docker_cuda": {
+        "forward_ok": true,
+        "cuda_available": true,
+        "tensor_shape": [1, 4, 640, 640],
+        "out_finite": true,
+        "artifact": "outputs/experiments/v25_gate_f/GATE_F1_CUDA_PROBE.json"
+      }
+    }
+  },
+  "allow_gate_g": true,
+  "claim_authority": "registration_and_probe_only",
+  "forbidden": ["formal_metrics_from_F", "A4", "P01"],
+  "next": "Gate G: A2 early_concat first train probe on dataset:rgbt_tiny_v1"
+}

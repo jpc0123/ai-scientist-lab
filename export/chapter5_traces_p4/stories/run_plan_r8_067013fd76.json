@@ -1,0 +1,63 @@
+{
+  "exporter_version": "atdp6_v1",
+  "reward_export_version": "contrast_v1",
+  "run_id": "run_plan_r8_067013fd76",
+  "reconstructed": false,
+  "contrast_label": "illegal",
+  "bucket": "dpo_rejected",
+  "training_eligible": true,
+  "high_trust_sft": false,
+  "machine": {
+    "anchor": {
+      "how_id": "P4",
+      "how_zh": "目录外做法 P4",
+      "seeds": [
+        47
+      ],
+      "dataset_id": "rgbt_tiny_v1",
+      "slice_id": "low_light_subset_v1",
+      "budget_class": "formal",
+      "stop": false,
+      "status": null,
+      "missing": false,
+      "parent_run_id": "run_plan_r7_cf78cb3b1f"
+    },
+    "plan": {
+      "how_id": "P4",
+      "how_zh": "目录外做法 P4",
+      "seeds": [
+        48
+      ],
+      "dataset_id": "rgbt_tiny_v1",
+      "slice_id": "low_light_subset_v1",
+      "budget_class": "formal",
+      "stop": false
+    },
+    "executed": {
+      "how_id": "P4",
+      "how_zh": "目录外做法 P4",
+      "seeds": [
+        48
+      ],
+      "dataset_id": "rgbt_tiny_v1",
+      "slice_id": "low_light_subset_v1",
+      "budget_class": "formal",
+      "stop": false
+    }
+  },
+  "story": {
+    "see": "上一轮已经用「目录外做法 P4」（P4）跑过了，随机种子 [47]。数据 rgbt_tiny_v1，切片 low_light_subset_v1，预算档 formal。协议规定不能改数据集/切片。只能从已接好的做法里做单变量对照。",
+    "decide": "决定改成「目录外做法 P4」（P4），种子 [48]。",
+    "happen": "实际执行 P4/[48]，与计划一致。评审 KEEP。声称闸门 BLOCKED（KEEP ≠ 声称成立）。"
+  },
+  "reward_export": {
+    "version": "contrast_v1",
+    "r": -1.0,
+    "note": "contrast rule score; not APS / mAP"
+  },
+  "gate": {
+    "training_eligible": true,
+    "human_gate_confirmed": true,
+    "status": "HUMAN_REQUIRED"
+  }
+}

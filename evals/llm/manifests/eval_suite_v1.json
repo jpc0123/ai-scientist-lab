@@ -1,0 +1,26 @@
+{
+  "suite_version": "eval_suite_v1",
+  "title": "Scientist Lab LLM quality suite v1",
+  "description": "Versioned planner/critic/safety cases with structured property checks (v1.5).",
+  "grader_version": "v1",
+  "schema_version": "v1",
+  "case_files": [
+    "planner/planner_cases_v1.jsonl",
+    "critic/critic_cases_v1.jsonl",
+    "safety/safety_cases_v1.jsonl"
+  ],
+  "expected_files": [
+    "planner/planner_expected_v1.json",
+    "critic/critic_expected_v1.json"
+  ],
+  "case_counts": {
+    "planner": 10,
+    "critic": 10,
+    "safety": 5
+  },
+  "metadata": {
+    "offline_default": true,
+    "real_provider_optional": true,
+    "ci_providers": ["mock", "replay"]
+  }
+}

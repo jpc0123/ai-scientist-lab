@@ -1,0 +1,103 @@
+{
+  "protocol_id": "protocol_rgbt_v25_gate_k3a_late_decay",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "v2.5 Gate K3-A: A2 MultiStep late decay milestones[14] (640x640, 20ep, Gate-H subset)",
+  "status": "active",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_tiny_v1",
+  "dataset_version": "v1_gate_h_expand",
+  "split_reference": "split:rgbt_tiny_v1_gate_h_seq",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [43, 44],
+  "primary_metric": "mAP50_95",
+  "reporting_protocol": "a2_baseline_checkpoint_v2",
+  "primary_report": "last_epoch_20",
+  "secondary_report": "best_on_val",
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "protocol": "gate_k3a_late_decay",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 1,
+    "image_width": 640,
+    "image_height": 640,
+    "learning_rate": 0.0002,
+    "a2_reference_learning_rate": 0.0002,
+    "warmup_duration": 500,
+    "a2_reference_warmup_duration": 500,
+    "lr_scheduler_milestones": [14],
+    "lr_scheduler_gamma": 0.1,
+    "a2_reference_lr_scheduler_milestones": [500],
+    "num_workers": 0,
+    "mixed_precision": true,
+    "scale_queries_to_tokens": false,
+    "enforce_disk_gate": true,
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    },
+    "reporting_protocol": "a2_baseline_checkpoint_v2"
+  },
+  "single_factor": "multistep_milestones_500_to_14",
+  "allowed_variables": ["seed"],
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "allow_significance_claim": false,
+  "allow_sota_claim": false,
+  "fixed_vs_a2": [
+    "warmup=500",
+    "learning_rate=2e-4 (backbone 1e-4)",
+    "epochs=20",
+    "Gate-H manifest",
+    "640x640",
+    "queries=300",
+    "batch=1",
+    "aug",
+    "pretrained",
+    "EMA warmups unchanged",
+    "checkpoint_v2 reporting",
+    "gamma=0.1"
+  ],
+  "changed_vs_a2": [
+    "lr_scheduler.milestones: [500] → [14] (late cooling within 20ep)"
+  ],
+  "lr_trace": "docs/research/v25/gate_k/K3A_LR_TRACE.json",
+  "expected_lr": {
+    "after_warmup_to_epoch14": {"non_backbone": 0.0002, "backbone": 0.0001},
+    "epoch15_to_20": {"non_backbone": 0.00002, "backbone": 0.00001}
+  },
+  "success_criteria": {
+    "seed43": {
+      "best_ge": 0.08,
+      "last_ge": 0.07,
+      "best_minus_last_le": 0.03,
+      "no_clear_ep17_20_cliff": true
+    },
+    "seed44": {
+      "best_ge": 0.06,
+      "last_ge": 0.05,
+      "best_minus_last_le": 0.03
+    }
+  },
+  "routing": {
+    "both_retain_mid": "补跑 seed42 → formal_a2_baseline_v3_candidate（不可混用旧协议 seed42）",
+    "43_ok_44_early_low": "K3-B: 适中 warmup + 相同后期衰减",
+    "both_mid_peak_still_late_cliff": "检查衰减时点或改平滑衰减",
+    "overall_suppressed": "10× 单步衰减过强 → 测 cosine，勿再降全程 LR",
+    "seed_specific_protocols": "停止 scheduler chasing → K2-C 扩独立序列"
+  },
+  "baseline_status": "diagnostic_candidate_not_formal_v3",
+  "blocked": ["A4", "P01", "reuse_old_seed42", "change_warmup", "change_peak_lr", "change_epochs", "change_data"],
+  "parent_decision": "k3s0_complete__prefer_k3a_earlier_decay__not_more_warmup_or_lr025",
+  "purpose": "Single-factor: restore missing late LR cooling. Do not stack with K2-A/K2-B."
+}

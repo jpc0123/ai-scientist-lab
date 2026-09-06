@@ -1,0 +1,106 @@
+{
+  "runs": {
+    "42": {
+      "execution_id": "exec_4088755cafc6",
+      "yaml_seed": 42,
+      "dfine_yaml_sha256": "108a7d48a076aae1af6cc8d5e1d2935919245d9672e7fa428dda53f2cab4d21e",
+      "dfine_yaml_normalized_sha256": "7383485c17ddaa600489d9a25024e2f7b241bd6472f11912a67a2d338e310d33",
+      "config_identity": {
+        "baseline": "dfine_s",
+        "fusion_method": "early_concat",
+        "pretrained": true,
+        "epochs": 20,
+        "batch_size": 1,
+        "learning_rate": 0.0002,
+        "image_width": 640,
+        "image_height": 640,
+        "num_workers": 0,
+        "mixed_precision": true,
+        "scale_queries_to_tokens": false,
+        "checkpoint_policy": {
+          "primary": "best_on_validation",
+          "selection_metric": "mAP50_95",
+          "selection_mode": "max",
+          "tie_breaker": "earliest_epoch",
+          "secondary": "last_epoch",
+          "test_set_used_for_selection": false
+        },
+        "protocol_label": "gate_h_curve_health",
+        "contract_protocol_id": "protocol_rgbt_v25_gate_h_a2_curve_health",
+        "dataset_reference": "dataset:rgbt_tiny_v1",
+        "dataset_version": "v1_gate_h_expand",
+        "split_reference": "split:rgbt_tiny_v1_gate_h_seq"
+      }
+    },
+    "43": {
+      "execution_id": "exec_a6f6dff68971",
+      "yaml_seed": 43,
+      "dfine_yaml_sha256": "e13362482aaa12c6593465cc9ba9e3ac4e9d15f6b8015ab6d8ac30985a61ad15",
+      "dfine_yaml_normalized_sha256": "7383485c17ddaa600489d9a25024e2f7b241bd6472f11912a67a2d338e310d33",
+      "config_identity": {
+        "baseline": "dfine_s",
+        "fusion_method": "early_concat",
+        "pretrained": true,
+        "epochs": 20,
+        "batch_size": 1,
+        "learning_rate": 0.0002,
+        "image_width": 640,
+        "image_height": 640,
+        "num_workers": 0,
+        "mixed_precision": true,
+        "scale_queries_to_tokens": false,
+        "checkpoint_policy": {
+          "primary": "best_on_validation",
+          "selection_metric": "mAP50_95",
+          "selection_mode": "max",
+          "tie_breaker": "earliest_epoch",
+          "secondary": "last_epoch",
+          "test_set_used_for_selection": false
+        },
+        "protocol_label": "gate_i_formal_a2_multiseed",
+        "contract_protocol_id": "protocol_rgbt_v25_gate_i_a2_formal_multiseed",
+        "dataset_reference": "dataset:rgbt_tiny_v1",
+        "dataset_version": "v1_gate_h_expand",
+        "split_reference": "split:rgbt_tiny_v1_gate_h_seq"
+      }
+    },
+    "44": {
+      "execution_id": "exec_373196093d79",
+      "yaml_seed": 44,
+      "dfine_yaml_sha256": "be2327df32299b838fc4876975f64da4f33a0bb2017de5a0131b15b7a5ce39cf",
+      "dfine_yaml_normalized_sha256": "7383485c17ddaa600489d9a25024e2f7b241bd6472f11912a67a2d338e310d33",
+      "config_identity": {
+        "baseline": "dfine_s",
+        "fusion_method": "early_concat",
+        "pretrained": true,
+        "epochs": 20,
+        "batch_size": 1,
+        "learning_rate": 0.0002,
+        "image_width": 640,
+        "image_height": 640,
+        "num_workers": 0,
+        "mixed_precision": true,
+        "scale_queries_to_tokens": false,
+        "checkpoint_policy": {
+          "primary": "best_on_validation",
+          "selection_metric": "mAP50_95",
+          "selection_mode": "max",
+          "tie_breaker": "earliest_epoch",
+          "secondary": "last_epoch",
+          "test_set_used_for_selection": false
+        },
+        "protocol_label": "gate_i_formal_a2_multiseed",
+        "contract_protocol_id": "protocol_rgbt_v25_gate_i_a2_formal_multiseed",
+        "dataset_reference": "dataset:rgbt_tiny_v1",
+        "dataset_version": "v1_gate_h_expand",
+        "split_reference": "split:rgbt_tiny_v1_gate_h_seq"
+      }
+    }
+  },
+  "yaml_diff_summary": "Only seed line differs across 42/43/44 (verified by unified_diff).",
+  "verdict": {
+    "yaml_normalized_identical": true,
+    "only_seed_line_differs": true,
+    "soft_protocol_label_diff_seed42_reuse": true
+  }
+}

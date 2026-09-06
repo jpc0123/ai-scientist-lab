@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "lessons": {
+    "LESSON-NECK-DISCARD": {
+      "lesson_id": "LESSON-NECK-DISCARD",
+      "type": "negative_evidence",
+      "statement": "Neck probe did not improve APS under the matched protocol.",
+      "status": "active",
+      "evidence": [
+        { "run_id": "run_plan_round1_neck_hr", "metric": "APS", "delta": -0.6 }
+      ],
+      "scope": { "task": "rgbt_tiny_detection", "module": "neck" },
+      "confidence": "medium",
+      "created_from": ["run_plan_round1_neck_hr"],
+      "contradicted_by": [],
+      "supersedes": [],
+      "expires_when": []
+    }
+  }
+}

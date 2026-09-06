@@ -1,0 +1,73 @@
+{
+  "id": "formal_a2_baseline_v3_candidate",
+  "status": "accepted_with_notes",
+  "acceptance": {
+    "accepted_at": "2026-08-05T19:40:00+00:00",
+    "decision_id": "decision_accept_a2_v3_freeze_a2_a4_v2_2026-08-05",
+    "absolute_freeze": false,
+    "role": "comparison_candidate_baseline",
+    "note": "Accepted as the fixed comparison object for A4 vs A2 under formal_a2_a4_v2. Not a claim that A2 is fully stable or that training determinism is solved. Do not further tune A2."
+  },
+  "protocol": "protocol_rgbt_v25_gate_k2c_seq_expand",
+  "comparison_protocol": "protocol_rgbt_formal_a2_a4_v2",
+  "dataset_version": "v1_gate_k2c_seq_expand",
+  "optimizer": "original_A2",
+  "fusion": "early_concat",
+  "reporting": "a2_baseline_checkpoint_v2 (primary last@20)",
+  "seeds": {
+    "42": {
+      "execution_id": "exec_00cc3754ea3d",
+      "best_epoch": 4,
+      "best": 0.14129048711410302,
+      "last": 0.05292580665797833,
+      "gap": 0.0883646804561247,
+      "ep1_5_mean": 0.12282099192370499,
+      "last5_mean": 0.09237998184088336
+    },
+    "43": {
+      "execution_id": "exec_d4b4feb6cfb1",
+      "best": 0.15306521940521006,
+      "last": 0.10926466873726258,
+      "gap": 0.04380055066794748,
+      "best_epoch": 17
+    },
+    "44": {
+      "execution_id": "exec_4f4151310027",
+      "best": 0.14317638008409922,
+      "last": 0.07284228851267373,
+      "gap": 0.07033409157142549,
+      "best_epoch": 2
+    }
+  },
+  "stability": {
+    "last_mean": 0.07834425463597154,
+    "last_std_population": 0.023326959632059364,
+    "last_range": 0.05633886207928425,
+    "gate_h_last_range": 0.05990944897343693,
+    "range_reduced": true
+  },
+  "checkpoint_note": "best checkpoint is sensitive to short-horizon peaks; primary results use fixed-epoch last checkpoint.",
+  "decision": "case_A_soft__v3_candidate_with_notes",
+  "blocked": [
+    "further_A2_optimization",
+    "P01",
+    "cosine_now",
+    "K3-B",
+    "gated_fusion",
+    "further_FDPN_tuning_before_A4_result"
+  ],
+  "unblocked": [
+    "A4_vs_A2_under_formal_a2_a4_v2"
+  ],
+  "claim_level": "exploratory_comparison",
+  "allowed_claim": "Under the expanded RGB-T sequence coverage of the K2-C protocol, the A2 baseline shows non-degenerate last@20 on all three seeds (mean 0.0783) and lower cross-seed failure risk than Gate-H. A2 baseline v3 is the candidate comparison baseline for subsequent structural comparisons.",
+  "disallowed_claims": [
+    "A2 is fully stable",
+    "training determinism solved",
+    "A2 is strong / SOTA",
+    "method superiority",
+    "A4/P01 improvements (until formal A2/A4 v2 completes)"
+  ],
+  "created_at": "2026-08-05T12:15:16.599154+00:00",
+  "accepted_at": "2026-08-05T19:40:00+00:00"
+}

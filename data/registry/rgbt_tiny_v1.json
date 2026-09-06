@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_id": "rgbt_tiny_v1",
+  "task": "rgbt_object_detection",
+  "version": "v1_gate_k2c_seq_expand",
+  "annotation_format": "coco",
+  "split_reference": "official_split",
+  "processed_root": "datasets/registered/rgbt_tiny_v1",
+  "raw_root": "D:/BaiduNetdiskDownload/RGBT-Tiny",
+  "splits": {
+    "train": { "n_rgb": 3342, "n_thermal": 3342, "n_annotations": 56663 },
+    "val": { "n_rgb": 650, "n_thermal": 650, "n_annotations": 4526 },
+    "test": { "n_rgb": 300, "n_thermal": 300, "n_annotations": 2792 }
+  },
+  "manifest_hashes": {
+    "train_pairs.csv": "2b8730e1ee371bbcdc170926da96c677a32dea8c7e5feb514c75da14fa9bf395",
+    "val_pairs.csv": "bf1f3fab5b5972f14c7d25d0763a46ab60cd273bf80f499176b320028319618a",
+    "test_pairs.csv": "ba9bd751c55ad7c5a4e57c78f0139dabd57b9b189772f0f87bb67d95cba3b5bf"
+  },
+  "annotation_hashes": {
+    "instances_train.json": "0640b58829ad1d5eee9ec3bae5b702b661a961c45680746301b930263ffe46ea",
+    "instances_val.json": "ed818b1b04b08d32db5b5af3689a94774e2b53593e0dc84a8d0a5fd8ca6de4bd",
+    "instances_test.json": "8d83d8a71f56a140942e82d20a5a43fe2cf6922d9070a6fabd65545e856cb2cd"
+  },
+  "adapters": ["dfine", "rtdetr"],
+  "read_only": true,
+  "llm_may_rewrite": false,
+  "llm_may_select": true,
+  "note": "Processed images stay in datasets/registered (gitignored). This JSON is the identity Adapter/Gate consume."
+}

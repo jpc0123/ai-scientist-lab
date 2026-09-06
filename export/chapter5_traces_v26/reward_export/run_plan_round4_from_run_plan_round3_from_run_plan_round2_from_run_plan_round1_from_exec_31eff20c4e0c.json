@@ -1,0 +1,8 @@
+{
+  "run_id": "run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c",
+  "version": "contrast_v1",
+  "r": 1.0,
+  "contrast_label": "seed_contrast",
+  "source_trace": "d:\\AI Scientist_tiao\\scientist-lab\\export\\chapter5_traces_v26\\traces\\run_plan_round4_from_run_plan_round3_from_run_plan_round2_from_run_plan_round1_from_exec_31eff20c4e0c.jsonl",
+  "note": "sidecar only; research_events.jsonl is unchanged"
+}

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.1",
+  "project_id": "project_rgbt_001",
+  "node_id": "rgbt_node_validate",
+  "title": "RGB-T validate_data only",
+  "research_goal": "Validate dataset pairing without training",
+  "hypothesis": "validate_data completes without launching training.",
+  "task_type": "rgbt_detection",
+  "runner_profile": "local",
+  "environment_key": "rgbt-detection-v1",
+  "code_reference": "local:rgbt_detector",
+  "dataset_reference": "dataset:rgbt_debug_v1",
+  "entrypoint": "run_detection_experiment.py",
+  "execution_mode": "validate_data",
+  "parameters": {
+    "model": "dfine_s",
+    "input_mode": "rgb",
+    "fusion_method": "none",
+    "epochs": 0
+  },
+  "task_config": {
+    "modalities": ["rgb", "thermal"],
+    "annotation_format": "coco",
+    "primary_metric": "mAP50_95",
+    "metrics": ["mAP50", "mAP50_95"]
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 1,
+    "memory_gb": 2,
+    "timeout_seconds": 120
+  },
+  "expected_outputs": [
+    "dataset_report.json",
+    "metrics.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "combined.log",
+    "host_container_report_compare.json"
+  ]
+}

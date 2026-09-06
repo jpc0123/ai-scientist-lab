@@ -1,0 +1,61 @@
+{
+  "schema_version": "v21_real_closed_loop_report",
+  "version": "v2.1.9",
+  "status": "skipped",
+  "gates": {
+    "run_real_llm_tests": false,
+    "llm_allow_network": false,
+    "llm_api_key": false,
+    "llm_base_url": false,
+    "llm_model": false,
+    "run_real_digits": false
+  },
+  "gate_reason": "RUN_REAL_LLM_TESTS not enabled",
+  "network_used": false,
+  "digits_mode": "n/a",
+  "session_id": null,
+  "bundle_dir": null,
+  "passed": 1,
+  "total": 4,
+  "failed_count": 0,
+  "results": [
+    {
+      "name": "gate_run_real_llm_tests",
+      "ok": false,
+      "skipped": true,
+      "detail": "RUN_REAL_LLM_TESTS=1"
+    },
+    {
+      "name": "gate_llm_allow_network",
+      "ok": false,
+      "skipped": true,
+      "detail": "LLM_ALLOW_NETWORK=true"
+    },
+    {
+      "name": "gate_llm_credentials",
+      "ok": false,
+      "skipped": true,
+      "detail": "LLM_API_KEY / LLM_BASE_URL / LLM_MODEL"
+    },
+    {
+      "name": "live_closed_loop",
+      "ok": true,
+      "skipped": true,
+      "detail": "skipped: RUN_REAL_LLM_TESTS not enabled"
+    }
+  ],
+  "definition": "Gated real-LLM multi-round closed-loop acceptance. Default CI skips without network. Digits Docker is optional (RUN_REAL_DIGITS=1).",
+  "how_to_run": {
+    "required_env": [
+      "RUN_REAL_LLM_TESTS=1",
+      "LLM_ALLOW_NETWORK=true",
+      "LLM_API_KEY",
+      "LLM_BASE_URL",
+      "LLM_MODEL"
+    ],
+    "optional_env": [
+      "RUN_REAL_DIGITS=1"
+    ],
+    "command": "python scripts/accept_v21_real.py"
+  }
+}

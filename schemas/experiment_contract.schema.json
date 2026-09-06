@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/experiment_contract.schema.json",
+  "title": "ExperimentContract",
+  "description": "Frozen executable contract after Protocol Gate. Executor's only input. Candidate contracts use approval_status=candidate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "project_id",
+    "protocol_id",
+    "protocol_version",
+    "plan_id",
+    "hypothesis",
+    "allowed_changes",
+    "frozen_variables",
+    "dataset",
+    "seed",
+    "budget_class",
+    "metrics_spec",
+    "commands",
+    "expected_artifacts",
+    "git_base_sha",
+    "adapter",
+    "approval_status"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "run_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "parent_run": { "type": ["string", "null"] },
+    "project_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "protocol_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "protocol_version": { "type": "integer", "minimum": 1 },
+    "plan_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "hypothesis": { "type": "string", "minLength": 1 },
+    "allowed_changes": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/scope_token" },
+      "uniqueItems": true
+    },
+    "frozen_variables": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/scope_token" },
+      "uniqueItems": true
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference"],
+      "properties": {
+        "reference": { "type": "string" },
+        "version": { "type": "string" },
+        "split_reference": { "type": "string" }
+      }
+    },
+    "seed": { "type": "integer" },
+    "budget_class": { "$ref": "common.schema.json#/$defs/budget_class" },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_runtime": { "type": "string" },
+        "gpu_count": { "type": "integer", "minimum": 0 },
+        "timeout_seconds": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "metrics_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary"],
+      "properties": {
+        "primary": { "$ref": "common.schema.json#/$defs/metric_name" },
+        "secondary": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/metric_name" }
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "description": "Adapter-materialized executable commands (model-specific).",
+      "additionalProperties": false,
+      "required": ["train", "evaluate"],
+      "properties": {
+        "prepare": { "type": "array", "items": { "type": "string" } },
+        "train": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "evaluate": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "config_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "expected_artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "git_base_sha": { "$ref": "common.schema.json#/$defs/sha" },
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. dfine"
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": ["candidate", "approved", "rejected", "human_required"],
+      "description": "candidate before Gate; approved is Executor-eligible."
+    },
+    "frozen_fingerprint_id": {
+      "$ref": "common.schema.json#/$defs/non_empty_string"
+    },
+    "gate_notes": { "type": "string" },
+    "materialization": {
+      "type": "object",
+      "description": "Opaque adapter details (YAML paths, CLI flags, etc.).",
+      "additionalProperties": true
+    }
+  }
+}

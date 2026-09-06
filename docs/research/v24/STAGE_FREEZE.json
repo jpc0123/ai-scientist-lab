@@ -1,0 +1,20 @@
+{
+  "stage": "v2.4_rgbt_fusion_campaign",
+  "status": "archived_closed",
+  "closed_at": "2026-07-29",
+  "route_choice": "A_plus_C",
+  "B_formal_P01_multiseed": "deferred_not_selected",
+  "freeze": {
+    "A2_A4_formal_candidate": "closed",
+    "A4_promotion": "not_promoted",
+    "P00": "negative_interaction_diagnosed",
+    "P01": "archived_exploratory_candidate",
+    "gated_plus_fdpn_branch": "paused"
+  },
+  "canonical_conclusion": "在冻结的正式候选协议下，A4 相对 A2 未表现出跨随机种子一致优势，因此不晋升为正式优越方案。P00 中 gated fusion 与 FDPN 的组合出现负交互，诊断显示 FDPN 对融合模块梯度存在压制。P01 通过残差缩放缓解该问题，并在单种子探索性实验中获得正向差值，但当前证据不足以支持稳定提升或正式优越性声明。",
+  "docs": "docs/research/v24/",
+  "local_evidence_root": "outputs/experiments/v24_a3/",
+  "code_commit": "df97636",
+  "branch": "feat/v24-full-fusion",
+  "remote": "https://github.com/jpc0123/ai-scientist-lab.git"
+}

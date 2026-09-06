@@ -1,0 +1,24 @@
+{
+  "arm": "P01",
+  "spec": {
+    "description": "gated_multiscale + FDPN with residual_scale=0.25",
+    "formula": "out = proj(fused) + 0.25 * fdpn(fused)"
+  },
+  "status": "archived_exploratory_candidate",
+  "formal_validation_completed": false,
+  "observed_delta_seed42": 0.035,
+  "observed_metrics": {
+    "P01_mAP50_95": 0.24047,
+    "A3_seed42_exploratory_ref": 0.20525,
+    "exec_id": "exec_5809ec7606c1"
+  },
+  "promotion_decision": "deferred",
+  "reason": "Single-seed evidence only",
+  "reopen_B_only_if": [
+    "Explicit decision to continue gated fusion + FDPN research",
+    "Longer-budget evidence that P01 still beats A3",
+    "New dataset or realistic input size shows clear P01 value",
+    "Paper narrative specifically requires residual-scale mechanism validation"
+  ],
+  "reopen_requirement": "Must freeze a new matched multi-seed protocol; do not reuse exploratory single-seed results as formal evidence."
+}

@@ -1,0 +1,61 @@
+{
+  "protocol_id": "protocol_rgbt_v25_gate_j_seed_diagnosis",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "v2.5 Gate J: A2 seed instability diagnosis replicates",
+  "status": "frozen_for_j2",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_tiny_v1",
+  "dataset_version": "v1_gate_h_expand",
+  "split_reference": "split:rgbt_tiny_v1_gate_h_seq",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [
+    43,
+    44
+  ],
+  "replicates": [
+    "rep1"
+  ],
+  "primary_metric": "mAP50_95",
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "protocol": "gate_j_seed_diagnosis",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 1,
+    "learning_rate": 0.0002,
+    "image_width": 640,
+    "image_height": 640,
+    "num_workers": 0,
+    "mixed_precision": true,
+    "scale_queries_to_tokens": false,
+    "enforce_disk_gate": true,
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    }
+  },
+  "allowed_variables": [
+    "seed",
+    "replicate_index"
+  ],
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "blocked": [
+    "A4",
+    "P01",
+    "fdpn",
+    "gated_multiscale"
+  ],
+  "inherits_from_j1": "identity_pass__proceed_j2_replicates",
+  "do_not_overwrite_gate_i_execs": true
+}

@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.2",
+  "project_id": "project_rgbt_cuda_001",
+  "node_id": "rgbt_v25_formal_a4_p01_v1_seed44",
+  "parent_node_id": null,
+  "title": "Formal P01 early_concat+FDPN residual_scale=0.25 seed44 (K2-C, matched A4, 640x640, 20ep)",
+  "research_goal": "Test whether residual_scale=0.25 on accepted A4 yields additional consistent last@20 gain.",
+  "hypothesis": "Under matched formal_a4_p01_v1, P01 last@20 exceeds paired A4 last@20 on seed44; exploratory only.",
+  "task_type": "rgbt_detection",
+  "protocol_id": "protocol_rgbt_formal_a4_p01_v1",
+  "runner_profile": "remote_gpu_01",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "dataset_reference": "dataset:rgbt_tiny_v1",
+  "entrypoint": "run_detection_experiment.py",
+  "execution_mode": "fast_eval",
+  "parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "neck": {
+      "residual_scale": 0.25,
+      "type": "fdpn"
+    },
+    "protocol": "formal_a4_p01_v1",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 1,
+    "learning_rate": 0.0002,
+    "a2_reference_learning_rate": 0.0002,
+    "warmup_duration": 500,
+    "a2_reference_warmup_duration": 500,
+    "image_width": 640,
+    "image_height": 640,
+    "num_workers": 0,
+    "mixed_precision": true,
+    "scale_queries_to_tokens": false,
+    "enforce_disk_gate": true,
+    "mechanism_diagnosis": {
+      "enabled": true,
+      "sample_epochs_1based": [
+        1,
+        10,
+        20
+      ]
+    },
+    "checkpoint_policy": {
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "selection_mode": "max",
+      "selection_metric": "mAP50_95",
+      "test_set_used_for_selection": false,
+      "primary": "best_on_validation"
+    },
+    "reporting_protocol": "a2_baseline_checkpoint_v2"
+  },
+  "task_config": {
+    "modalities": [
+      "rgb",
+      "thermal"
+    ],
+    "annotation_format": "coco",
+    "primary_metric": "mAP50_95",
+    "metrics": [
+      "mAP50",
+      "mAP50_95",
+      "AP_small",
+      "AP75",
+      "precision",
+      "recall"
+    ],
+    "evaluation_scope": "rgbt_tiny_v1_gate_k2c",
+    "claim_level": "exploratory_comparison",
+    "split_reference": "split:rgbt_tiny_v1_gate_k2c_seq",
+    "dataset_version": "v1_gate_k2c_seq_expand",
+    "implementation": "dfine_s_vendored_v0_8_9",
+    "hardware": "cuda_worker",
+    "protocol": "formal_a4_p01_v1",
+    "allow_scientific_claims": false,
+    "allow_significance_claim": false,
+    "allow_sota_claim": false,
+    "experiment_id": "FORMAL_A4_P01_V1_SEED44",
+    "gate": "FORMAL_A4_P01_V1",
+    "factor": "p01_residual_scale_0_25_vs_a4_seed44",
+    "paired_a4_execution_id": "exec_8bffa02fe333"
+  },
+  "seed": 44,
+  "resources": {
+    "gpu_count": 1,
+    "timeout_seconds": 43200,
+    "memory_gb": 16,
+    "cpu_count": 4
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "metrics_per_epoch.json",
+    "training_history.csv",
+    "checkpoint_selection.json",
+    "disk_gate.json",
+    "model_summary.json",
+    "resource_usage.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "checkpoint/last.pt",
+    "checkpoint/best_weights.pth",
+    "checkpoint/last_resume.pth",
+    "combined.log",
+    "dfine_spatial_query_budget.json",
+    "rgbt_pair_audit.json",
+    "neck_module_summary.json",
+    "prediction_audit.json",
+    "mechanism_diagnostics/probe_plan.json",
+    "mechanism_diagnostics/gradient_norms.csv"
+  ]
+}

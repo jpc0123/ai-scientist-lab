@@ -1,0 +1,38 @@
+{
+  "protocol_id": "a2_baseline_checkpoint_v2",
+  "title": "A2 baseline checkpoint / reporting protocol v2",
+  "frozen_at": "2026-08-02T03:17:45.149792+00:00",
+  "parent": "J3b/J4 caseC_metric_reproducible_checkpoint_unstable",
+  "training_epochs": 20,
+  "primary_report": {
+    "checkpoint": "last_epoch",
+    "epoch": 20,
+    "metric": "mAP50_95"
+  },
+  "secondary_report": {
+    "checkpoint": "best_on_val",
+    "selection_metric": "mAP50_95",
+    "tie_breaker": "earliest_epoch"
+  },
+  "diagnostics": [
+    "best_minus_last_gap",
+    "top3_val_mean",
+    "last5_val_mean",
+    "best_epoch"
+  ],
+  "test_set_used_for_selection": false,
+  "comparability_rules": [
+    "Do not compare old best-on-val A3/P01 numbers against new last@20 A2 primary.",
+    "Method comparisons must share epochs=20, last@20 primary, same data/image/code/eval."
+  ],
+  "a4_p01_unblock_requires": [
+    "same_seed_repro_error_acceptable_under_v2",
+    "last20_rule_frozen",
+    "a2_three_seed_last20_no_engineering_anomaly",
+    "run_noise_clearly_below_expected_method_delta"
+  ],
+  "blocked_until_protocol_applied": [
+    "A4",
+    "P01"
+  ]
+}

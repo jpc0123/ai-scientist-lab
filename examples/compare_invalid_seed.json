@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "project_id": "project_001",
+  "node_id": "node_005",
+  "title": "Digits MLP different seed (invalid compare fixture)",
+  "research_goal": "Produce a completed run that fails fair comparison due to different seed",
+  "hypothesis": "This contract is only for Verifier negative path demos",
+  "runner_profile": "local",
+  "environment_key": "digits-mlp-v1",
+  "code_reference": "local:experiment_app",
+  "dataset_reference": "sklearn:digits",
+  "entrypoint": "run_experiment.py",
+  "execution_mode": "fast_eval",
+  "parameters": {
+    "learning_rate": 0.001,
+    "epochs": 30,
+    "hidden_units": 64,
+    "batch_size": 64,
+    "test_size": 0.2
+  },
+  "seed": 99,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 2,
+    "timeout_seconds": 300
+  },
+  "expected_outputs": [
+    "metrics.json",
+    "model.joblib",
+    "training_curve.csv",
+    "confusion_matrix.csv",
+    "execution.json",
+    "artifact_manifest.json",
+    "combined.log"
+  ]
+}

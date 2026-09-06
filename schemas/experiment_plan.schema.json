@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/experiment_plan.schema.json",
+  "title": "ExperimentPlan",
+  "description": "Model-agnostic scientific proposal from Planner. Not executable by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_id",
+    "project_id",
+    "protocol_id",
+    "protocol_version",
+    "observation",
+    "hypothesis",
+    "modification_scope",
+    "controlled_variables",
+    "expected_effect",
+    "evaluation",
+    "budget_class",
+    "risk_level",
+    "memory_refs",
+    "evidence_runs"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "plan_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "project_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "protocol_id": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+    "protocol_version": { "type": "integer", "minimum": 1 },
+    "parent_run_id": { "type": ["string", "null"] },
+    "round_index": { "type": "integer", "minimum": 0 },
+    "observation": { "type": "string", "minLength": 1 },
+    "hypothesis": { "type": "string", "minLength": 1 },
+    "modification_scope": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/scope_token" },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Must be subset of ResearchProtocol.editable_scope."
+    },
+    "proposed_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "summary"],
+        "properties": {
+          "target": { "$ref": "common.schema.json#/$defs/scope_token" },
+          "summary": { "type": "string" },
+          "detail": { "type": "object" }
+        }
+      },
+      "default": []
+    },
+    "controlled_variables": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What must stay fixed this round."
+    },
+    "expected_effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_metric", "direction"],
+      "properties": {
+        "primary_metric": { "$ref": "common.schema.json#/$defs/metric_name" },
+        "direction": {
+          "type": "string",
+          "enum": ["increase", "decrease", "stabilize", "unclear"]
+        },
+        "rationale": { "type": "string" }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": { "type": "string" },
+        "seeds": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "budget_class": { "$ref": "common.schema.json#/$defs/budget_class" },
+    "risk_level": {
+      "type": "string",
+      "enum": ["auto", "approval_required"],
+      "description": "Planner cannot propose forbidden actions; those are rejected by Gate."
+    },
+    "memory_refs": { "$ref": "common.schema.json#/$defs/memory_refs" },
+    "evidence_runs": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/non_empty_string" },
+      "description": "Run ids that drove this plan. Round>=1 requires at least one (see core.invariants)."
+    },
+    "bootstrap": {
+      "type": "boolean",
+      "default": false,
+      "description": "Round 0 with empty memory. Round>=1 must not be bootstrap with empty refs."
+    },
+    "rationale": { "type": "string" },
+    "decision_summary": { "$ref": "common.schema.json#/$defs/decision_summary" },
+    "how_id": {
+      "type": "string",
+      "description": "Trusted HOW catalog id for Adapter translation. Not a newly invented operator."
+    },
+    "notes": { "type": "string" },
+    "llm_trace": {
+      "type": "object",
+      "description": "v2.5-A attachment. Not a fifth Agent. Gate still evaluates this Plan's scientific fields only.",
+      "additionalProperties": false,
+      "properties": {
+        "backend": { "type": "string" },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "prompt_hash": { "type": "string" },
+        "raw_output": { "type": "string" },
+        "parsed": { "type": "object" },
+        "selected_candidate_id": { "type": "string" },
+        "memory_refs": { "$ref": "common.schema.json#/$defs/memory_refs" }
+      }
+    },
+    "candidate_experiments": {
+      "type": "array",
+      "description": "Non-selected LLM candidates as attachments. Only the selected Plan is sent to Gate.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "candidate_id": { "type": "string" },
+          "requested_module": { "$ref": "common.schema.json#/$defs/scope_token" },
+          "hypothesis": { "type": "string" },
+          "summary": { "type": "string" }
+        }
+      },
+      "default": []
+    },
+    "verification_plan": {
+      "type": "object",
+      "description": "LLM-designed verification for this round. Not a Claim.",
+      "additionalProperties": false,
+      "properties": {
+        "scientific_question": { "type": "string" },
+        "what_to_run": { "type": "string" },
+        "how_to_verify": { "type": "string" },
+        "controlled_variables": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "success_criterion": { "type": "string" },
+        "falsified_if": { "type": "string" },
+        "addresses_coverage": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

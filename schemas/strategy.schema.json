@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scientist-lab.local/schemas/strategy.schema.json",
+  "title": "Strategy",
+  "description": "Evidence-linked strategy record. MemoryWriter persists; Planner reads via memory_refs.",
+  "$ref": "common.schema.json#/$defs/strategy_record"
+}

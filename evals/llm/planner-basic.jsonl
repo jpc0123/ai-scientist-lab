@@ -1,0 +1,3 @@
+{"case_id": "planner_missing_ablation", "title": "Missing fusion ablation evidence", "research_goal": "Quantify fusion contribution with a matched RGB ablation.", "expect_stop": false, "tags": ["ablation", "evidence-gap"]}
+{"case_id": "planner_budget_tight", "title": "Tight budget should prefer cheap candidates", "research_goal": "Explore under remaining_budget constraints.", "expect_stop": false, "tags": ["budget"]}
+{"case_id": "planner_may_stop", "title": "Claims already supported may stop", "research_goal": "Claims already well supported; further search optional.", "expect_stop": null, "tags": ["stop"]}

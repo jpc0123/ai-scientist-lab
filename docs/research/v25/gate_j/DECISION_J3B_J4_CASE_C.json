@@ -1,0 +1,27 @@
+{
+  "decision_id": "decision_j3b_j4_case_c_2026-08-02",
+  "question": "Should J3b be labeled clear training nondeterminism and trigger deep CUDA/RNG hunt?",
+  "verdict": "caseC_metric_reproducible_checkpoint_unstable",
+  "action": "branch_protocol_freeze_checkpoint_rule",
+  "rejected_alternatives": [
+    "immediate_deep_cuda_rng_hunt",
+    "label_only_caseB_still_nondeterministic",
+    "unblock_A4_P01_now"
+  ],
+  "reason": "Same-seed best mAP within 0.01 and matched order_hash; train losses nearly identical. Remaining failure is best-on-val peak timing (and mild val-mAP residual), not large final-capability drift. Deep CUDA hunt deferred until fixed/last protocol still fails.",
+  "evidence_paths": [
+    "docs/research/v25/gate_j/J4_REPORT.md",
+    "docs/research/v25/gate_j/J4_J3B_CURVE_DIAGNOSIS.json",
+    "docs/research/v25/gate_j/J4_J3B_CURVE_COMPARISON.csv",
+    "docs/research/v25/gate_j/GATE_J3B_REPORT.md",
+    "outputs/experiments/v25_real_rgbt/gate_j_seed_diagnosis/J3B_RUN_COMPARISON.json"
+  ],
+  "caveats": [
+    "mAP curve Pearson is negative; Case C is not 'identical val curves'.",
+    "last-5 mean gap ~0.013 and fixed-epoch gaps up to ~0.018 remain.",
+    "precision/recall/preds@0.1 were unavailable in training_history.csv."
+  ],
+  "blocked": ["A4", "P01"],
+  "next_stage": "freeze_checkpoint_and_repro_protocol",
+  "next_direction": "Primary metric = last@20; aux = best-on-val + best-last gap; acceptance on last/fixed/window noise << expected method gain (~0.035)."
+}

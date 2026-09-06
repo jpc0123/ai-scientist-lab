@@ -1,0 +1,124 @@
+{
+  "version": "v1.7.0",
+  "title": "Web Console MVP API + controlled surfaces",
+  "passed": 22,
+  "total": 22,
+  "all_ok": true,
+  "checks": [
+    {
+      "name": "api-health",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "dashboard-summary",
+      "ok": true,
+      "detail": "keys=['budgets', 'patch_actionable', 'pending_iterations', 'pending_patches', 'pending_plan_candidates', 'project_count', 'recent_failures', 'recent_reports']"
+    },
+    {
+      "name": "executions-list",
+      "ok": true,
+      "detail": "count=0"
+    },
+    {
+      "name": "execution-404-envelope",
+      "ok": true,
+      "detail": "{'error': {'code': 'not_found', 'message': \"'未找到 execution: does-not-exist'\"}}"
+    },
+    {
+      "name": "trees-list",
+      "ok": true,
+      "detail": "total=0"
+    },
+    {
+      "name": "tree-mermaid-not-found",
+      "ok": true,
+      "detail": "not_found"
+    },
+    {
+      "name": "plans-list",
+      "ok": true,
+      "detail": "total=0"
+    },
+    {
+      "name": "unapproved-patch-cannot-apply",
+      "ok": true,
+      "detail": "sandbox apply requires approved (or retry failed_sandbox) status; got 'verified'"
+    },
+    {
+      "name": "patch-diff-viewable",
+      "ok": true,
+      "detail": "status=verified"
+    },
+    {
+      "name": "patch-approve",
+      "ok": true,
+      "detail": "approved"
+    },
+    {
+      "name": "approved-patch-apply-sandbox",
+      "ok": true,
+      "detail": "applied_sandbox"
+    },
+    {
+      "name": "sandbox-test-viewable",
+      "ok": true,
+      "detail": "ok=True"
+    },
+    {
+      "name": "patch-evidence-recorded",
+      "ok": true,
+      "detail": "evidence_recorded"
+    },
+    {
+      "name": "merge-intent-no-main",
+      "ok": true,
+      "detail": "Merge decision recorded only; main workspace was not modified."
+    },
+    {
+      "name": "evidence-list",
+      "ok": true,
+      "detail": "total=0"
+    },
+    {
+      "name": "claims-list",
+      "ok": true,
+      "detail": "total=0"
+    },
+    {
+      "name": "reports-list",
+      "ok": true,
+      "detail": "total=0"
+    },
+    {
+      "name": "audits-list",
+      "ok": true,
+      "detail": "total=0"
+    },
+    {
+      "name": "path-policy",
+      "ok": true,
+      "detail": "allowed=3"
+    },
+    {
+      "name": "openapi-has-v1-core",
+      "ok": true,
+      "detail": "paths=57"
+    },
+    {
+      "name": "no-arbitrary-shell-api",
+      "ok": true,
+      "detail": "found=[]"
+    },
+    {
+      "name": "frontend-dist-present",
+      "ok": true,
+      "detail": "D:\\AI Scientist_tiao\\scientist-lab\\web\\dist\\index.html"
+    }
+  ],
+  "notes": [
+    "Frontend confirmation dialogs are UI-only; backend enforces state.",
+    "decide-merge records intent only; never modifies main workspace.",
+    "Run `npm run build` in web/ before this script for dist check."
+  ]
+}

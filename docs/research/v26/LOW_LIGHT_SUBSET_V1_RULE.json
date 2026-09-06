@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "slice_id": "low_light_subset_v1",
+  "official_labels": false,
+  "rule": {
+    "slice_id": "low_light_subset_v1",
+    "version": "v1",
+    "method": "rgb_mean_rec709_luminance_train_p25",
+    "train_percentile": 25.0,
+    "rec709": [
+      0.2126,
+      0.7152,
+      0.0722
+    ],
+    "official_labels": false,
+    "threshold_split": "train",
+    "dataset": "dataset:rgbt_tiny_v1",
+    "note": "RGBT-Tiny has no day/night field. Membership is deterministic RGB mean Rec.709 luminance at or below the train-split percentile. Not an official low-light label. LLM must not pick a favorable subset."
+  },
+  "rule_hash": "6aa3cf0a444b0373239c81fec10443e8e067f38f71e4e41dcf57d4d888965c49",
+  "threshold": null,
+  "membership": {},
+  "counts": {},
+  "membership_hash": null,
+  "llm_may_rewrite": false,
+  "amendment": "Protocol Amendment required to change this slice",
+  "status": "rule_frozen_membership_pending"
+}

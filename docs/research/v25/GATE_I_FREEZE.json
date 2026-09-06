@@ -1,0 +1,15 @@
+{
+  "status": "failed",
+  "decision": "diagnose_seed_instability",
+  "claim_authority": "baseline_formal_candidates",
+  "seeds": {
+    "42": "exec_4088755cafc6",
+    "43": "exec_a6f6dff68971",
+    "44": "exec_373196093d79"
+  },
+  "mAP50_95_mean": 0.07765049572660859,
+  "mAP50_95_stdev": 0.03373480468678095,
+  "allow_a4": false,
+  "allow_p01": false,
+  "next": "Inspect outlier seed / pairing / checkpoint before claiming baseline."
+}

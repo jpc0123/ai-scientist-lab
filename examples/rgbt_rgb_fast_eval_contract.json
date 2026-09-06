@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.1",
+  "project_id": "project_rgbt_001",
+  "node_id": "rgbt_node_001_fast_eval",
+  "parent_node_id": "rgbt_node_001",
+  "title": "RGB-T RGB-only fast_eval",
+  "research_goal": "Evaluate a fixed smoke checkpoint without retraining",
+  "hypothesis": "fast_eval can load a smoke checkpoint and produce metrics on the debug val split.",
+  "task_type": "rgbt_detection",
+  "runner_profile": "local",
+  "environment_key": "rgbt-detection-v1",
+  "code_reference": "local:rgbt_detector",
+  "dataset_reference": "dataset:rgbt_debug_v1",
+  "entrypoint": "run_detection_experiment.py",
+  "execution_mode": "fast_eval",
+  "parameters": {
+    "model": "tiny_detector",
+    "input_mode": "rgb",
+    "fusion_method": "none",
+    "epochs": 0,
+    "batch_size": 2,
+    "learning_rate": 0.0,
+    "image_width": 640,
+    "image_height": 512,
+    "smoke_image_width": 160,
+    "smoke_image_height": 128,
+    "num_workers": 0,
+    "max_val_images": 8,
+    "eval_split": "val",
+    "checkpoint_source": "project_rgbt_001/exec_37c3bb541c40/checkpoint/last.npz"
+  },
+  "task_config": {
+    "modalities": ["rgb", "thermal"],
+    "annotation_format": "coco",
+    "primary_metric": "mAP50_95",
+    "metrics": ["mAP50", "mAP50_95", "AP_small", "precision", "recall"],
+    "claim_level": "pipeline_validation_only",
+    "evaluation_scope": "debug_subset"
+  },
+  "seed": 42,
+  "resources": {
+    "gpu_count": 0,
+    "cpu_count": 2,
+    "memory_gb": 4,
+    "timeout_seconds": 300
+  },
+  "expected_outputs": [
+    "dataset_report.json",
+    "metrics.json",
+    "execution.json",
+    "artifact_manifest.json",
+    "model_summary.json",
+    "sample_predictions.json",
+    "checkpoint/last.npz",
+    "combined.log"
+  ]
+}

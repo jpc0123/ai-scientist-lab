@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "lessons": {
+    "LESSON-run_plan_round1_neck_hr-001": {
+      "lesson_id": "LESSON-run_plan_round1_neck_hr-001",
+      "type": "negative_evidence",
+      "statement": "Primary APS declined (-0.6) past discard_if; DISCARD candidate targeting neck.",
+      "status": "active",
+      "evidence": [
+        {
+          "run_id": "run_plan_round1_neck_hr",
+          "metric": "APS",
+          "delta": -0.6
+        }
+      ],
+      "scope": {
+        "task": "rgbt_detection",
+        "module": "neck"
+      },
+      "confidence": "medium",
+      "created_from": [
+        "run_plan_round1_neck_hr"
+      ],
+      "contradicted_by": [],
+      "supersedes": [],
+      "expires_when": []
+    }
+  }
+}

@@ -1,0 +1,115 @@
+﻿{
+    "gate":  "A2_BASELINE_V2_STABILITY",
+    "protocol_id":  "a2_baseline_checkpoint_v2",
+    "completed_at":  "2026-08-02T03:17:45.169548+00:00",
+    "source_runs":  {
+                        "42":  "exec_4088755cafc6",
+                        "43":  "exec_a6f6dff68971",
+                        "44":  "exec_373196093d79"
+                    },
+    "rows":  [
+                 {
+                     "seed":  42,
+                     "execution_id":  "exec_4088755cafc6",
+                     "last20_mAP50_95":  0.08218029641794485,
+                     "last20_mAP50":  0.1924597410672257,
+                     "best_mAP50_95":  0.08334684868325494,
+                     "best_epoch":  19,
+                     "best_minus_last":  0.0011665522653100946,
+                     "top3_val_mean":  0.07982669723804407,
+                     "last5_val_mean":  0.07029056520787422,
+                     "reuse_audit":  {
+                                         "has_last_pt":  true,
+                                         "has_last_resume":  true,
+                                         "has_best_weights":  true,
+                                         "has_training_history":  true,
+                                         "has_metrics_per_epoch":  true,
+                                         "needs_retrain":  false,
+                                         "needs_reeval":  false,
+                                         "reuse_mode":  "reaggregate_from_training_history_epoch20",
+                                         "note":  "last@20 mAP taken from logged epoch-20 eval in training_history.csv; last.pt present as weight artifact."
+                                     }
+                 },
+                 {
+                     "seed":  43,
+                     "execution_id":  "exec_a6f6dff68971",
+                     "last20_mAP50_95":  0.037971074226580484,
+                     "last20_mAP50":  0.11924005794063745,
+                     "best_mAP50_95":  0.10817447410080037,
+                     "best_epoch":  3,
+                     "best_minus_last":  0.07020339987421989,
+                     "top3_val_mean":  0.10448347214889178,
+                     "last5_val_mean":  0.06521502365244884,
+                     "reuse_audit":  {
+                                         "has_last_pt":  true,
+                                         "has_last_resume":  true,
+                                         "has_best_weights":  true,
+                                         "has_training_history":  true,
+                                         "has_metrics_per_epoch":  true,
+                                         "needs_retrain":  false,
+                                         "needs_reeval":  false,
+                                         "reuse_mode":  "reaggregate_from_training_history_epoch20",
+                                         "note":  "last@20 mAP taken from logged epoch-20 eval in training_history.csv; last.pt present as weight artifact."
+                                     }
+                 },
+                 {
+                     "seed":  44,
+                     "execution_id":  "exec_373196093d79",
+                     "last20_mAP50_95":  0.022242537998124878,
+                     "last20_mAP50":  0.0674223211171498,
+                     "best_mAP50_95":  0.04143016439577045,
+                     "best_epoch":  15,
+                     "best_minus_last":  0.019187626397645572,
+                     "top3_val_mean":  0.04132371491798066,
+                     "last5_val_mean":  0.027095924278814767,
+                     "reuse_audit":  {
+                                         "has_last_pt":  true,
+                                         "has_last_resume":  true,
+                                         "has_best_weights":  true,
+                                         "has_training_history":  true,
+                                         "has_metrics_per_epoch":  true,
+                                         "needs_retrain":  false,
+                                         "needs_reeval":  false,
+                                         "reuse_mode":  "reaggregate_from_training_history_epoch20",
+                                         "note":  "last@20 mAP taken from logged epoch-20 eval in training_history.csv; last.pt present as weight artifact."
+                                     }
+                 }
+             ],
+    "dispersion":  {
+                       "last20":  {
+                                      "mean":  0.04746463621421673,
+                                      "stdev":  0.031076188802811613,
+                                      "min":  0.022242537998124878,
+                                      "max":  0.08218029641794485,
+                                      "range":  0.059937758419819964
+                                  },
+                       "best_on_val":  {
+                                           "mean":  0.07765049572660859,
+                                           "stdev":  0.03373480468678095,
+                                           "min":  0.04143016439577045,
+                                           "max":  0.10817447410080037,
+                                           "range":  0.06674430970502992
+                                       }
+                   },
+    "questions":  {
+                      "q1_last20_less_dispersed_than_best":  true,
+                      "q1_detail":  {
+                                        "last20_range":  0.059937758419819964,
+                                        "best_range":  0.06674430970502992,
+                                        "last20_stdev":  0.031076188802811613,
+                                        "best_stdev":  0.03373480468678095
+                                    },
+                      "q2_seed44_still_low_at_fixed_endpoint":  true
+                  },
+    "interpretation":  [
+                           "last@20 dispersion only slightly smaller than best-on-val; protocol v2 removes peak allergy but does not make A2 multiseed stable by itself.",
+                           "seed43 collapses best 0.108 -\u003e last 0.038; early spike was not durable endpoint capability.",
+                           "seed44 remains low at fixed last@20 (0.022); prefer seed/protocol sensitivity review over A4/P01 unblock."
+                       ],
+    "blocked":  [
+                    "A4",
+                    "P01"
+                ],
+    "decision":  "protocol_v2_frozen__await_seed_sensitivity_review",
+    "next":  "Reporting protocol v2 is frozen. A2 three-seed last@20 still shows meaningful spread and/or seed44 low endpoint; review before any A4/P01 unblock. No unconditional retrain required for this reaggregation."
+}

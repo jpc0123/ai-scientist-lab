@@ -1,0 +1,81 @@
+{
+  "protocol_id": "protocol_rgbt_v25_gate_i_a2_formal_multiseed",
+  "project_id": "project_rgbt_cuda_001",
+  "title": "v2.5 Gate I: Formal A2 early_concat multiseed on Gate-H expanded rgbt_tiny_v1",
+  "status": "frozen",
+  "task_type": "rgbt_detection",
+  "dataset_reference": "dataset:rgbt_tiny_v1",
+  "dataset_version": "v1_gate_h_expand",
+  "split_reference": "split:rgbt_tiny_v1_gate_h_seq",
+  "environment_key": "rgbt-detection-v2-cuda",
+  "code_reference": "local:rgbt_detection_real",
+  "code_version": "v2.5.0-dev",
+  "execution_mode": "fast_eval",
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "primary_metric": "mAP50_95",
+  "secondary_metrics": [
+    "mAP50",
+    "AP75",
+    "APS",
+    "precision",
+    "recall"
+  ],
+  "fixed_parameters": {
+    "baseline": "dfine_s",
+    "dfine_backend": "dfine",
+    "input_mode": "rgbt",
+    "fusion_method": "early_concat",
+    "protocol": "gate_i_formal_a2_multiseed",
+    "pretrained": true,
+    "epochs": 20,
+    "batch_size": 1,
+    "image_width": 640,
+    "image_height": 640,
+    "learning_rate": 0.0002,
+    "num_workers": 0,
+    "mixed_precision": true,
+    "scale_queries_to_tokens": false,
+    "enforce_disk_gate": true,
+    "checkpoint_policy": {
+      "primary": "best_on_validation",
+      "selection_metric": "mAP50_95",
+      "selection_mode": "max",
+      "tie_breaker": "earliest_epoch",
+      "secondary": "last_epoch",
+      "test_set_used_for_selection": false
+    }
+  },
+  "allowed_variables": [
+    "seed"
+  ],
+  "claim_level": "exploratory_comparison",
+  "allow_scientific_claims": false,
+  "allow_significance_claim": false,
+  "allow_sota_claim": false,
+  "claim_authority": "baseline_formal_candidates",
+  "blocked": [
+    "neck.type=fdpn",
+    "fusion_method=gated_multiscale",
+    "P01",
+    "A4"
+  ],
+  "purpose": "Formal A2 early_concat multi-seed baseline candidates on Gate-H frozen subset; still no A4/P01.",
+  "inherits_from_gate_h": {
+    "data_subset": "DATA_SUBSET_FREEZE.json",
+    "protocol_invariants": "PROTOCOL_FREEZE.json",
+    "seed42_reuse_execution": "exec_4088755cafc6"
+  },
+  "invariants_vs_gate_h": [
+    "same expanded subset (train 1830 / val 500 / test 300)",
+    "same Docker image scientist-rgbt-detection:v2-cuda",
+    "same pretrained, 640x640, queries=300, batch=1, lr, AMP, early_concat, 20ep"
+  ],
+  "changed_vs_gate_h": [
+    "seeds expand 42 -> {42,43,44}",
+    "claim_authority baseline_probe -> baseline_formal_candidates"
+  ]
+}

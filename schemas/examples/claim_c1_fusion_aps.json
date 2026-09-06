@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0.0",
+  "claim_id": "claim_c1_fusion_early_concat_aps",
+  "claim_type": "comparative",
+  "claim_text": "Fusion/early_concat outperforms DFINE rgb+none on APS.",
+  "claim_strength": "C1",
+  "metric": "APS",
+  "asserts": { "outperform": true }
+}

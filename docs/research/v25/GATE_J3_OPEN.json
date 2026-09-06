@@ -1,0 +1,16 @@
+{
+  "gate": "GATE_J3_DETERMINISTIC_DIAGNOSIS",
+  "opened_at": "2026-07-31T07:41:30.312691+00:00",
+  "parent": "GATE_J_SEED_INSTABILITY_DIAGNOSIS",
+  "j2_decision": "inconclusive_need_j3_j4",
+  "plan": [
+    "seed43_det_rep1",
+    "seed43_det_rep2",
+    "compare_order_hash_and_curves",
+    "J4_extend"
+  ],
+  "blocked": [
+    "A4",
+    "P01"
+  ]
+}

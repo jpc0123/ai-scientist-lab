@@ -1,0 +1,26 @@
+{
+  "version": "v1.6.0",
+  "tag": "v1.6.0",
+  "branch": "feat/v1.6-restricted-source-patching",
+  "baseline_tag": "v1.5.0",
+  "title": "Restricted source patching and sandbox validation",
+  "principles": [
+    "LLM proposes patches only",
+    "Default mock; CI zero network",
+    "Never modify main workspace via patch apply/merge",
+    "No arbitrary shell from LLM",
+    "Human approval required",
+    "Rules before LLM"
+  ],
+  "completed_subversions": [
+    "v1.6.1",
+    "v1.6.2",
+    "v1.6.3",
+    "v1.6.4",
+    "v1.6.5",
+    "v1.6.6"
+  ],
+  "deferred": ["v1.6.7 optional real provider diff generation"],
+  "acceptance_script": "scripts/accept_v16.py",
+  "unit_tests": "tests/unit/test_patching_v16.py"
+}

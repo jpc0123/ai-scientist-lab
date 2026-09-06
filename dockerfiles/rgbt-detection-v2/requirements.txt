@@ -1,0 +1,7 @@
+# RGB-T real baseline image (v0.8.1)
+# Torch CPU stand-in until DFINE-S is vendored and CUDA image is required.
+
+torch
+numpy>=1.26
+Pillow>=10.0
+PyYAML>=6.0

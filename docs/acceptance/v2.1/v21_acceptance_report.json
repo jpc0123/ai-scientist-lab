@@ -1,0 +1,96 @@
+{
+  "version": "v2.1.7",
+  "session_id": "realloop_6aff9267c513",
+  "network_used": false,
+  "passed": 17,
+  "total": 17,
+  "results": [
+    {
+      "name": "create_two_round_session",
+      "ok": true,
+      "detail": "status=completed rounds=2"
+    },
+    {
+      "name": "session_completed_offline",
+      "ok": true,
+      "detail": "completed"
+    },
+    {
+      "name": "offline_session_check",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "profile_bound_real_provider",
+      "ok": true,
+      "detail": "openai-compatible"
+    },
+    {
+      "name": "round1_feedback_fixture",
+      "ok": true,
+      "detail": "feedback_summary present"
+    },
+    {
+      "name": "human_approval_boundary",
+      "ok": true,
+      "detail": "candidate_digits_hu112"
+    },
+    {
+      "name": "execution_fixture_backfill",
+      "ok": true,
+      "detail": "['node_c22fe3e8e6b6']"
+    },
+    {
+      "name": "evidence_ids_on_round1",
+      "ok": true,
+      "detail": "['evidence_accept_v21']"
+    },
+    {
+      "name": "round2_context_has_feedback",
+      "ok": true,
+      "detail": "sha=f24766cc219bf3ce0e55d8c3e33fa38695719b5f45b8e34d743cf9cca7e7f50b"
+    },
+    {
+      "name": "feedback_use_verifier",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "plan_change_not_duplicate",
+      "ok": true,
+      "detail": "{\"context_contains_round_1_metrics\": true, \"context_contains_round_1_evidence\": true, \"context_contains_round_1_decision\": true, \"output_references_new_evidence\": true, \"output_changes_experiment_plan\": true, \"output_avoids_duplicate_candidate\": true}"
+    },
+    {
+      "name": "duplicate_candidate_blocked",
+      "ok": true,
+      "detail": "[\"duplicate candidate fingerprint=13f8a907b49264ee params={'hidden_units': 112}\", \"candidate repeats executed parameters: {'hidden_units': 112}\"]"
+    },
+    {
+      "name": "replay_bundle_export",
+      "ok": true,
+      "detail": "D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v21\\replay_bundle"
+    },
+    {
+      "name": "replay_manifest",
+      "ok": true,
+      "detail": "{\"session_id\": \"realloop_6aff9267c513\", \"rounds\": 2}"
+    },
+    {
+      "name": "secret_scan_clean",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "closed_loop_report_present",
+      "ok": true,
+      "detail": "D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v21\\replay_bundle\\real_llm_closed_loop_report.json"
+    },
+    {
+      "name": "unit_regression_v211_v217",
+      "ok": true,
+      "detail": "................................                                         [100%]\n32 passed in 3.51s\n"
+    }
+  ],
+  "bundle_dir": "D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v21\\replay_bundle",
+  "definition": "Offline acceptance for real LLM multi-round closed-loop plumbing (Replay Bundle + FeedbackUse). Not full autonomous science."
+}

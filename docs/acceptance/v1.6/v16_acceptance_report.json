@@ -1,0 +1,74 @@
+{
+  "version": "v1.6.0",
+  "title": "Restricted source patching + sandbox validation",
+  "passed": 12,
+  "total": 12,
+  "all_ok": true,
+  "checks": [
+    {
+      "name": "mock-diff-parseable",
+      "ok": true,
+      "detail": "files=1 path=experiment_apps/rgbt_detection_real/adapters/mock_patch_note.md"
+    },
+    {
+      "name": "path-policy-allow-deny",
+      "ok": true,
+      "detail": "allow=True deny_config=True deny_escape=True"
+    },
+    {
+      "name": "verifier-rejects-forbidden",
+      "ok": true,
+      "detail": "ok=False issues=['path_policy_violation']"
+    },
+    {
+      "name": "propose-mock-verified",
+      "ok": true,
+      "detail": "status=verified can_apply_main=False"
+    },
+    {
+      "name": "duplicate-fingerprint-blocked",
+      "ok": true,
+      "detail": "status=rejected_by_verifier dup_of=patch_0815591d2f06"
+    },
+    {
+      "name": "approve-not-main-apply",
+      "ok": true,
+      "detail": "status=approved"
+    },
+    {
+      "name": "sandbox-apply-isolated",
+      "ok": true,
+      "detail": "status=applied_sandbox sandbox=D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v16\\outputs\\_patch_sandboxes\\patch_0815591d2f06 main_exists=False"
+    },
+    {
+      "name": "sandbox-test-mock-experiment",
+      "ok": true,
+      "detail": "ok=True profile=mock_experiment"
+    },
+    {
+      "name": "patch-evidence-recorded",
+      "ok": true,
+      "detail": "id=patch_ev_b1951edc183c path=D:\\AI Scientist_tiao\\scientist-lab\\outputs\\_accept_v16\\outputs\\project_rgbt_003\\patch_evidence\\patch_ev_b1951edc183c.json"
+    },
+    {
+      "name": "merge-intent-no-main-write",
+      "ok": true,
+      "detail": "status=merged warning=Merge decision recorded only; main workspace was not modified."
+    },
+    {
+      "name": "human-reject",
+      "ok": true,
+      "detail": "status=rejected"
+    },
+    {
+      "name": "discard-after-evidence",
+      "ok": true,
+      "detail": "status=discarded"
+    }
+  ],
+  "notes": [
+    "Default provider remains mock; no network required.",
+    "Main workspace is never modified by patch apply/merge.",
+    "v1.6.7 real provider generation is optional/deferred."
+  ]
+}
